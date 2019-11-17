@@ -5,8 +5,8 @@ import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 
-dataset = "datasets/adult_d.arff"
-# dataset = "zoo"
+# dataset = "datasets/adult_d.arff"
+dataset = "zoo"
 classifier = "rf"
 instance_id = "0"
 #%%
