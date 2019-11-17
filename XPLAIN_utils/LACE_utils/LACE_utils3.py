@@ -8,10 +8,7 @@ def genNeighborsInfo(training_dataset, NearestNeighborsAll, instanceIO, iID, Nof
     instanceI=instanceIO.x
     nearest_neighbors = NearestNeighborsAll.kneighbors([instanceI], NofKNN, return_distance=False)
 
-    nearest_neighbors_out_data1 = NearestNeighborsAll.kneighbors([instanceI], 1, return_distance=False)
-
-    table=Orange.data.Table
-    out_data=Orange.data.Table(training_dataset.domain)
+    out_data_raw = []
     lendataset_nearest_neighbors=len(nearest_neighbors[0])
     for i in range (0, lendataset_nearest_neighbors):           
         c=classifier(training_dataset[nearest_neighbors[0][i]])
@@ -22,13 +19,15 @@ def genNeighborsInfo(training_dataset, NearestNeighborsAll, instanceIO, iID, Nof
             c=classifier(instanceK_i)
             instanceTmp=deepcopy(instanceK_i)
             instanceTmp.set_class(c[0])
-            out_data.append(instanceTmp)
-        out_data.append(instanceK)
+            out_data_raw.append(instanceTmp)
+        out_data_raw.append(instanceK)
+
+    out_data=Orange.data.Table(training_dataset.domain, out_data_raw)
+
     c=classifier(training_dataset[nearest_neighbors[0][0]])
-    out_data1=Orange.data.Table(training_dataset.domain)
     instance0=Orange.data.Instance(training_dataset.domain, training_dataset[nearest_neighbors[0][0]])
     instance0.set_class(c[0])
-    out_data1.append(instance0)
+    out_data1=Orange.data.Table(training_dataset.domain,[instance0])
 
     if save:
         import os

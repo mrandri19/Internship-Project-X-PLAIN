@@ -2,7 +2,7 @@
 import warnings
 
 import numpy as np
-#warnings.filterwarnings("ignore", category=DeprecationWarning) 
+#warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.simplefilter('ignore')
 from XPLAIN_utils.LACE_utils.LACE_utils1 import *
 from XPLAIN_utils.LACE_utils.LACE_utils2 import *
@@ -28,18 +28,18 @@ class XPLAIN_explainer:
     self.n_insts=n_insts
 
     self.classif=classif
-    self.present=False  
+    self.present=False
     self.evaluateExpl=False
-    #Temporary folder 
+    #Temporary folder
     import uuid
     self.unique_filename = str(uuid.uuid4())
     exit=0
     #The adult and compas dataset are already splitted in training and explain set. The training set is balanced.
     if dataname=="datasets/adult_d.arff" or dataname=="datasets/compas-scores-two-years_d.arff":
-    	self.training_dataset, self.explain_dataset, self.len_dataset, self.n_insts=import_datasets(dataname, self.n_insts, trainExplainSet, False)
+        self.training_dataset, self.explain_dataset, self.len_dataset, self.n_insts=import_datasets(dataname, self.n_insts, trainExplainSet, False)
 
     else:
-    	self.training_dataset, self.explain_dataset, self.len_dataset, self.n_insts=import_dataset(dataname, self.n_insts, trainExplainSet)
+        self.training_dataset, self.explain_dataset, self.len_dataset, self.n_insts=import_dataset(dataname, self.n_insts, trainExplainSet)
     self.K_NN, self.threshold, self.maxN=get_KNN_th_max(KneighborsUser, self.len_dataset, thresholdError, maxKNNUser)
 
     #If the user specifies to use an existing model, the model is used (if available). Otherwise it is trained.
@@ -52,18 +52,18 @@ class XPLAIN_explainer:
         #The model does not exist, we'll train it")
     if useM==None or self.present==False:
         self.classifier, exit, reason=getClassifier_v2(self.training_dataset, classif, classifierparameter,exit)
-   
+
     if exit==1:
         return -1
 
     #Save the model only if required and it is not already saved.
     if saveM and present==False:
-        #"Saving the model..." 
+        #"Saving the model..."
         m=""
         if classifierparameter!=None:
 
             m="-"+classifierparameter
-        createDir("./models")    
+        createDir("./models")
         with open("./models/"+dataname+"-"+classif+m, "wb") as f:
             pickle.dump(self.classifier, f)
 
@@ -117,7 +117,7 @@ class XPLAIN_explainer:
   def getMispredicted(self, mispred_class=False):
     self.mispredictedInstances=[]
     count_inst=0
-    for n_ist in self.n_insts:      
+    for n_ist in self.n_insts:
         instanceI = Orange.data.Instance(self.explain_dataset.domain, self.explain_dataset[count_inst])
         c=self.classifier(instanceI, False)
         if instanceI.get_class()!=self.map_names_class[c[0]]:
@@ -126,7 +126,7 @@ class XPLAIN_explainer:
                     self.mispredictedInstances.append(n_ist)
             else:
                 self.mispredictedInstances.append(n_ist)
-        count_inst=count_inst+1  
+        count_inst=count_inst+1
     return self.mispredictedInstances
 
 
@@ -151,7 +151,7 @@ class XPLAIN_explainer:
             #????
             targetClass=self.map_names_class[c[0]]
         elif targetClass=="trueLabel":
-        	targetClass=str(instTmp2.get_class())
+            targetClass=str(instTmp2.get_class())
         else:
             targetClass=str(targetClass)
         indexI=self.getIndexI(targetClass)
@@ -167,7 +167,7 @@ class XPLAIN_explainer:
         for NofKNN in range (self.startingK, self.maxN, self.K_NN):
             #DO TO MULTIPLE
             instTmp=deepcopy(instTmp2)
-            n_inst=Sn_inst 
+            n_inst=Sn_inst
             instT=deepcopy(instTmp2)
 
             genNeighborsInfo(self.training_dataset, self.NearestNeighborsAll, instT, 0, NofKNN, self.unique_filename, self.classifier)
@@ -197,7 +197,7 @@ class XPLAIN_explainer:
 
             impo_rules=impo_rules_N[:]
 
-            
+
             inputAr, nInputAr, newInputAr, oldAr_set=getRelevantSubsetFromLocalRules(impo_rules, oldinputAr)
 
             impo_rules_complete=deepcopy(inputAr)
@@ -209,7 +209,7 @@ class XPLAIN_explainer:
             mappa=oldMappa.copy()
             mappa.update(mappaNew)
 
-            
+
 
             if firstKNN:
                 c1=self.classifier(instT, True)[0]
@@ -229,7 +229,7 @@ class XPLAIN_explainer:
 
 
             oldinputAr=inputAr+oldinputAr
-            oldinputAr_set = set(map(tuple,oldinputAr)) 
+            oldinputAr_set = set(map(tuple,oldinputAr))
             oldMappa.update(mappa)
             if firstKNN:
                 self.map_instance_1_apprE[n_inst]=PI_rel2
@@ -249,7 +249,7 @@ class XPLAIN_explainer:
                 printImpoRuleInfo(n_inst, instT, NofKNN, out_data,map_difference,impo_rules_complete, impo_rules)
                 plot=True
                 break
-            #local minimum 
+            #local minimum
             elif (abs(error)-abs(oldError))>0.01 and firstKNN==False:
                 #PLOT OLD ERROR AS BETTER
                 if not(self.evaluateExpl):
@@ -270,8 +270,8 @@ class XPLAIN_explainer:
                 old_impo_rules_complete=deepcopy(impo_rules_complete)
                 PI_rel2_old=PI_rel2
 
-        
-        #if NofKNN>=(self.maxN-startingK):   
+
+        #if NofKNN>=(self.maxN-startingK):
         if NofKNN>=(self.maxN) or plot==False:
             if (error)==(oldError):
                 if not(self.evaluateExpl):
@@ -342,9 +342,9 @@ class XPLAIN_explainer:
   def comparePerturbed(self, Sn_inst, Sn_inst1, inst1, indexes=[]):
 
     fig2 =  plt.figure(figsize=plt.figaspect(0.5))
-    ax1 = fig2.add_subplot(1, 2, 1)    
+    ax1 = fig2.add_subplot(1, 2, 1)
     explanation_1, ax1=self.getExplanation_i_axis( ax1, Sn_inst)
-    ax2 = fig2.add_subplot(1, 2, 2)    
+    ax2 = fig2.add_subplot(1, 2, 2)
     explanation_2, ax2=self.getExplanationPerturbed_i_axis( ax2, Sn_inst1, inst1)
 
     for i in indexes:
@@ -370,23 +370,23 @@ class XPLAIN_explainer:
     if targetClass2==None:
         targetClass2="predicted"
 
-    if targetClass1=="predicted" or targetClass2=="predicted" :        
+    if targetClass1=="predicted" or targetClass2=="predicted" :
         if predicted==targetClass1 or predicted==targetClass2:
             print("Predicted class = user target class ")
             return self.getExplanation_i(Sn_inst), None
-        if targetClass1=="trueLabel" or targetClass2=="trueLabel":        
+        if targetClass1=="trueLabel" or targetClass2=="trueLabel":
             if true==predicted:
                 print("True class = predicted class ")
                 return self.getExplanation_i(Sn_inst), None
-    if targetClass1=="trueLabel" or targetClass2=="trueLabel":        
+    if targetClass1=="trueLabel" or targetClass2=="trueLabel":
         if true==targetClass1 or true==targetClass2:
             print("True class = user target class ")
             return self.getExplanation_i(Sn_inst), None
 
     fig2 =  plt.figure(figsize=plt.figaspect(0.5))
-    ax1 = fig2.add_subplot(1, 2, 1)    
+    ax1 = fig2.add_subplot(1, 2, 1)
     explanation_1, ax1=self.getExplanation_i_axis( ax1, Sn_inst, targetClass1)
-    ax2 = fig2.add_subplot(1, 2, 2)    
+    ax2 = fig2.add_subplot(1, 2, 2)
     explanation_2, ax2=self.getExplanation_i_axis( ax2, Sn_inst, targetClass2)
     plt.tight_layout()
     plt.show()
@@ -402,7 +402,7 @@ class XPLAIN_explainer:
     i=self.getInstanceById(Sn_inst)
     c=self.classifier(i, False)
     return self.map_names_class[c[0]],str(i.get_class())
-  
+
   def getPredictedandTrueClassByInstance(self,i):
     c=self.classifier(i, False)
     return self.map_names_class[c[0]],str(i.get_class())
@@ -444,7 +444,7 @@ class XPLAIN_explainer:
         plot=False
         for NofKNN in range (self.startingK, self.maxN, self.K_NN):
             #DO TO MULTIPLE
-            n_inst=int(Sn_inst) 
+            n_inst=int(Sn_inst)
             instTmp = Orange.data.Instance(self.explain_dataset.domain, self.explain_dataset[count_inst])
             instT=deepcopy(instTmp)
 
@@ -475,7 +475,7 @@ class XPLAIN_explainer:
 
             impo_rules=impo_rules_N[:]
 
-            
+
             inputAr, nInputAr, newInputAr, oldAr_set=getRelevantSubsetFromLocalRules(impo_rules, oldinputAr)
 
             impo_rules_complete=deepcopy(inputAr)
@@ -487,7 +487,7 @@ class XPLAIN_explainer:
             mappa=oldMappa.copy()
             mappa.update(mappaNew)
 
-            
+
 
             if firstKNN:
                 c1=self.classifier(instT, True)[0]
@@ -507,7 +507,7 @@ class XPLAIN_explainer:
 
 
             oldinputAr=inputAr+oldinputAr
-            oldinputAr_set = set(map(tuple,oldinputAr)) 
+            oldinputAr_set = set(map(tuple,oldinputAr))
             oldMappa.update(mappa)
             if firstKNN:
                 self.map_instance_1_apprE[n_inst]=PI_rel2
@@ -527,7 +527,7 @@ class XPLAIN_explainer:
                 printImpoRuleInfo(n_inst, instT, NofKNN, out_data,map_difference,impo_rules_complete, impo_rules)
                 plot=True
                 break
-            #local minimum 
+            #local minimum
             elif (abs(error)-abs(oldError))>0.01 and firstKNN==False:
                 #PLOT OLD ERROR AS BETTER
                 if not(self.evaluateExpl):
@@ -548,8 +548,8 @@ class XPLAIN_explainer:
                 old_impo_rules_complete=deepcopy(impo_rules_complete)
                 PI_rel2_old=PI_rel2
 
-        
-        #if NofKNN>=(self.maxN-startingK):   
+
+        #if NofKNN>=(self.maxN-startingK):
         if NofKNN>=(self.maxN) or plot==False:
             if (error)==(oldError):
                 if not(self.evaluateExpl):
@@ -612,7 +612,7 @@ class XPLAIN_explainer:
         for NofKNN in range (self.startingK, self.maxN, self.K_NN):
             #DO TO MULTIPLE
             instTmp=deepcopy(instTmp2)
-            n_inst=Sn_inst 
+            n_inst=Sn_inst
             instT=deepcopy(instTmp2)
 
             genNeighborsInfo(self.training_dataset, self.NearestNeighborsAll, instT, 0, NofKNN, self.unique_filename, self.classifier)
@@ -642,7 +642,7 @@ class XPLAIN_explainer:
 
             impo_rules=impo_rules_N[:]
 
-            
+
             inputAr, nInputAr, newInputAr, oldAr_set=getRelevantSubsetFromLocalRules(impo_rules, oldinputAr)
 
             impo_rules_complete=deepcopy(inputAr)
@@ -654,7 +654,7 @@ class XPLAIN_explainer:
             mappa=oldMappa.copy()
             mappa.update(mappaNew)
 
-            
+
 
             if firstKNN:
                 c1=self.classifier(instT, True)[0]
@@ -674,7 +674,7 @@ class XPLAIN_explainer:
 
 
             oldinputAr=inputAr+oldinputAr
-            oldinputAr_set = set(map(tuple,oldinputAr)) 
+            oldinputAr_set = set(map(tuple,oldinputAr))
             oldMappa.update(mappa)
             if firstKNN:
                 self.map_instance_1_apprE[n_inst]=PI_rel2
@@ -694,7 +694,7 @@ class XPLAIN_explainer:
                 printImpoRuleInfo(n_inst, instT, NofKNN, out_data,map_difference,impo_rules_complete, impo_rules)
                 plot=True
                 break
-            #local minimum 
+            #local minimum
             elif (abs(error)-abs(oldError))>0.01 and firstKNN==False:
                 #PLOT OLD ERROR AS BETTER
                 if not(self.evaluateExpl):
@@ -715,8 +715,8 @@ class XPLAIN_explainer:
                 old_impo_rules_complete=deepcopy(impo_rules_complete)
                 PI_rel2_old=PI_rel2
 
-        
-        #if NofKNN>=(self.maxN-startingK):   
+
+        #if NofKNN>=(self.maxN-startingK):
         if NofKNN>=(self.maxN) or plot==False:
             if (error)==(oldError):
                 if not(self.evaluateExpl):
@@ -768,7 +768,7 @@ class XPLAIN_explainer:
             #????
             targetClass=self.map_names_class[c[0]]
         elif targetClass=="trueLabel":
-        	targetClass=str(instTmp2.get_class())
+            targetClass=str(instTmp2.get_class())
         else:
             targetClass=str(targetClass)
         indexI=self.getIndexI(targetClass)
@@ -783,7 +783,7 @@ class XPLAIN_explainer:
         plot=False
         for NofKNN in range (self.startingK, self.maxN, self.K_NN):
             #DO TO MULTIPLE
-            n_inst=int(Sn_inst) 
+            n_inst=int(Sn_inst)
             instTmp = Orange.data.Instance(self.explain_dataset.domain, self.explain_dataset[count_inst])
             instT=deepcopy(instTmp)
 
@@ -814,7 +814,7 @@ class XPLAIN_explainer:
 
             impo_rules=impo_rules_N[:]
 
-            
+
             inputAr, nInputAr, newInputAr, oldAr_set=getRelevantSubsetFromLocalRules(impo_rules, oldinputAr)
 
             impo_rules_complete=deepcopy(inputAr)
@@ -826,7 +826,7 @@ class XPLAIN_explainer:
             mappa=oldMappa.copy()
             mappa.update(mappaNew)
 
-            
+
 
             if firstKNN:
                 c1=self.classifier(instT, True)[0]
@@ -846,7 +846,7 @@ class XPLAIN_explainer:
 
 
             oldinputAr=inputAr+oldinputAr
-            oldinputAr_set = set(map(tuple,oldinputAr)) 
+            oldinputAr_set = set(map(tuple,oldinputAr))
             oldMappa.update(mappa)
             if firstKNN:
                 self.map_instance_1_apprE[n_inst]=PI_rel2
@@ -866,7 +866,7 @@ class XPLAIN_explainer:
                 printImpoRuleInfo(n_inst, instT, NofKNN, out_data,map_difference,impo_rules_complete, impo_rules)
                 plot=True
                 break
-            #local minimum 
+            #local minimum
             elif (abs(error)-abs(oldError))>0.01 and firstKNN==False:
                 #PLOT OLD ERROR AS BETTER
                 if not(self.evaluateExpl):
@@ -887,8 +887,8 @@ class XPLAIN_explainer:
                 old_impo_rules_complete=deepcopy(impo_rules_complete)
                 PI_rel2_old=PI_rel2
 
-        
-        #if NofKNN>=(self.maxN-startingK):   
+
+        #if NofKNN>=(self.maxN-startingK):
         if NofKNN>=(self.maxN) or plot==False:
             if (error)==(oldError):
                 if not(self.evaluateExpl):
@@ -919,13 +919,13 @@ class XPLAIN_explainer:
 
   def visualizePoints(self, datapoints, Sn_inst=None, reductionMethod="mca"):
     from mpl_toolkits.mplot3d import Axes3D
-    from sklearn import decomposition 
+    from sklearn import decomposition
     if Sn_inst!=None:
-	    count_inst=self.n_insts.index(Sn_inst)
-	    n_inst=int(Sn_inst) 
-	    instTmp2 = Orange.data.Instance(self.explain_dataset.domain, self.explain_dataset[count_inst])
-	    c=self.classifier(instTmp2, False)
-	    labelledInstance=deepcopy(instTmp2)
+        count_inst=self.n_insts.index(Sn_inst)
+        n_inst=int(Sn_inst)
+        instTmp2 = Orange.data.Instance(self.explain_dataset.domain, self.explain_dataset[count_inst])
+        c=self.classifier(instTmp2, False)
+        labelledInstance=deepcopy(instTmp2)
 
     X=datapoints.X
     y=datapoints.Y
@@ -936,7 +936,7 @@ class XPLAIN_explainer:
         pca.fit(X)
         X = pca.transform(X)
         if Sn_inst!=None:
-        	istance_transformed=pca.transform([labelledInstance.x])
+            istance_transformed=pca.transform([labelledInstance.x])
 
     elif reductionMethod=="mca":
         import pandas as pd
@@ -961,17 +961,17 @@ class XPLAIN_explainer:
         mca.fit(Xa)
         X = mca.transform(Xa)
         if Sn_inst!=None:
-        	istance_transformed=mca.transform([[labelledInstance[i].value for i in labelledInstance.domain.attributes]] )
+            istance_transformed=mca.transform([[labelledInstance[i].value for i in labelledInstance.domain.attributes]] )
 
     elif reductionMethod=="t-sne":
         from sklearn.manifold import TSNE
         if Sn_inst!=None:
-        	XX = np.vstack([X, labelledInstance.x])
-        	label_istance=float(max(list(self.map_names_class.keys()))+1)
-        	yy=np.concatenate((y, np.array([label_istance])))
+            XX = np.vstack([X, labelledInstance.x])
+            label_istance=float(max(list(self.map_names_class.keys()))+1)
+            yy=np.concatenate((y, np.array([label_istance])))
         else:
-        	XX=X
-        	yy=y
+            XX=X
+            yy=y
         tsne = TSNE(n_components=2, random_state=0)
         tsne.fit(XX)
         XX = tsne.fit_transform(XX)
@@ -982,16 +982,16 @@ class XPLAIN_explainer:
     y_l=y.astype(int)
     labelMapNames = self.map_names_class.items()
     if Sn_inst!=None:
-    	label_istance=float(max(list(self.map_names_class.keys()))+1)
-    	instance_label_name=self.map_names_class[int(labelledInstance.y)]
+        label_istance=float(max(list(self.map_names_class.keys()))+1)
+        instance_label_name=self.map_names_class[int(labelledInstance.y)]
 
     if reductionMethod=="pca" or reductionMethod=="mca":
         if Sn_inst!=None:
-        	XX = np.vstack([X, istance_transformed])
-        	yy=np.concatenate((y, np.array([label_istance])))
+            XX = np.vstack([X, istance_transformed])
+            yy=np.concatenate((y, np.array([label_istance])))
         else:
-        	XX=X
-        	yy=y
+            XX=X
+            yy=y
         fig = plt.figure(figsize=(5.5, 3))
         ax = Axes3D(fig, rect=[0, 0, .7, 1], elev=48, azim=134)
         sc = ax.scatter(XX[:, 0], XX[:, 1], XX[:, 2], c=yy, cmap="Spectral", edgecolor='k')
@@ -1000,7 +1000,7 @@ class XPLAIN_explainer:
         ax.w_zaxis.set_ticklabels([])
         label_values=list(np.unique(y_l))
         if Sn_inst!=None:
-        	label_values.append(int(label_istance))
+            label_values.append(int(label_istance))
     else:
         fig, ax = plt.subplots()
         sc =ax.scatter(XX[:, 0], XX[:, 1], c=yy, cmap="tab10")
@@ -1011,23 +1011,23 @@ class XPLAIN_explainer:
 
 
     colors = [sc.cmap(sc.norm(i)) for i in label_values]
-    custom_lines = [plt.Line2D([],[], ls="", marker='.', 
+    custom_lines = [plt.Line2D([],[], ls="", marker='.',
                     mec='k', mfc=c, mew=.1, ms=20) for c in colors]
 
     d2=dict(labelMapNames)
     if Sn_inst!=None:
-    	d2[int(label_istance)]=instance_label_name+"_i"
+        d2[int(label_istance)]=instance_label_name+"_i"
     labelMapNames_withInstance=d2.items()
 
 
 
     newdict = {k: dict(labelMapNames_withInstance)[k] for k in label_values}
 
-    ax.legend(custom_lines, [lt[1] for lt in newdict.items()], 
+    ax.legend(custom_lines, [lt[1] for lt in newdict.items()],
               loc='center left', bbox_to_anchor=(1.0, .5))
 
     if reductionMethod=="t-sne":
-    	fig.tight_layout()
+        fig.tight_layout()
 
 
     plt.show()
@@ -1045,7 +1045,7 @@ class XPLAIN_explainer:
 
   def showNNLocality(self, Sn_inst, reductionMethod="pca",training=False):
     count_inst=self.n_insts.index(Sn_inst)
-    n_inst=int(Sn_inst) 
+    n_inst=int(Sn_inst)
     instTmp2 = Orange.data.Instance(self.explain_dataset.domain, self.explain_dataset[count_inst])
     c=self.classifier(instTmp2, False)
     small_dataset_len=150
@@ -1070,9 +1070,9 @@ class XPLAIN_explainer:
   def showNearestNeigh_type_2(self, Sn_inst, fig2, position,reductionMethod="pca",training=False):
     from mpl_toolkits.mplot3d import Axes3D
 
-    from sklearn import decomposition 
+    from sklearn import decomposition
     count_inst=self.n_insts.index(Sn_inst)
-    n_inst=int(Sn_inst) 
+    n_inst=int(Sn_inst)
     #Plottarla con un colore diverso
     instTmp2 = Orange.data.Instance(self.explain_dataset.domain, self.explain_dataset[count_inst])
     c=self.classifier(instTmp2, False)
@@ -1174,7 +1174,7 @@ class XPLAIN_explainer:
 
     newdict = {k: dict(labelMapNames_withInstance)[k] for k in label_values}
 
-    #ax.legend(custom_lines, [lt[1] for lt in newdict.items()], 
+    #ax.legend(custom_lines, [lt[1] for lt in newdict.items()],
     #          loc='center left', bbox_to_anchor=(0.9, .5), fontsize = 'x-small')
 
     return fig2, newdict, colors
@@ -1183,7 +1183,7 @@ class XPLAIN_explainer:
 
   def showNNLocality_comparison(self, Sn_inst, fig2, position, reductionMethod="pca",training=False):
     count_inst=self.n_insts.index(Sn_inst)
-    n_inst=int(Sn_inst) 
+    n_inst=int(Sn_inst)
     instTmp2 = Orange.data.Instance(self.explain_dataset.domain, self.explain_dataset[count_inst])
     c=self.classifier(instTmp2, False)
     small_dataset_len=150
@@ -1203,9 +1203,9 @@ class XPLAIN_explainer:
 
   def visualizePoints_comparison(self, Sn_inst, datapoints, fig2, position,reductionMethod="pca",training=False):
     from mpl_toolkits.mplot3d import Axes3D
-    from sklearn import decomposition 
+    from sklearn import decomposition
     count_inst=self.n_insts.index(Sn_inst)
-    n_inst=int(Sn_inst) 
+    n_inst=int(Sn_inst)
     instTmp2 = Orange.data.Instance(self.explain_dataset.domain, self.explain_dataset[count_inst])
     c=self.classifier(instTmp2, False)
 
@@ -1287,7 +1287,7 @@ class XPLAIN_explainer:
 
 
     colors = [sc.cmap(sc.norm(i)) for i in label_values]
-    custom_lines = [plt.Line2D([],[], ls="", marker='.', 
+    custom_lines = [plt.Line2D([],[], ls="", marker='.',
                     mec='k', mfc=c, mew=.1, ms=20) for c in colors]
 
     d2=dict(labelMapNames)
@@ -1298,7 +1298,7 @@ class XPLAIN_explainer:
 
     newdict = {k: dict(labelMapNames_withInstance)[k] for k in label_values}
 
-    ax.legend(custom_lines, [lt[1] for lt in newdict.items()], 
+    ax.legend(custom_lines, [lt[1] for lt in newdict.items()],
               loc='center left', bbox_to_anchor=(0.9, .5), fontsize = 'x-small')
 
     return fig2
@@ -1325,7 +1325,7 @@ class XPLAIN_explainer:
 
   def showNearestNeighTabularForm(self, Sn_inst,training=False):
     count_inst=self.n_insts.index(Sn_inst)
-    n_inst=int(Sn_inst) 
+    n_inst=int(Sn_inst)
     instTmp2 = Orange.data.Instance(self.explain_dataset.domain, self.explain_dataset[count_inst])
     c=self.classifier(instTmp2, False)
     small_dataset_len=150
