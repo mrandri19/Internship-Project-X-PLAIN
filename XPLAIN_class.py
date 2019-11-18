@@ -27,7 +27,7 @@ class XPLAIN_explainer:
         self.evaluateExpl = False
         # Temporary folder
         import uuid
-        self.unique_filename = str(uuid.uuid4())
+        self.unique_filename = os.path.join("tmp",str(uuid.uuid4()))
         exit = 0
         # The adult and compas dataset are already splitted in training and explain set. The training set is balanced.
         if dataname == "datasets/adult_d.arff" or dataname == "datasets/compas-scores-two-years_d.arff":
@@ -902,7 +902,6 @@ class XPLAIN_explainer:
         return explanation_i, axi
 
     def getExplanation_i(self, Sn_inst, targetClass=None):
-
         oldinputAr = []
         oldMappa = {}
         count_inst = -1
