@@ -67,7 +67,7 @@ class XPLAIN_explanation:
 
                 map_difference_new = {}
                 map_difference_new = computePredictionDifferenceSubsetRandomOnlyExisting(
-                    self.XPLAIN_explainer_o.training_dataset, self.instance, user_rules, self.targetClass,
+                    self.XPLAIN_explainer_o.training_dataset, self.instance, user_rules,
                     self.XPLAIN_explainer_o.classifier, self.indexI, map_difference_new)
 
                 self.updateUserRules(user_rules, map_difference_new, rule_Index)
@@ -95,7 +95,7 @@ class XPLAIN_explanation:
 
                 map_difference_new = {}
                 map_difference_new = computePredictionDifferenceSubsetRandomOnlyExisting(
-                    self.XPLAIN_explainer_o.training_dataset, self.instance, user_rules, self.targetClass,
+                    self.XPLAIN_explainer_o.training_dataset, self.instance, user_rules,
                     self.XPLAIN_explainer_o.classifier, self.indexI, map_difference_new)
 
                 tmp = deepcopy(self.map_difference)

@@ -1,25 +1,45 @@
 from snapshottest import TestCase
+
 from api import get_explanation
 
 
 class TestGet_explanation(TestCase):
-    def test_get_explanation(self):
-        explanation = get_explanation()
+    def test_get_explanation_zoo_random_forest(self):
+        e = get_explanation("zoo", "rf")
         self.assertMatchSnapshot(
-            (explanation.n_inst,
-             explanation.diff_single,
-             explanation.impo_rules,
-             explanation.impo_rulesUser,
-             explanation.map_difference,
-             explanation.map_differenceUser,
-             explanation.KNN,
-             explanation.error,
-             explanation.impo_rules_complete,
-             explanation.impo_rules_completeUser,
-             explanation.instance,
-             explanation.errorUser,
-             explanation.targetClass,
-             explanation.indexI,
-             explanation.pred,
-             explanation.pred_str))
+            (e.n_inst,
+             e.diff_single,
+             e.impo_rules,
+             e.impo_rulesUser,
+             e.map_difference,
+             e.map_differenceUser,
+             e.KNN,
+             e.error,
+             e.impo_rules_complete,
+             e.impo_rules_completeUser,
+             e.instance,
+             e.errorUser,
+             e.targetClass,
+             e.indexI,
+             e.pred,
+             e.pred_str))
 
+    def test_get_explanation_zoo_naive_bayes(self):
+        e = get_explanation("zoo", "nb")
+        self.assertMatchSnapshot(
+            (e.n_inst,
+             e.diff_single,
+             e.impo_rules,
+             e.impo_rulesUser,
+             e.map_difference,
+             e.map_differenceUser,
+             e.KNN,
+             e.error,
+             e.impo_rules_complete,
+             e.impo_rules_completeUser,
+             e.instance,
+             e.errorUser,
+             e.targetClass,
+             e.indexI,
+             e.pred,
+             e.pred_str))

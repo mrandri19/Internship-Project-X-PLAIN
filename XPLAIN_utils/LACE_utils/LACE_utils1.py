@@ -59,12 +59,6 @@ def import_datasets(dataname, n_insts, randomic, datasetExplain):
         # 7
         random.seed(7)
         n_insts = list(random.sample(range(len_dataset_to_explain), 300))
-
-        festival_tech_demo = True
-        if festival_tech_demo:
-            demo = [0, 1, 8, 10]
-            n_insts = demo + n_insts
-            n_insts = sorted(list(set(n_insts)))
         n_insts = [str(i) for i in n_insts]
 
     n_insts_int = list(map(int, n_insts))
@@ -132,9 +126,6 @@ def toARFF(filename, table, try_numericize=0):
 
 
 def loadARFF_Weka(filename, **kwargs):
-    import time
-    loadARFF_Weka_start = time.time()
-
     if not os.path.exists(filename) and os.path.exists(filename + ".arff"):
         filename = filename + ".arff"
     f = open(filename, 'r')
@@ -143,7 +134,6 @@ def loadARFF_Weka(filename, **kwargs):
     state = 0  # header
     data = []
 
-    readlines_start = time.time()
     for l in f.readlines():
         l = l.rstrip("\n\r")  # strip trailing whitespace
         l = l.replace('\t', ' ')  # get rid of tabs
@@ -213,9 +203,7 @@ def loadARFF_Weka(filename, **kwargs):
                     a = Orange.data.variable.ContinuousVariable.make(atn, [])
                 attributes.append(a)
                 # attributeLoadStatus.append(s)
-    print("readlines running time: %s" % (time.time() - readlines_start))
 
-    domain_start = time.time()
     # generate the domain
     if attributes[-1].name == name:
         d = Orange.data.Domain(attributes[:-1], attributes[-1])
@@ -227,21 +215,15 @@ def loadARFF_Weka(filename, **kwargs):
             else:
                 class_target = att
         d = Orange.data.Domain(new_attr, att)
-    print("domain running time: %s" % (time.time() - readlines_start))
 
-    data_to_instance_start = time.time()
     lex = []
     for dd in data:
         e = Orange.data.Instance(d, dd)
         lex.append(e)
-    print("data_to_instance running time: %s" % (time.time() - data_to_instance_start))
 
-    table_start = time.time()
     t = Orange.data.Table(d, lex)
     t.name = name
-    print("table running time: %s" % (time.time() - table_start))
 
-    print("loadARFF_Weka running time: %s" % (time.time() - loadARFF_Weka_start))
     return t
 
 

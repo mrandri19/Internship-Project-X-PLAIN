@@ -1,23 +1,14 @@
-#!/usr/bin/env python -W ignore::DeprecationWarning
-from copy import deepcopy
-from collections import Counter
-import operator
 import functools
-import Orange
-from XPLAIN_class import *
-import time
-import warnings
+import operator
+from collections import Counter
+from copy import deepcopy
 
-warnings.filterwarnings("ignore", category=DeprecationWarning)
+import Orange
 
 
 def computePredictionDifferenceSubsetRandomOnlyExisting(dataset, instT, inputA,
-                                                        classname, classifier,
+                                                        classifier,
                                                         indexI, mappa_sum_v2):
-    computePredictionDifferenceSubsetRandomOnlyExisting_start = time.time()
-    print("computePredictionDifferenceSubsetRandomOnlyExisting")
-    print(inputA)
-
     inst = deepcopy(instT)
     mappa_attr_index = {}
 
@@ -70,8 +61,6 @@ def computePredictionDifferenceSubsetRandomOnlyExisting(dataset, instT, inputA,
     for key, value in mappa_sum_v2.items():
         mappa_sum_v2[key] = prob - mappa_sum_v2[key]
 
-    print("computePredictionDifferenceSinglever2 time: %s" % (
-        time.time() - computePredictionDifferenceSubsetRandomOnlyExisting_start))
     return mappa_sum_v2
 
 

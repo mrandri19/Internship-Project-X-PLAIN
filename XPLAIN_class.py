@@ -1,19 +1,30 @@
-from sklearn.neighbors import NearestNeighbors
-import subprocess
+# noinspection PyUnresolvedReferences
 import os
+# noinspection PyUnresolvedReferences
+import subprocess
 
-from XPLAIN_utils.LACE_utils.LACE_utils4 import *
-from XPLAIN_utils.LACE_utils.LACE_utils2 import getStartKValueSimplified, computeMappaClass_b, computeApproxError
-from XPLAIN_utils.LACE_utils.LACE_utils3 import genNeighborsInfo, getRelevantSubsetFromLocalRules, getClassifier_v2
+# noinspection PyUnresolvedReferences
+import sklearn.neighbors
+
 from XPLAIN_explanation_class import XPLAIN_explanation
+# noinspection PyUnresolvedReferences
+from XPLAIN_utils.LACE_utils.LACE_utils2 import getStartKValueSimplified, \
+    computeMappaClass_b, computeApproxError
+# noinspection PyUnresolvedReferences
+from XPLAIN_utils.LACE_utils.LACE_utils3 import genNeighborsInfo, \
+    getRelevantSubsetFromLocalRules, getClassifier_v2
+from XPLAIN_utils.LACE_utils.LACE_utils4 import *
 
+ERROR_DIFFERENCE_THRESHOLD = 0.01
 TEMPORARY_FOLDER_NAME = "tmp"
+ERROR_THRESHOLD = 0.02
 
 
 class XPLAIN_explainer:
     def __init__(self, dataset_name, classifier_name, classifier_parameter=None,
                  KneighborsUser=None, maxKNNUser=None, threshold_error=None,
-                 use_existing_model=False, save_model=False, train_explain_set=False):
+                 use_existing_model=False, save_model=False,
+                 train_explain_set=False):
 
         self.dataset_name = dataset_name
         self.classifier_name = classifier_name
@@ -22,7 +33,8 @@ class XPLAIN_explainer:
 
         # Temporary folder
         import uuid
-        self.unique_filename = os.path.join(TEMPORARY_FOLDER_NAME, str(uuid.uuid4()))
+        self.unique_filename = os.path.join(TEMPORARY_FOLDER_NAME,
+                                            str(uuid.uuid4()))
         should_exit = 0
 
         # The adult and compas dataset are already splitted in training and explain set. The training set is balanced.
@@ -34,15 +46,16 @@ class XPLAIN_explainer:
             self.training_dataset, self.explain_dataset, self.len_dataset, self.instance_indices = import_dataset(
                 dataset_name, self.instance_indices, train_explain_set)
 
-        self.K_NN, self.threshold, self.maxN = get_KNN_th_max(KneighborsUser,
-                                                              self.len_dataset,
-                                                              threshold_error,
-                                                              maxKNNUser)
+        self.K, _, self.max_K = get_KNN_threshold_max(KneighborsUser,
+                                                      self.len_dataset,
+                                                      threshold_error,
+                                                      maxKNNUser)
 
         # If the user specifies to use an existing model, the model is used (if available). Otherwise it is trained.
         if use_existing_model:
             # "Check if the model exist...
-            self.classifier = useExistingModel_v2(classifier_name, classifier_parameter,
+            self.classifier = useExistingModel_v2(classifier_name,
+                                                  classifier_parameter,
                                                   dataset_name)
             if self.classifier:
                 self.present = True
@@ -50,7 +63,8 @@ class XPLAIN_explainer:
             # The model does not exist, we'll train it")
         if use_existing_model is None or self.present == False:
             self.classifier, should_exit, reason = getClassifier_v2(
-                self.training_dataset, classifier_name, classifier_parameter, should_exit)
+                self.training_dataset, classifier_name, classifier_parameter,
+                should_exit)
 
         if should_exit == 1:
             exit(-1)
@@ -62,7 +76,8 @@ class XPLAIN_explainer:
             if classifier_parameter is not None:
                 m = "-" + classifier_parameter
             createDir("./models")
-            with open("./models/" + dataset_name + "-" + classifier_name + m, "wb") as f:
+            with open("./models/" + dataset_name + "-" + classifier_name + m,
+                      "wb") as f:
                 pickle.dump(self.classifier, f)
 
         self.map_names_class = {}
@@ -78,14 +93,14 @@ class XPLAIN_explainer:
 
         # Compute the neighbors of the instanceId
         metricKNNA = 'euclidean'
-        self.NearestNeighborsAll = NearestNeighbors(
+        self.NearestNeighborsAll = sklearn.neighbors.NearestNeighbors(
             n_neighbors=len(self.training_dataset), metric=metricKNNA,
             algorithm='auto', metric_params=None).fit(self.training_dataset.X)
         self.mappa_single = {}
 
         self.firstInstance = 1
 
-        self.startingK = self.K_NN
+        self.starting_K = self.K
 
         self.mappa_class = computeMappaClass_b(self.training_dataset)
         self.count_inst = -1
@@ -95,8 +110,6 @@ class XPLAIN_explainer:
         self.map_instance_diff_approxFirst = {}
         self.mispredictedInstances = None
         self.classes = list(self.map_names_class.values())
-
-        # Correspondence classname-pos_number
 
     def get_class_index(self, class_name):
         class_index = -1
@@ -257,16 +270,16 @@ class XPLAIN_explainer:
             targetClass = str(targetClass)
         indexI = self.get_class_index(targetClass)
 
-        self.startingK = self.K_NN
+        self.starting_K = self.K
         # Problem with very small training dataset. The starting KNN is low, very few examples: difficult to capture the locality.
         # Risks: examples too similar, only 1 class. Starting K: proportional to the class frequence
         small_dataset_len = 150
         if self.len_dataset < small_dataset_len:
-            self.startingK = max(int(self.mappa_class[self.map_names_class[
-                c[0]]] * self.len_dataset), self.startingK)
+            self.starting_K = max(int(self.mappa_class[self.map_names_class[
+                c[0]]] * self.len_dataset), self.starting_K)
 
         plot = False
-        for NofKNN in range(self.startingK, self.maxN, self.K_NN):
+        for NofKNN in range(self.starting_K, self.max_K, self.K):
             # DO TO MULTIPLE
             instTmp = deepcopy(instTmp2)
             n_inst = Sn_inst
@@ -407,7 +420,7 @@ class XPLAIN_explainer:
                 PI_rel2_old = PI_rel2
 
         # if NofKNN>=(self.maxN-startingK):
-        if NofKNN >= (self.maxN) or plot == False:
+        if NofKNN >= (self.max_K) or plot == False:
             if (error) == (oldError):
                 if not (self.evaluate_explanation):
                     plotTheInfo_axi(instT, old_out_data, old_impo_rulesPlot,
@@ -458,19 +471,18 @@ class XPLAIN_explainer:
         oldMappa = {}
 
         old_impo_rules = []
-        firstKNN = True
         oldError = 10.0
-        instance_index_in_instance_indices = self.instance_indices.index(instance_index_str)
+        instance_index_in_instance_indices = self.instance_indices.index(
+            instance_index_str)
 
         instTmp2 = Orange.data.Instance(self.explain_dataset.domain,
-                                        self.explain_dataset[instance_index_in_instance_indices])
+                                        self.explain_dataset[
+                                            instance_index_in_instance_indices])
         c = self.classifier(instTmp2, False)
 
         if target_class is None:
-            # default
             target_class = self.map_names_class[c[0]]
         elif target_class == "predicted":
-            # ????
             target_class = self.map_names_class[c[0]]
         elif target_class == "trueLabel":
             target_class = str(instTmp2.get_class())
@@ -478,24 +490,37 @@ class XPLAIN_explainer:
             target_class = str(target_class)
         target_class_index = self.get_class_index(target_class)
 
-        self.startingK = self.K_NN
+        instance_explanation = None
+
+
+        self.starting_K = self.K
         # Problem with very small training dataset. The starting KNN is low, very few examples: difficult to capture the locality.
         # Risks: examples too similar, only 1 class. Starting k: proportional to the class frequence
         small_dataset_len = 150
         if self.len_dataset < small_dataset_len:
-            self.startingK = max(int(self.mappa_class[self.map_names_class[
-                c[0]]] * self.len_dataset), self.startingK)
+            self.starting_K = max(int(self.mappa_class[self.map_names_class[
+                c[0]]] * self.len_dataset), self.starting_K)
 
-        k = 0  # Initialize k to have it defined in case the for loop is not entered
-        for k in range(self.startingK, self.maxN, self.K_NN):
+        # Initialize k and error to be defined in case the for loop is not entered
+        k = 0
+        error = 1e9
+
+        first_iteration = True
+
+        # Euristically search for the best k to use to approximate the local model
+        for k in range(self.starting_K, self.max_K, self.K):
+            print(f"Trying k={k}")
             instance_index = int(instance_index_str)
 
             instTmp = Orange.data.Instance(self.explain_dataset.domain,
-                                           self.explain_dataset[instance_index_in_instance_indices])
+                                           self.explain_dataset[
+                                               instance_index_in_instance_indices])
             instT = deepcopy(instTmp)
 
             genNeighborsInfo(self.training_dataset, self.NearestNeighborsAll,
-                             self.explain_dataset[instance_index_in_instance_indices], instance_index , k,
+                             self.explain_dataset[
+                                 instance_index_in_instance_indices],
+                             instance_index, k,
                              self.unique_filename, self.classifier)
 
             # Call L3
@@ -509,24 +534,23 @@ class XPLAIN_explainer:
             self.datanamepred = "./" + self.unique_filename + "/gen-k0.arff"
             with open("./" + self.unique_filename + "/impo_rules.txt",
                       "r") as myfile:
-                impo_rules = myfile.read().splitlines()
+                importance_rules_lines = myfile.read().splitlines()
 
             # The local model is not changed
-            if set(impo_rules) == set(old_impo_rules) and not firstKNN:
+            if set(importance_rules_lines) == set(
+                    old_impo_rules) and not first_iteration:
                 continue
 
-            old_impo_rules = impo_rules
-            impo_rules_N = []
-
-            for impo_r in impo_rules:
-                # Not interested in a rule composed of all the attributes values. By definition, its relevance is prob(y=c)-prob(c)
-                if len(impo_r.split(",")) != len(instTmp.domain.attributes):
-                    impo_rules_N.append(impo_r)
-
-            impo_rules = impo_rules_N
+            old_impo_rules = importance_rules_lines
+            # Not interested in a rule composed of all the attributes values.
+            # By definition, its relevance is prob(y=c)-prob(c)
+            importance_rules_lines = [rule_str for rule_str in
+                                      importance_rules_lines if
+                                      len(rule_str.split(",")) != len(
+                                          instTmp.domain.attributes)]
 
             inputAr, nInputAr, newInputAr, oldAr_set = getRelevantSubsetFromLocalRules(
-                impo_rules, oldinputAr)
+                importance_rules_lines, oldinputAr)
 
             impo_rules_complete = deepcopy(inputAr)
 
@@ -535,7 +559,9 @@ class XPLAIN_explainer:
             mappa = oldMappa.copy()
             mappa.update(mappaNew)
 
-            if firstKNN:
+            # Compute the prediction difference of single attributes only on the
+            # first iteration
+            if first_iteration:
                 c1 = self.classifier(instT, True)[0]
                 pred = c1[target_class_index]
                 pred_str = str(round(c1[target_class_index], 2))
@@ -546,7 +572,7 @@ class XPLAIN_explainer:
 
             map_difference = {}
             map_difference = computePredictionDifferenceSubsetRandomOnlyExisting(
-                self.training_dataset, instT, inputAr, target_class,
+                self.training_dataset, instT, inputAr,
                 self.classifier, target_class_index, map_difference)
 
             # Definition of approximation error. How we approximate the "true explanation"?
@@ -556,116 +582,100 @@ class XPLAIN_explainer:
                                                               target_class,
                                                               map_difference)
 
-            minlen, minlenname, minvalue = getMinRelevantSet(instT,
-                                                             impo_rules_complete,
-                                                             map_difference)
-
-            oldinputAr = inputAr + oldinputAr
+            oldinputAr += inputAr
             oldMappa.update(mappa)
-            if firstKNN:
-                self.map_instance_1_apprE[instance_index ] = PI_rel2
-                self.map_instance_diff_approxFirst[instance_index ] = error
-                self.map_instance_apprE[instance_index ] = PI_rel2
-                self.map_instance_NofKNN[instance_index ] = k
+            if first_iteration:
+                self.map_instance_1_apprE[instance_index] = PI_rel2
+                self.map_instance_diff_approxFirst[instance_index] = error
+                self.map_instance_apprE[instance_index] = PI_rel2
+                self.map_instance_NofKNN[instance_index] = k
 
-            # if (error)*100<threshold:
-            threshold = 0.02
-            if error < threshold:
-                # final
+            # If we have reached the minimum
+            if error < ERROR_THRESHOLD:
                 if not self.evaluate_explanation:
-                    plotTheInfo_v2(instT, out_data, impo_rules, instance_index ,
-                                   self.dataset_name, k, "f", minlenname,
-                                   minvalue, target_class, error, error_single,
-                                   self.classifier_name, map_difference,
-                                   impo_rules_complete, pred_str)
-                    instance_explanation = XPLAIN_explanation(self, target_class, instT,
-                                                       out_data, impo_rules,
-                                                       instance_index , k, error,
-                                                       map_difference,
-                                                       impo_rules_complete)
-                self.map_instance_apprE[instance_index ] = PI_rel2
-                self.map_instance_NofKNN[instance_index ] = k
-                printImpoRuleInfo(instance_index , instT, k, out_data,
-                                  map_difference, impo_rules_complete,
-                                  impo_rules)
+                    instance_explanation = XPLAIN_explanation(self,
+                                                              target_class,
+                                                              instT,
+                                                              out_data,
+                                                              importance_rules_lines,
+                                                              instance_index, k,
+                                                              error,
+                                                              map_difference,
+                                                              impo_rules_complete)
+                self.map_instance_apprE[instance_index] = PI_rel2
+                self.map_instance_NofKNN[instance_index] = k
                 break
-            # local minimum
-            elif (abs(error) - abs(oldError)) > 0.01 and firstKNN == False:
-                # PLOT OLD ERROR AS BETTER
-                if not (self.evaluate_explanation):
-                    plotTheInfo_v2(instT, old_out_data, old_impo_rulesPlot,
-                                   instance_index , self.dataset_name, oldNofKNN, "f",
-                                   minlenname, minvalue, target_class, oldError,
-                                   error_single, self.classifier_name,
-                                   old_map_difference, old_impo_rules_complete,
-                                   pred_str)
-                    instance_explanation = XPLAIN_explanation(self, target_class, instT,
-                                                       old_out_data,
-                                                       old_impo_rulesPlot,
-                                                       instance_index , oldNofKNN,
-                                                       oldError,
-                                                       old_map_difference,
-                                                       old_impo_rules_complete)
-                self.map_instance_apprE[instance_index ] = PI_rel2_old
-                self.map_instance_NofKNN[instance_index ] = oldNofKNN
-                printImpoRuleInfo(instance_index , instT, oldNofKNN, old_out_data,
-                                  old_map_difference, old_impo_rules_complete,
-                                  old_impo_rulesPlot)
+            # If we are stuck in a local minimum
+            elif (abs(error) - abs(
+                    oldError)) > ERROR_DIFFERENCE_THRESHOLD and not first_iteration:
+                if not self.evaluate_explanation:
+                    instance_explanation = XPLAIN_explanation(self,
+                                                              target_class,
+                                                              instT,
+                                                              old_out_data,
+                                                              old_impo_rulesPlot,
+                                                              instance_index,
+                                                              oldNofKNN,
+                                                              oldError,
+                                                              old_map_difference,
+                                                              old_impo_rules_complete)
+                self.map_instance_apprE[instance_index] = PI_rel2_old
+                self.map_instance_NofKNN[instance_index] = oldNofKNN
                 break
+            # If we have neither reached the minimum nor in al local minimum
             else:
-                firstKNN = False
+                first_iteration = False
                 oldError = error
                 oldNofKNN = k
                 old_out_data = deepcopy(out_data)
-                old_impo_rulesPlot = deepcopy(impo_rules)
+                old_impo_rulesPlot = deepcopy(importance_rules_lines)
                 old_map_difference = deepcopy(map_difference)
                 old_impo_rules_complete = deepcopy(impo_rules_complete)
                 PI_rel2_old = PI_rel2
 
-        # if k>=(self.maxN-startingK):
-        if k >= self.maxN:
+        # If the for loop ended after having reached the maximum number of
+        # iteration, i.e. the error did not reach the minimum.
+        if k >= self.max_K:
+            # If we are stuck, i.e. the error did not change between iterations
             if error == oldError:
-                if not (self.evaluate_explanation):
-                    plotTheInfo_v2(instT, old_out_data, old_impo_rulesPlot,
-                                   instance_index , self.dataset_name, oldNofKNN, "f",
-                                   minlenname, minvalue, target_class, oldError,
-                                   error_single, self.classifier_name,
-                                   old_map_difference, old_impo_rules_complete,
-                                   pred_str)
-                    instance_explanation = XPLAIN_explanation(self, target_class, instT,
-                                                       old_out_data,
-                                                       old_impo_rulesPlot,
-                                                       instance_index , oldNofKNN,
-                                                       oldError,
-                                                       old_map_difference,
-                                                       old_impo_rules_complete)
-                self.map_instance_apprE[instance_index ] = PI_rel2_old
-                self.map_instance_NofKNN[instance_index ] = oldNofKNN
-                printImpoRuleInfo(instance_index , instT, oldNofKNN, old_out_data,
-                                  old_map_difference, old_impo_rules_complete,
-                                  old_impo_rulesPlot)
-
+                if not self.evaluate_explanation:
+                    instance_explanation = XPLAIN_explanation(self,
+                                                              target_class,
+                                                              instT,
+                                                              old_out_data,
+                                                              old_impo_rulesPlot,
+                                                              instance_index,
+                                                              oldNofKNN,
+                                                              oldError,
+                                                              old_map_difference,
+                                                              old_impo_rules_complete)
+                self.map_instance_apprE[instance_index] = PI_rel2_old
+                self.map_instance_NofKNN[instance_index] = oldNofKNN
             else:
-                if not (self.evaluate_explanation):
-                    plotTheInfo_v2(instT, out_data, impo_rules, instance_index ,
-                                   self.dataset_name, k, "f", minlenname,
-                                   minvalue, target_class, error, error_single,
-                                   self.classifier_name, map_difference,
-                                   impo_rules_complete, pred_str)
-                    instance_explanation = XPLAIN_explanation(self, target_class, instT,
-                                                       out_data, impo_rules,
-                                                       instance_index , k, error,
-                                                       map_difference,
-                                                       impo_rules_complete)
-                self.map_instance_apprE[instance_index ] = PI_rel2
-                self.map_instance_NofKNN[instance_index ] = k
-                printImpoRuleInfo(instance_index , instT, out_data, map_difference,
-                                  impo_rules_complete, impo_rules)
+                if not self.evaluate_explanation:
+                    instance_explanation = XPLAIN_explanation(self,
+                                                              target_class,
+                                                              instT,
+                                                              out_data,
+                                                              importance_rules_lines,
+                                                              instance_index, k,
+                                                              error,
+                                                              map_difference,
+                                                              impo_rules_complete)
+                self.map_instance_apprE[instance_index] = PI_rel2
+                self.map_instance_NofKNN[instance_index] = k
 
         # Remove the temporary folder and dir
         import shutil
         if os.path.exists("./" + self.unique_filename):
             shutil.rmtree("./" + self.unique_filename)
+
+        # instance_explanation cannot be None since it's set in all 4 cases:
+        # 1. Minimum reached
+        # 2. Local minimum reached
+        # 3. Exceeded max_K and did not reduce the error in the last iteration
+        # 4. Exceeded max_K and did reduce the error in the last iteration
+        assert(instance_explanation is not None)
 
         return instance_explanation
 
@@ -800,17 +810,17 @@ class XPLAIN_explainer:
         c = self.classifier(instTmp2, False)
         small_dataset_len = 150
         if self.len_dataset < small_dataset_len:
-            self.startingK = max(int(self.mappa_class[self.map_names_class[
-                c[0]]] * self.len_dataset), self.K_NN)
+            self.starting_K = max(int(self.mappa_class[self.map_names_class[
+                c[0]]] * self.len_dataset), self.K)
         if training == True:
             Kneighbors_data, removeToDo = genNeighborsInfoTraining(
                 self.training_dataset, self.NearestNeighborsAll,
-                self.explain_dataset.X[count_inst], n_inst, self.startingK,
+                self.explain_dataset.X[count_inst], n_inst, self.starting_K,
                 self.unique_filename, self.classifier)
         else:
             Kneighbors_data, removeToDo = genNeighborsInfo(
                 self.training_dataset, self.NearestNeighborsAll,
-                self.explain_dataset[count_inst], n_inst, self.startingK,
+                self.explain_dataset[count_inst], n_inst, self.starting_K,
                 self.unique_filename, self.classifier, save=False)
 
         X = Kneighbors_data.X
@@ -830,23 +840,25 @@ class XPLAIN_explainer:
         c = self.classifier(instTmp2, False)
         small_dataset_len = 150
         if self.len_dataset < small_dataset_len:
-            self.startingK = max(int(
-                self.mappa_class[self.map_names_class[c[0]]] * self.len_dataset),
-                self.K_NN)
+            self.starting_K = max(int(
+                self.mappa_class[
+                    self.map_names_class[c[0]]] * self.len_dataset),
+                self.K)
         if training == True:
             Kneighbors_data, removeToDo = genNeighborsInfoTraining(
                 self.training_dataset, self.NearestNeighborsAll,
-                self.explain_dataset.X[count_inst], n_inst, self.startingK,
+                self.explain_dataset.X[count_inst], n_inst, self.starting_K,
                 self.unique_filename, self.classifier)
         else:
-            Kneighbors_data, removeToDo = genNeighborsInfo(self.training_dataset,
-                                                           self.NearestNeighborsAll,
-                                                           self.explain_dataset[
-                                                               count_inst], n_inst,
-                                                           self.startingK,
-                                                           self.unique_filename,
-                                                           self.classifier,
-                                                           save=False)
+            Kneighbors_data, removeToDo = genNeighborsInfo(
+                self.training_dataset,
+                self.NearestNeighborsAll,
+                self.explain_dataset[
+                    count_inst], n_inst,
+                self.starting_K,
+                self.unique_filename,
+                self.classifier,
+                save=False)
 
         X = Kneighbors_data.X
         y = Kneighbors_data.Y
@@ -877,12 +889,14 @@ class XPLAIN_explainer:
             Xa = data[columnsA]
             y = Kneighbors_data.Y
 
-            mca = prince.MCA(n_components=3, n_iter=3, copy=True, check_input=True,
+            mca = prince.MCA(n_components=3, n_iter=3, copy=True,
+                             check_input=True,
                              engine='auto', random_state=42)
             mca.fit(Xa)
             X = mca.transform(Xa)
-            istance_transformed = mca.transform([[labelledInstance[i].value for i in
-                                                  labelledInstance.domain.attributes]])
+            istance_transformed = mca.transform(
+                [[labelledInstance[i].value for i in
+                  labelledInstance.domain.attributes]])
 
         elif reductionMethod == "t-sne":
             from sklearn.manifold import TSNE
@@ -948,26 +962,29 @@ class XPLAIN_explainer:
         c = self.classifier(instTmp2, False)
         small_dataset_len = 150
         if self.len_dataset < small_dataset_len:
-            self.startingK = max(int(
-                self.mappa_class[self.map_names_class[c[0]]] * self.len_dataset),
-                self.K_NN)
+            self.starting_K = max(int(
+                self.mappa_class[
+                    self.map_names_class[c[0]]] * self.len_dataset),
+                self.K)
         if training == True:
             Kneighbors_data, removeToDo = genNeighborsInfoTraining(
                 self.training_dataset, self.NearestNeighborsAll,
-                self.explain_dataset.X[count_inst], n_inst, self.startingK,
+                self.explain_dataset.X[count_inst], n_inst, self.starting_K,
                 self.unique_filename, self.classifier)
         else:
-            Kneighbors_data, removeToDo = genNeighborsInfo(self.training_dataset,
-                                                           self.NearestNeighborsAll,
-                                                           self.explain_dataset[
-                                                               count_inst], n_inst,
-                                                           self.startingK,
-                                                           self.unique_filename,
-                                                           self.classifier,
-                                                           save=False)
+            Kneighbors_data, removeToDo = genNeighborsInfo(
+                self.training_dataset,
+                self.NearestNeighborsAll,
+                self.explain_dataset[
+                    count_inst], n_inst,
+                self.starting_K,
+                self.unique_filename,
+                self.classifier,
+                save=False)
 
         return self.visualizePoints_comparison(Sn_inst, Kneighbors_data, fig2,
-                                               position, reductionMethod, training)
+                                               position, reductionMethod,
+                                               training)
 
     def visualizePoints_comparison(self, Sn_inst, datapoints, fig2, position,
                                    reductionMethod="pca", training=False):
@@ -1007,12 +1024,14 @@ class XPLAIN_explainer:
             Xa = data[columnsA]
             y = datapoints.Y
 
-            mca = prince.MCA(n_components=3, n_iter=3, copy=True, check_input=True,
+            mca = prince.MCA(n_components=3, n_iter=3, copy=True,
+                             check_input=True,
                              engine='auto', random_state=42)
             mca.fit(Xa)
             X = mca.transform(Xa)
-            istance_transformed = mca.transform([[labelledInstance[i].value for i in
-                                                  labelledInstance.domain.attributes]])
+            istance_transformed = mca.transform(
+                [[labelledInstance[i].value for i in
+                  labelledInstance.domain.attributes]])
 
         elif reductionMethod == "t-sne":
             from sklearn.manifold import TSNE
@@ -1055,7 +1074,8 @@ class XPLAIN_explainer:
 
         colors = [sc.cmap(sc.norm(i)) for i in label_values]
         custom_lines = [plt.Line2D([], [], ls="", marker='.',
-                                   mec='k', mfc=c, mew=.1, ms=20) for c in colors]
+                                   mec='k', mfc=c, mew=.1, ms=20) for c in
+                        colors]
 
         d2 = dict(labelMapNames)
         d2[int(label_istance)] = instance_label_name + "_i"
@@ -1064,7 +1084,8 @@ class XPLAIN_explainer:
         newdict = {k: dict(labelMapNames_withInstance)[k] for k in label_values}
 
         ax.legend(custom_lines, [lt[1] for lt in newdict.items()],
-                  loc='center left', bbox_to_anchor=(0.9, .5), fontsize='x-small')
+                  loc='center left', bbox_to_anchor=(0.9, .5),
+                  fontsize='x-small')
 
         return fig2
 
@@ -1087,18 +1108,19 @@ class XPLAIN_explainer:
         c = self.classifier(instTmp2, False)
         small_dataset_len = 150
         if self.len_dataset < small_dataset_len:
-            self.startingK = max(int(
-                self.mappa_class[self.map_names_class[c[0]]] * self.len_dataset),
-                self.K_NN)
+            self.starting_K = max(int(
+                self.mappa_class[
+                    self.map_names_class[c[0]]] * self.len_dataset),
+                self.K)
         if training == True:
             Kneighbors_data, labelledInstance = genNeighborsInfoTraining(
                 self.training_dataset, self.NearestNeighborsAll,
-                self.explain_dataset.X[count_inst], n_inst, self.startingK,
+                self.explain_dataset.X[count_inst], n_inst, self.starting_K,
                 self.unique_filename, self.classifier)
         else:
             Kneighbors_data, labelledInstance = genNeighborsInfo(
                 self.training_dataset, self.NearestNeighborsAll,
-                self.explain_dataset[count_inst], n_inst, self.startingK,
+                self.explain_dataset[count_inst], n_inst, self.starting_K,
                 self.unique_filename, self.classifier, save=False)
         Kneigh_pd = convertOTable2Pandas(Kneighbors_data)
         return Kneigh_pd
@@ -1155,7 +1177,8 @@ class XPLAIN_explainer:
             else:
                 sel = self.getMispredicted(mispred_class=w.value)
             sel_index = [self.instance_indices.index(i) for i in sel]
-            misp = convertOTable2Pandas(self.explain_dataset, list(map(int, sel)),
+            misp = convertOTable2Pandas(self.explain_dataset,
+                                        list(map(int, sel)),
                                         sel_index, self.classifier,
                                         self.map_names_class)
             from IPython.display import display
@@ -1169,18 +1192,22 @@ class XPLAIN_explainer:
         display(h)
 
 
-def get_KNN_th_max(KneighborsUser, len_dataset, thresholdError, maxKNNUser):
+def get_KNN_threshold_max(KneighborsUser, len_dataset, thresholdError,
+                          maxKNNUser):
     if KneighborsUser:
         K_NN = int(KneighborsUser)
     else:
         import math
         K_NN = int(round(math.sqrt(len_dataset)))
+
     if thresholdError:
         threshold = float(thresholdError)
     else:
         threshold = 0.10
+
     if maxKNNUser:
         maxN = int(maxKNNUser)
     else:
         maxN = getStartKValueSimplified(len_dataset)
+
     return K_NN, threshold, maxN
