@@ -71,7 +71,7 @@ class XPLAIN_util:
 			display(hClasses)
 			display(h)
 		def getXPLAIN(btn_object):
-			e=XPLAIN_explainer(dataset_names_map[w1.value], [], classifier_names_map[w2.value], trainExplainSet=True)
+			e=XPLAIN_explainer(dataset_names_map[w1.value], [], classifier_names_map[w2.value], train_explain_set=True)
 			self.setXPLAIN_obj(e)
 
 		btnTargetC = widgets.Button(description='Select')
@@ -113,8 +113,8 @@ class XPLAIN_util:
 			display(hClasses)
 			display(h)
 		def getXPLAIN(btn_object):
-			e1=XPLAIN_explainer(dataset_names_map[w1.value], [], classifier_names_map[w2.value], trainExplainSet=True)
-			e2=XPLAIN_explainer(dataset_names_map[w1.value], [], classifier_names_map[w3.value], trainExplainSet=True)
+			e1=XPLAIN_explainer(dataset_names_map[w1.value], [], classifier_names_map[w2.value], train_explain_set=True)
+			e2=XPLAIN_explainer(dataset_names_map[w1.value], [], classifier_names_map[w3.value], train_explain_set=True)
 			self.setXPLAIN_obj_comparison(e1, e2)
 
 		btnTargetC = widgets.Button(description='Select')
@@ -123,12 +123,12 @@ class XPLAIN_util:
 
 
 	def def_XPLAIN_o(self, d_name, classif_name):
-		e=XPLAIN_explainer(d_name, [], classif_name, trainExplainSet=True)
+		e=XPLAIN_explainer(d_name, [], classif_name, train_explain_set=True)
 		self.setXPLAIN_obj(e)
 		return e
 
 	def def_XPLAIN_o_comparison(self, d_name, classif_name, classif_name2):
-		e1=XPLAIN_explainer(d_name, [], classif_name, trainExplainSet=True)
-		e2=XPLAIN_explainer(d_name, [], classif_name2, trainExplainSet=True)
+		e1=XPLAIN_explainer(d_name, [], classif_name, train_explain_set=True)
+		e2=XPLAIN_explainer(d_name, [], classif_name2, train_explain_set=True)
 		self.setXPLAIN_obj_comparison(e1, e2)
 		return [e1, e2]

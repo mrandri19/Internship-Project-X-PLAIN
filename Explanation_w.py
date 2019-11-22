@@ -47,7 +47,7 @@ class Explanation_w:
 	        display(h)
 
 	    def getExplainInteractiveButton(btn_object):
-	        expz=XPLAIN_obj.getExplanation_i(w_ID.value, targetClass=w_Target.value)
+	        expz=XPLAIN_obj.explain_instance(w_ID.value, target_class=w_Target.value)
 	        self.setExpl(expz)
 	    btnTargetC = widgets.Button(description='Compute')
 	    btnTargetC.on_click(getExplainInteractiveButton)
@@ -71,8 +71,8 @@ class Explanation_w:
     def def_Explanation(self, XPLAIN_obj, targetClass="predicted", mispredicted=False, mispred_class=False):
     	if mispredicted:
     		id_misp=XPLAIN_obj.getMispredicted( mispred_class=mispred_class)[0]
-    		expz=XPLAIN_obj.getExplanation_i(str(id_misp), targetClass=targetClass)
+    		expz=XPLAIN_obj.explain_instance(str(id_misp), target_class=targetClass)
     	else:
-    		expz=XPLAIN_obj.getExplanation_i(str(XPLAIN_obj.n_insts[0]), targetClass=targetClass)
+    		expz=XPLAIN_obj.explain_instance(str(XPLAIN_obj.n_insts[0]), target_class=targetClass)
     	self.setExpl(expz)
     	return expz
