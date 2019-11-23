@@ -1,113 +1,68 @@
 from collections import Counter
-from copy import deepcopy
 
 import Orange
 
 
-def compute_prediction_difference_subset_random_only_existing(training_dataset,
-                                                              instance,
-                                                              rule_bodies_indices,
-                                                              classifier,
-                                                              instance_class_index):
+def compute_prediction_difference_subset_only_existing(training_dataset,
+                                                       instance,
+                                                       rule_body_indices,
+                                                       classifier,
+                                                       instance_class_index,
+                                                       instance_predictions_cache):
+    """
+    Compute the prediction difference for an instance in a training_dataset, w.r.t. some
+    rules and a class, given a classifier
+    """
+
     print("computePredictionDifferenceSubsetRandomOnlyExisting")
-    print("instance=", instance)
-    print("rule_bodies_indices=", rule_bodies_indices)
+    print("instance =", instance)
+    print("rule_body_indices =", rule_body_indices)
 
-    prediction_differences = {}
+    prediction_difference = 0.0
 
-    rule_bodies_attributes, attribute_body_indices_map = \
-        replace_rule_bodies_indices_with_attributes(
-            training_dataset, rule_bodies_indices)
+    rule_attributes = [
+        training_dataset.domain.attributes[rule_body_index - 1] for
+        rule_body_index in rule_body_indices]
 
-    # For each rule
-    for rule_body_attributes in rule_bodies_attributes:
-        # Take only the considered attributes from the dataset
-        rule_domain = Orange.data.Domain(rule_body_attributes)
-        filtered_dataset = Orange.data.Table().from_table(rule_domain, training_dataset)
+    # Take only the considered attributes from the dataset
+    rule_domain = Orange.data.Domain(rule_attributes)
+    filtered_dataset = Orange.data.Table().from_table(rule_domain, training_dataset)
 
-        # Count how many times a set of attribute values appears in the dataset
-        attribute_sets_appearances = dict(
-            Counter(map(tuple, filtered_dataset.X)).items())
+    # Count how many times a set of attribute values appears in the dataset
+    attribute_sets_occurrences = dict(
+        Counter(map(tuple, filtered_dataset.X)).items())
 
-        print("len(rule_body_attributes)=", len(rule_body_attributes),
-              " <=> len(attribute_sets_appearances)=", len(attribute_sets_appearances))
+    print("len(rule_attributes) =", len(rule_attributes),
+          " <=> len(attribute_sets_occurrences) =", len(attribute_sets_occurrences))
 
-        # For each set of attributes
-        for (attribute_set_key,
-             appearances) in attribute_sets_appearances.items():
+    # For each set of attributes
+    for (attribute_set, occurrences) in attribute_sets_occurrences.items():
+        perturbed_instance = Orange.data.Instance(training_dataset.domain, instance.list)
+        for i in range(len(rule_attributes)):
+            perturbed_instance[rule_domain[i]] = attribute_set[i]
 
-            # Take the original instance and replace a subset of its attributes
-            # with the attribute set
-            perturbed_instance = deepcopy(instance)
-            for i in range(len(rule_body_attributes)):
-                perturbed_instance[rule_domain[i]] = attribute_set_key[i]
+        cache_key = tuple(perturbed_instance.x)
+        if cache_key not in instance_predictions_cache:
+            instance_predictions_cache[cache_key] = classifier(perturbed_instance, True)[0][
+                instance_class_index]
+        prob = instance_predictions_cache[cache_key]
 
-            # key of the set of attributes in the prediction difference map
-            attribute_set_key = attribute_body_indices_map[
-                ','.join([attribute.name for attribute
-                          in rule_body_attributes])]
-
-            # if this set of attributes has not been considered yet, initialize
-            # its prediction difference to 0
-            if attribute_set_key not in prediction_differences:
-                prediction_differences[attribute_set_key] = 0.0
-
-            # Probability that the perturbed instance belongs to a certain class
-            prob = classifier(perturbed_instance, True)[0][instance_class_index]
-
-            # Update the prediction difference using the weighted average of the
-            # probability over the frequency of this attribute set in the
-            # dataset
-            prediction_differences[attribute_set_key] += (
-                    prob * appearances / len(training_dataset)
-            )
+        # Update the prediction difference using the weighted average of the
+        # probability over the frequency of this attribute set in the
+        # dataset
+        prediction_difference += (
+                prob * occurrences / len(training_dataset)
+        )
 
     # p(y=c|x) i.e. Probability that instance x belongs to class c
     p = classifier(instance, True)[0][instance_class_index]
-
-    for attribute_set_key in prediction_differences:
-        prediction_differences[attribute_set_key] = p - prediction_differences[
-            attribute_set_key]
+    prediction_differences = p - prediction_difference
 
     return prediction_differences
 
 
-def replace_rule_bodies_indices_with_attributes(locality_dataset,
-                                                rule_bodies_indices,
-                                                ):
-    """
-    Converts
-    [[1, 2, 3, 4, 8, 9, 10, 11]]
-    into
-    [[DiscreteVariable(name='hair', values=['0', '1']),
-      DiscreteVariable(name='feathers', values=['0', '1']),
-      DiscreteVariable(name='eggs', values=['0', '1']),
-      DiscreteVariable(name='milk', values=['0', '1']),
-      DiscreteVariable(name='toothed', values=['0', '1']),
-      DiscreteVariable(name='backbone', values=['0', '1']),
-      DiscreteVariable(name='breathes', values=['0', '1']),
-      DiscreteVariable(name='venomous', values=['0', '1'])]]
-    :param locality_dataset:
-    :param rule_bodies_indices:
-    :return:
-    """
-    attribute_body_indices_map = {}
-
-    rule_bodies_attributes = []
-    for rule_body_indices in rule_bodies_indices:
-        rule_body_attributes = [
-            locality_dataset.domain.attributes[rule_body_index - 1] for
-            rule_body_index in rule_body_indices]
-        if len(rule_body_attributes) > 1:
-            rule_bodies_attributes.append(rule_body_attributes)
-            attribute_body_indices_map[
-                ','.join(map(str, rule_body_attributes))] = ','.join(
-                map(str, rule_body_indices))
-    return rule_bodies_attributes, attribute_body_indices_map
-
-
 # Single explanation. Change 1 value at the time e compute the difference
-def computePredictionDifferenceSinglever2(instT, classifier, indexI, dataset):
+def compute_prediction_difference_single(instT, classifier, indexI, dataset):
     from copy import deepcopy
     i = deepcopy(instT)
     listaoutput = []

@@ -333,10 +333,10 @@ class XPLAIN_explainer:
                 c1 = self.classifier(instT, True)[0]
                 pred = c1[indexI]
                 pred_str = str(round(c1[indexI], 2))
-                out_data = computePredictionDifferenceSinglever2(instT,
-                                                                 self.classifier,
-                                                                 indexI,
-                                                                 self.training_dataset)
+                out_data = compute_prediction_difference_single(instT,
+                                                                self.classifier,
+                                                                indexI,
+                                                                self.training_dataset)
 
             map_difference = {}
             map_difference = computePredictionDifferenceSubsetRandomOnlyExisting(
@@ -506,15 +506,21 @@ class XPLAIN_explainer:
 
         first_iteration = True
 
+        # TODO(andrea): verify with Eliana this assumptions, the snapshot test data works
+        # Because across iterations only rules change we can cache both whole rules and instance
+        # classifications
+        cached_subset_differences = {}
+        instance_predictions_cache = {}
+
         # Euristically search for the best k to use to approximate the local model
         for k in range(self.starting_K, self.max_K, self.K):
             print(f"Trying k={k}")
             instance_index = int(instance_index_str)
 
-            instTmp = Orange.data.Instance(self.explain_dataset.domain,
-                                           self.explain_dataset[
-                                               instance_index_in_instance_indices])
-            instT = deepcopy(instTmp)
+            instance = Orange.data.Instance(self.explain_dataset.domain,
+                                            self.explain_dataset[
+                                                instance_index_in_instance_indices])
+            instance_copy = deepcopy(instance)
 
             genNeighborsInfo(self.training_dataset, self.NearestNeighborsAll,
                              self.explain_dataset[
@@ -528,7 +534,7 @@ class XPLAIN_explainer:
                              './' + self.unique_filename + '/Filetest.arff',
                              '-S', '1.0', '-C', '50.0', '-PN',
                              "./" + self.unique_filename, '-SP', '10', '-NRUL',
-                             '1'])
+                             '1'], stdout=subprocess.DEVNULL)
 
             self.datanamepred = "./" + self.unique_filename + "/gen-k0.arff"
             with open("./" + self.unique_filename + "/impo_rules.txt",
@@ -541,36 +547,52 @@ class XPLAIN_explainer:
                 continue
 
             old_impo_rules = importance_rules_lines
+
             # Not interested in a rule composed of all the attributes values.
             # By definition, its relevance is prob(y=c)-prob(c)
             importance_rules_lines = [rule_str for rule_str in
                                       importance_rules_lines if
                                       len(rule_str.split(",")) != len(
-                                          instTmp.domain.attributes)]
+                                          instance.domain.attributes)]
 
-            inputAr, nInputAr, newInputAr, oldAr_set = get_relevant_subset_from_local_rules(
+            rule_bodies_indices, nInputAr, newInputAr, oldAr_set = get_relevant_subset_from_local_rules(
                 importance_rules_lines, oldinputAr)
 
-            impo_rules_complete = deepcopy(inputAr)
+            impo_rules_complete = deepcopy(rule_bodies_indices)
 
             # Compute probability of Single attribute or Set of Attributes
-            mappaNew = {}
+            mappa_new = {}
             mappa = oldMappa.copy()
-            mappa.update(mappaNew)
+            mappa.update(mappa_new)
 
             # Compute the prediction difference of single attributes only on the
             # first iteration
             if first_iteration:
-                c1 = self.classifier(instT, True)[0]
+                c1 = self.classifier(instance_copy, True)[0]
                 pred = c1[target_class_index]
-                out_data = computePredictionDifferenceSinglever2(instT,
-                                                                 self.classifier,
-                                                                 target_class_index,
-                                                                 self.training_dataset)
+                out_data = compute_prediction_difference_single(instance_copy,
+                                                                self.classifier,
+                                                                target_class_index,
+                                                                self.training_dataset)
 
-            difference_map = compute_prediction_difference_subset_random_only_existing(
-                self.training_dataset, instT, inputAr,
-                self.classifier, target_class_index)
+            # Cache the subset calculation for repeated rule subsets. In this loop the only thing
+            # that change are rules, right?
+            difference_map = {}
+            for rule_body_indices in rule_bodies_indices:
+                # Consider only rules with more than 1 attribute since we compute the differences
+                # for single attribute changes already in computePredictionDifferenceSinglever2
+                if len(rule_body_indices) <= 1:
+                    continue
+                subset_difference_cache_key = tuple(rule_body_indices)
+                if subset_difference_cache_key not in cached_subset_differences:
+                    cached_subset_differences[
+                        subset_difference_cache_key] = compute_prediction_difference_subset_only_existing(
+                        self.training_dataset, instance_copy, rule_body_indices,
+                        self.classifier, target_class_index, instance_predictions_cache)
+
+                difference_map_key = ",".join(map(str, rule_body_indices))
+                difference_map[difference_map_key] = cached_subset_differences[
+                    subset_difference_cache_key]
 
             # Definition of approximation error. How we approximate the "true explanation"?
             error_single, error, PI_rel2 = computeApproxError(self.mappa_class,
@@ -579,7 +601,7 @@ class XPLAIN_explainer:
                                                               target_class,
                                                               difference_map)
 
-            oldinputAr += inputAr
+            oldinputAr += rule_bodies_indices
             oldMappa.update(mappa)
             if first_iteration:
                 self.map_instance_1_apprE[instance_index] = PI_rel2
@@ -592,7 +614,7 @@ class XPLAIN_explainer:
                 if not self.evaluate_explanation:
                     instance_explanation = XPLAIN_explanation(self,
                                                               target_class,
-                                                              instT,
+                                                              instance_copy,
                                                               out_data,
                                                               importance_rules_lines,
                                                               instance_index, k,
@@ -608,7 +630,7 @@ class XPLAIN_explainer:
                 if not self.evaluate_explanation:
                     instance_explanation = XPLAIN_explanation(self,
                                                               target_class,
-                                                              instT,
+                                                              instance_copy,
                                                               old_out_data,
                                                               old_impo_rulesPlot,
                                                               instance_index,
@@ -637,7 +659,7 @@ class XPLAIN_explainer:
                 if not self.evaluate_explanation:
                     instance_explanation = XPLAIN_explanation(self,
                                                               target_class,
-                                                              instT,
+                                                              instance_copy,
                                                               old_out_data,
                                                               old_impo_rulesPlot,
                                                               instance_index,
@@ -651,7 +673,7 @@ class XPLAIN_explainer:
                 if not self.evaluate_explanation:
                     instance_explanation = XPLAIN_explanation(self,
                                                               target_class,
-                                                              instT,
+                                                              instance_copy,
                                                               out_data,
                                                               importance_rules_lines,
                                                               instance_index, k,
