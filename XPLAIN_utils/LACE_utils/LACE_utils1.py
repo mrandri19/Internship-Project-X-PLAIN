@@ -1,10 +1,12 @@
-import Orange
 import os
-from copy import deepcopy
 import pickle
+from copy import deepcopy
+
+import Orange
 
 
-def import_dataset_N_evaluations(dataname, n_insts, randomic, datasetExplain=False):
+def import_dataset_N_evaluations(dataname, n_insts, randomic,
+                                 datasetExplain=False):
     if datasetExplain:
         return import_datasets(dataname, n_insts, randomic, datasetExplain)
     else:
@@ -63,7 +65,8 @@ def import_datasets(dataname, n_insts, randomic, datasetExplain):
 
     n_insts_int = list(map(int, n_insts))
 
-    explain_dataset = Orange.data.Table.from_table_rows(dataset_to_explain, n_insts_int)
+    explain_dataset = Orange.data.Table.from_table_rows(dataset_to_explain,
+                                                        n_insts_int)
 
     training_dataset = deepcopy(dataset)
     return training_dataset, explain_dataset, len_dataset, n_insts
@@ -249,10 +252,12 @@ def printTree(classifier, name):
     dot_data = StringIO()
     from sklearn import tree
     if features_names != None:
-        tree.export_graphviz(classifier.skl_model, out_file=dot_data, feature_names=features_names, filled=True,
+        tree.export_graphviz(classifier.skl_model, out_file=dot_data,
+                             feature_names=features_names, filled=True,
                              rounded=True, special_characters=True)
     else:
-        tree.export_graphviz(classifier.skl_model, out_file=dot_data, filled=True, rounded=True,
+        tree.export_graphviz(classifier.skl_model, out_file=dot_data,
+                             filled=True, rounded=True,
                              special_characters=True)
 
     graph = pydotplus.graph_from_dot_data(dot_data.getvalue())
@@ -263,10 +268,12 @@ def get_features_names(classifier):
     features_names = []
     for i in range(0, len(classifier.domain.attributes)):
         if ">" in classifier.domain.attributes[i].name:
-            features_names.append(classifier.domain.attributes[i].name.replace(">", "gr"))
+            features_names.append(
+                classifier.domain.attributes[i].name.replace(">", "gr"))
 
         elif "<" in classifier.domain.attributes[i].name:
-            features_names.append(classifier.domain.attributes[i].name.replace("<", "low"))
+            features_names.append(
+                classifier.domain.attributes[i].name.replace("<", "low"))
         else:
             features_names.append(classifier.domain.attributes[i].name)
 
@@ -286,8 +293,9 @@ def getClassifier(training_dataset, args, exit):
             measure = "entropy"
         continuizer = Orange.preprocess.Continuize()
         continuizer.multinomial_treatment = continuizer.Indicators
-        learnertree = Orange.classification.SklTreeLearner(preprocessors=continuizer, max_depth=7, min_samples_split=5,
-                                                           min_samples_leaf=3, random_state=1)
+        learnertree = Orange.classification.SklTreeLearner(
+            preprocessors=continuizer, max_depth=7, min_samples_split=5,
+            min_samples_leaf=3, random_state=1)
         # learnertree=Orange.classification.SklTreeLearner(preprocessors=continuizer, random_state=1)
 
         classifier = learnertree(training_dataset)
@@ -303,8 +311,9 @@ def getClassifier(training_dataset, args, exit):
     elif classif == "nn":
         continuizer = Orange.preprocess.Continuize()
         continuizer.multinomial_treatment = continuizer.Indicators
-        learnernet = Orange.classification.NNClassificationLearner(preprocessors=continuizer, random_state=42,
-                                                                   max_iter=100)
+        learnernet = Orange.classification.NNClassificationLearner(
+            preprocessors=continuizer, random_state=42,
+            max_iter=100)
         print(learnernet)
 
         classifier = learnernet(training_dataset)
@@ -314,7 +323,8 @@ def getClassifier(training_dataset, args, exit):
         import random
         continuizer = Orange.preprocess.Continuize()
         continuizer.multinomial_treatment = continuizer.Indicators
-        learnerrf = Orange.classification.RandomForestLearner(preprocessors=continuizer, random_state=42)
+        learnerrf = Orange.classification.RandomForestLearner(
+            preprocessors=continuizer, random_state=42)
         classifier = learnerrf(training_dataset)
 
     elif classif == "svm":
@@ -345,9 +355,10 @@ def getClassifier(training_dataset, args, exit):
                 metricKNN = 'euclidean'
             continuizer = Orange.preprocess.Continuize()
             continuizer.multinomial_treatment = continuizer.Indicators
-            knnLearner = Orange.classification.KNNLearner(preprocessors=continuizer, n_neighbors=KofKNN,
-                                                          metric=metricKNN, weights='uniform', algorithm='auto',
-                                                          metric_params=None)
+            knnLearner = Orange.classification.KNNLearner(
+                preprocessors=continuizer, n_neighbors=KofKNN,
+                metric=metricKNN, weights='uniform', algorithm='auto',
+                metric_params=None)
             classifier = knnLearner(training_dataset)
     else:
         reason = "Classification model not available"
@@ -399,7 +410,7 @@ def useExistingModel_v2(classif, classifierparameter, dataname):
         with open(file_path, "rb") as f:
             model = pickle.load(f)
         modelname = ""
-        if aclassif == "tree":
+        if classif == "tree":
             modelname = "<class 'Orange.classification.tree.SklTreeClassifier'>"
         elif classif == "nb":
             modelname = "<class 'Orange.classification.naive_bayes.NaiveBayesModel'>"
@@ -431,41 +442,36 @@ def getClassifier_v2(training_dataset, classif, classifierparameter, exit):
             measure = "entropy"
         continuizer = Orange.preprocess.Continuize()
         continuizer.multinomial_treatment = continuizer.Indicators
-        learnertree = Orange.classification.SklTreeLearner(preprocessors=continuizer, max_depth=7, min_samples_split=5,
-                                                           min_samples_leaf=3, random_state=1)
+        learnertree = Orange.classification.SklTreeLearner(
+            preprocessors=continuizer, max_depth=7, min_samples_split=5,
+            min_samples_leaf=3, random_state=1)
         # learnertree=Orange.classification.SklTreeLearner(preprocessors=continuizer, random_state=1)
 
         classifier = learnertree(training_dataset)
 
         printTree(classifier, training_dataset.name)
-
-
-
     elif classif == "nb":
         learnernb = Orange.classification.NaiveBayesLearner()
         classifier = learnernb(training_dataset)
-
     elif classif == "nn":
         continuizer = Orange.preprocess.Continuize()
         continuizer.multinomial_treatment = continuizer.Indicators
-        learnernet = Orange.classification.NNClassificationLearner(preprocessors=continuizer, random_state=42,
-                                                                   max_iter=1000)
+        learnernet = Orange.classification.NNClassificationLearner(
+            preprocessors=continuizer, random_state=42,
+            max_iter=1000)
 
         classifier = learnernet(training_dataset)
-
-
     elif classif == "rf":
         import random
         continuizer = Orange.preprocess.Continuize()
         continuizer.multinomial_treatment = continuizer.Indicators
-        learnerrf = Orange.classification.RandomForestLearner(preprocessors=continuizer, random_state=42)
+        learnerrf = Orange.classification.RandomForestLearner(
+            preprocessors=continuizer, random_state=42)
         classifier = learnerrf(training_dataset)
-
     elif classif == "svm":
         import random
         learnerrf = Orange.classification.SVMLearner(preprocessors=continuizer)
         classifier = learnerrf(training_dataset)
-
     elif classif == "knn":
         if classifierparameter == None:
             exit = 1
@@ -489,9 +495,10 @@ def getClassifier_v2(training_dataset, classif, classifierparameter, exit):
                 metricKNN = 'euclidean'
             continuizer = Orange.preprocess.Continuize()
             continuizer.multinomial_treatment = continuizer.Indicators
-            knnLearner = Orange.classification.KNNLearner(preprocessors=continuizer, n_neighbors=KofKNN,
-                                                          metric=metricKNN, weights='uniform', algorithm='auto',
-                                                          metric_params=None)
+            knnLearner = Orange.classification.KNNLearner(
+                preprocessors=continuizer, n_neighbors=KofKNN,
+                metric=metricKNN, weights='uniform', algorithm='auto',
+                metric_params=None)
             classifier = knnLearner(training_dataset)
     else:
         reason = "Classification model not available"

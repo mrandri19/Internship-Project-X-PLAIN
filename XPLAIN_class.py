@@ -564,23 +564,21 @@ class XPLAIN_explainer:
             if first_iteration:
                 c1 = self.classifier(instT, True)[0]
                 pred = c1[target_class_index]
-                pred_str = str(round(c1[target_class_index], 2))
                 out_data = computePredictionDifferenceSinglever2(instT,
                                                                  self.classifier,
                                                                  target_class_index,
                                                                  self.training_dataset)
 
-            map_difference = {}
-            map_difference = computePredictionDifferenceSubsetRandomOnlyExisting(
+            difference_map = computePredictionDifferenceSubsetRandomOnlyExisting(
                 self.training_dataset, instT, inputAr,
-                self.classifier, target_class_index, map_difference)
+                self.classifier, target_class_index)
 
             # Definition of approximation error. How we approximate the "true explanation"?
             error_single, error, PI_rel2 = computeApproxError(self.mappa_class,
                                                               pred, out_data,
                                                               impo_rules_complete,
                                                               target_class,
-                                                              map_difference)
+                                                              difference_map)
 
             oldinputAr += inputAr
             oldMappa.update(mappa)
@@ -600,7 +598,7 @@ class XPLAIN_explainer:
                                                               importance_rules_lines,
                                                               instance_index, k,
                                                               error,
-                                                              map_difference,
+                                                              difference_map,
                                                               impo_rules_complete)
                 self.map_instance_apprE[instance_index] = PI_rel2
                 self.map_instance_NofKNN[instance_index] = k
@@ -629,13 +627,12 @@ class XPLAIN_explainer:
                 oldNofKNN = k
                 old_out_data = deepcopy(out_data)
                 old_impo_rulesPlot = deepcopy(importance_rules_lines)
-                old_map_difference = deepcopy(map_difference)
+                old_map_difference = deepcopy(difference_map)
                 old_impo_rules_complete = deepcopy(impo_rules_complete)
                 PI_rel2_old = PI_rel2
-
         # If the for loop ended after having reached the maximum number of
         # iteration, i.e. the error did not reach the minimum.
-        if k >= self.max_K:
+        else:
             # If we are stuck, i.e. the error did not change between iterations
             if error == oldError:
                 if not self.evaluate_explanation:
@@ -660,7 +657,7 @@ class XPLAIN_explainer:
                                                               importance_rules_lines,
                                                               instance_index, k,
                                                               error,
-                                                              map_difference,
+                                                              difference_map,
                                                               impo_rules_complete)
                 self.map_instance_apprE[instance_index] = PI_rel2
                 self.map_instance_NofKNN[instance_index] = k
