@@ -12,7 +12,7 @@ from XPLAIN_utils.LACE_utils.LACE_utils2 import getStartKValueSimplified, \
     computeMappaClass_b, computeApproxError
 # noinspection PyUnresolvedReferences
 from XPLAIN_utils.LACE_utils.LACE_utils3 import genNeighborsInfo, \
-    getRelevantSubsetFromLocalRules, getClassifier_v2
+    get_relevant_subset_from_local_rules, getClassifier_v2
 from XPLAIN_utils.LACE_utils.LACE_utils4 import *
 
 ERROR_DIFFERENCE_THRESHOLD = 0.01
@@ -318,7 +318,7 @@ class XPLAIN_explainer:
 
             impo_rules = impo_rules_N[:]
 
-            inputAr, nInputAr, newInputAr, oldAr_set = getRelevantSubsetFromLocalRules(
+            inputAr, nInputAr, newInputAr, oldAr_set = get_relevant_subset_from_local_rules(
                 impo_rules, oldinputAr)
 
             impo_rules_complete = deepcopy(inputAr)
@@ -492,7 +492,6 @@ class XPLAIN_explainer:
 
         instance_explanation = None
 
-
         self.starting_K = self.K
         # Problem with very small training dataset. The starting KNN is low, very few examples: difficult to capture the locality.
         # Risks: examples too similar, only 1 class. Starting k: proportional to the class frequence
@@ -549,7 +548,7 @@ class XPLAIN_explainer:
                                       len(rule_str.split(",")) != len(
                                           instTmp.domain.attributes)]
 
-            inputAr, nInputAr, newInputAr, oldAr_set = getRelevantSubsetFromLocalRules(
+            inputAr, nInputAr, newInputAr, oldAr_set = get_relevant_subset_from_local_rules(
                 importance_rules_lines, oldinputAr)
 
             impo_rules_complete = deepcopy(inputAr)
@@ -569,7 +568,7 @@ class XPLAIN_explainer:
                                                                  target_class_index,
                                                                  self.training_dataset)
 
-            difference_map = computePredictionDifferenceSubsetRandomOnlyExisting(
+            difference_map = compute_prediction_difference_subset_random_only_existing(
                 self.training_dataset, instT, inputAr,
                 self.classifier, target_class_index)
 
@@ -672,7 +671,7 @@ class XPLAIN_explainer:
         # 2. Local minimum reached
         # 3. Exceeded max_K and did not reduce the error in the last iteration
         # 4. Exceeded max_K and did reduce the error in the last iteration
-        assert(instance_explanation is not None)
+        assert (instance_explanation is not None)
 
         return instance_explanation
 

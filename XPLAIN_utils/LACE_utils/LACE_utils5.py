@@ -1,23 +1,96 @@
-import functools
-import operator
 from collections import Counter
 from copy import deepcopy
 
 import Orange
 
 
-def computePredictionDifferenceSubsetRandomOnlyExisting(locality_dataset,
-                                                        instance,
-                                                        rule_bodies_indices,
-                                                        classifier,
-                                                        instance_class_index):
+def compute_prediction_difference_subset_random_only_existing(training_dataset,
+                                                              instance,
+                                                              rule_bodies_indices,
+                                                              classifier,
+                                                              instance_class_index):
     print("computePredictionDifferenceSubsetRandomOnlyExisting")
-    print("instT=", instance)
-    print("inputA=", rule_bodies_indices)
+    print("instance=", instance)
+    print("rule_bodies_indices=", rule_bodies_indices)
 
-    difference_map = {}
+    prediction_differences = {}
 
-    inst = deepcopy(instance)
+    rule_bodies_attributes, attribute_body_indices_map = \
+        replace_rule_bodies_indices_with_attributes(
+            training_dataset, rule_bodies_indices)
+
+    # For each rule
+    for rule_body_attributes in rule_bodies_attributes:
+        # Take only the considered attributes from the dataset
+        rule_domain = Orange.data.Domain(rule_body_attributes)
+        filtered_dataset = Orange.data.Table().from_table(rule_domain, training_dataset)
+
+        # Count how many times a set of attribute values appears in the dataset
+        attribute_sets_appearances = dict(
+            Counter(map(tuple, filtered_dataset.X)).items())
+
+        print("len(rule_body_attributes)=", len(rule_body_attributes),
+              " <=> len(attribute_sets_appearances)=", len(attribute_sets_appearances))
+
+        # For each set of attributes
+        for (attribute_set_key,
+             appearances) in attribute_sets_appearances.items():
+
+            # Take the original instance and replace a subset of its attributes
+            # with the attribute set
+            perturbed_instance = deepcopy(instance)
+            for i in range(len(rule_body_attributes)):
+                perturbed_instance[rule_domain[i]] = attribute_set_key[i]
+
+            # key of the set of attributes in the prediction difference map
+            attribute_set_key = attribute_body_indices_map[
+                ','.join([attribute.name for attribute
+                          in rule_body_attributes])]
+
+            # if this set of attributes has not been considered yet, initialize
+            # its prediction difference to 0
+            if attribute_set_key not in prediction_differences:
+                prediction_differences[attribute_set_key] = 0.0
+
+            # Probability that the perturbed instance belongs to a certain class
+            prob = classifier(perturbed_instance, True)[0][instance_class_index]
+
+            # Update the prediction difference using the weighted average of the
+            # probability over the frequency of this attribute set in the
+            # dataset
+            prediction_differences[attribute_set_key] += (
+                    prob * appearances / len(training_dataset)
+            )
+
+    # p(y=c|x) i.e. Probability that instance x belongs to class c
+    p = classifier(instance, True)[0][instance_class_index]
+
+    for attribute_set_key in prediction_differences:
+        prediction_differences[attribute_set_key] = p - prediction_differences[
+            attribute_set_key]
+
+    return prediction_differences
+
+
+def replace_rule_bodies_indices_with_attributes(locality_dataset,
+                                                rule_bodies_indices,
+                                                ):
+    """
+    Converts
+    [[1, 2, 3, 4, 8, 9, 10, 11]]
+    into
+    [[DiscreteVariable(name='hair', values=['0', '1']),
+      DiscreteVariable(name='feathers', values=['0', '1']),
+      DiscreteVariable(name='eggs', values=['0', '1']),
+      DiscreteVariable(name='milk', values=['0', '1']),
+      DiscreteVariable(name='toothed', values=['0', '1']),
+      DiscreteVariable(name='backbone', values=['0', '1']),
+      DiscreteVariable(name='breathes', values=['0', '1']),
+      DiscreteVariable(name='venomous', values=['0', '1'])]]
+    :param locality_dataset:
+    :param rule_bodies_indices:
+    :return:
+    """
     attribute_body_indices_map = {}
 
     rule_bodies_attributes = []
@@ -25,48 +98,12 @@ def computePredictionDifferenceSubsetRandomOnlyExisting(locality_dataset,
         rule_body_attributes = [
             locality_dataset.domain.attributes[rule_body_index - 1] for
             rule_body_index in rule_body_indices]
-        if (len(rule_body_attributes)) > 1:
+        if len(rule_body_attributes) > 1:
             rule_bodies_attributes.append(rule_body_attributes)
             attribute_body_indices_map[
                 ','.join(map(str, rule_body_attributes))] = ','.join(
                 map(str, rule_body_indices))
-
-    for g_v2 in rule_bodies_attributes:
-        d = Orange.data.Table()
-        g_v2_a_i = Orange.data.Domain(g_v2)
-        filtered_i = d.from_table(g_v2_a_i, locality_dataset)
-        c = Counter(map(tuple, filtered_i.X))
-        freq = dict(c.items())
-
-        for k_ex in freq:
-            inst1 = deepcopy(instance)
-            for v in range(0, len(g_v2)):
-                inst1[g_v2_a_i[v]] = k_ex[v]
-
-            name = [j.name for j in g_v2]
-            combinations = functools.reduce(operator.mul,
-                                            [len(i.values) for i in g_v2])
-
-            setIndex = attribute_body_indices_map[','.join(map(str, name))]
-            if setIndex not in difference_map:
-                difference_map[setIndex] = 0.0
-            c0 = classifier(inst1, False)[0]
-            c1 = classifier(inst1, True)[0]
-
-            prob = 0.000000
-            prob = c1[instance_class_index]
-            newvalue = prob * freq[k_ex] / len(locality_dataset)
-            difference_map[setIndex] = difference_map[setIndex] + newvalue
-
-    c0 = classifier(inst, False)[0]
-    c1 = classifier(inst, True)[0]
-
-    prob = c1[instance_class_index]
-
-    for key, value in difference_map.items():
-        difference_map[key] = prob - difference_map[key]
-
-    return difference_map
+    return rule_bodies_attributes, attribute_body_indices_map
 
 
 # Single explanation. Change 1 value at the time e compute the difference

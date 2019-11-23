@@ -73,7 +73,7 @@ def genNeighborsInfoTraining(training_dataset, NearestNeighborsAll, instanceI,
     return out_data, out_data1
 
 
-def getRelevantSubsetFromLocalRules(impo_rules, oldinputAr):
+def get_relevant_subset_from_local_rules(impo_rules, oldinputAr):
     inputAr = []
     iA = []
     nInputAr = []

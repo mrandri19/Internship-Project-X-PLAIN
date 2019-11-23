@@ -66,7 +66,7 @@ class XPLAIN_explanation:
                 user_rules = self.getUserRules(rule_Index, update)
 
                 map_difference_new = {}
-                map_difference_new = computePredictionDifferenceSubsetRandomOnlyExisting(
+                map_difference_new = compute_prediction_difference_subset_random_only_existing(
                     self.XPLAIN_explainer_o.training_dataset, self.instance, user_rules,
                     self.XPLAIN_explainer_o.classifier, self.indexI, map_difference_new)
 
@@ -94,7 +94,7 @@ class XPLAIN_explanation:
                 user_rules = self.getUserRules(rule_Index, update)
 
                 map_difference_new = {}
-                map_difference_new = computePredictionDifferenceSubsetRandomOnlyExisting(
+                map_difference_new = compute_prediction_difference_subset_random_only_existing(
                     self.XPLAIN_explainer_o.training_dataset, self.instance, user_rules,
                     self.XPLAIN_explainer_o.classifier, self.indexI, map_difference_new)
 

@@ -227,6 +227,8 @@ def loadARFF_Weka(filename, **kwargs):
     t = Orange.data.Table(d, lex)
     t.name = name
 
+    f.close()
+
     return t
 
 
