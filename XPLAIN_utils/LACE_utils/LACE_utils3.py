@@ -36,7 +36,7 @@ def genNeighborsInfo(training_dataset, NearestNeighborsAll, instanceIO, iID, k,
     if save:
         import os
         path = "./" + unique_filename
-        if os.path.exists(path) == False:
+        if not os.path.exists(path):
             os.makedirs(path)
         toARFF(path + "/Knnres.arff", out_data)
         toARFF(path + "/Filetest.arff", out_data1)
