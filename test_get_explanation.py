@@ -43,3 +43,22 @@ class TestGet_explanation(TestCase):
              e.indexI,
              e.pred,
              e.pred_str))
+    def test_get_explanation_adult_naive_bayes(self):
+        e = get_explanation("datasets/adult_d.arff", "nb")
+        self.assertMatchSnapshot(
+            (e.n_inst,
+             e.diff_single,
+             e.impo_rules,
+             e.impo_rulesUser,
+             e.map_difference,
+             e.map_differenceUser,
+             e.KNN,
+             e.error,
+             e.impo_rules_complete,
+             e.impo_rules_completeUser,
+             e.instance,
+             e.errorUser,
+             e.targetClass,
+             e.indexI,
+             e.pred,
+             e.pred_str))
