@@ -37,21 +37,26 @@ class XPLAIN_explainer:
                                             str(uuid.uuid4()))
         should_exit = 0
 
-        # The adult and compas dataset are already splitted in training and explain set. The training set is balanced.
+        # The adult and compas dataset are already splitted in training and explain set.
+        # The training set is balanced.
         self.instance_indices = []
-        if dataset_name == "datasets/adult_d.arff" or dataset_name == "datasets/compas-scores-two-years_d.arff":
-            self.training_dataset, self.explain_dataset, self.len_dataset, self.instance_indices = import_datasets(
-                dataset_name, self.instance_indices, train_explain_set, False)
+        if dataset_name == "datasets/adult_d.arff" \
+                or dataset_name == "datasets/compas-scores-two-years_d.arff":
+            self.training_dataset, self.explain_dataset, self.len_dataset, self.instance_indices = \
+                import_datasets(
+                    dataset_name, self.instance_indices, train_explain_set, False)
         else:
-            self.training_dataset, self.explain_dataset, self.len_dataset, self.instance_indices = import_dataset(
-                dataset_name, self.instance_indices, train_explain_set)
+            self.training_dataset, self.explain_dataset, self.len_dataset, self.instance_indices = \
+                import_dataset(
+                    dataset_name, self.instance_indices, train_explain_set)
 
         self.K, _, self.max_K = get_KNN_threshold_max(KneighborsUser,
                                                       self.len_dataset,
                                                       threshold_error,
                                                       maxKNNUser)
 
-        # If the user specifies to use an existing model, the model is used (if available). Otherwise it is trained.
+        # If the user specifies to use an existing model, the model is used (if available).
+        # Otherwise it is trained.
         if use_existing_model:
             # "Check if the model exist...
             self.classifier = useExistingModel_v2(classifier_name,
@@ -92,9 +97,9 @@ class XPLAIN_explainer:
         self.NofClass = len(self.training_dataset.domain.class_var.values[:])
 
         # Compute the neighbors of the instanceId
-        metricKNNA = 'euclidean'
+        metric_knna = 'euclidean'
         self.NearestNeighborsAll = sklearn.neighbors.NearestNeighbors(
-            n_neighbors=len(self.training_dataset), metric=metricKNNA,
+            n_neighbors=len(self.training_dataset), metric=metric_knna,
             algorithm='auto', metric_params=None).fit(self.training_dataset.X)
         self.mappa_single = {}
 
@@ -475,17 +480,17 @@ class XPLAIN_explainer:
         instance_index_in_instance_indices = self.instance_indices.index(
             instance_index_str)
 
-        instTmp2 = Orange.data.Instance(self.explain_dataset.domain,
+        instance = Orange.data.Instance(self.explain_dataset.domain,
                                         self.explain_dataset[
                                             instance_index_in_instance_indices])
-        c = self.classifier(instTmp2, False)
+        c = self.classifier(instance, False)
 
         if target_class is None:
             target_class = self.map_names_class[c[0]]
         elif target_class == "predicted":
             target_class = self.map_names_class[c[0]]
         elif target_class == "trueLabel":
-            target_class = str(instTmp2.get_class())
+            target_class = str(instance.get_class())
         else:
             target_class = str(target_class)
         target_class_index = self.get_class_index(target_class)
@@ -516,11 +521,6 @@ class XPLAIN_explainer:
         for k in range(self.starting_K, self.max_K, self.K):
             print(f"Trying k={k}")
             instance_index = int(instance_index_str)
-
-            instance = Orange.data.Instance(self.explain_dataset.domain,
-                                            self.explain_dataset[
-                                                instance_index_in_instance_indices])
-            instance_copy = deepcopy(instance)
 
             genNeighborsInfo(self.training_dataset, self.NearestNeighborsAll,
                              self.explain_dataset[
@@ -568,9 +568,9 @@ class XPLAIN_explainer:
             # Compute the prediction difference of single attributes only on the
             # first iteration
             if first_iteration:
-                c1 = self.classifier(instance_copy, True)[0]
+                c1 = self.classifier(instance, True)[0]
                 pred = c1[target_class_index]
-                out_data = compute_prediction_difference_single(instance_copy,
+                out_data = compute_prediction_difference_single(instance,
                                                                 self.classifier,
                                                                 target_class_index,
                                                                 self.training_dataset)
@@ -587,7 +587,7 @@ class XPLAIN_explainer:
                 if subset_difference_cache_key not in cached_subset_differences:
                     cached_subset_differences[
                         subset_difference_cache_key] = compute_prediction_difference_subset_only_existing(
-                        self.training_dataset, instance_copy, rule_body_indices,
+                        self.training_dataset, instance, rule_body_indices,
                         self.classifier, target_class_index, instance_predictions_cache)
 
                 difference_map_key = ",".join(map(str, rule_body_indices))
@@ -614,7 +614,7 @@ class XPLAIN_explainer:
                 if not self.evaluate_explanation:
                     instance_explanation = XPLAIN_explanation(self,
                                                               target_class,
-                                                              instance_copy,
+                                                              instance,
                                                               out_data,
                                                               importance_rules_lines,
                                                               instance_index, k,
@@ -630,7 +630,7 @@ class XPLAIN_explainer:
                 if not self.evaluate_explanation:
                     instance_explanation = XPLAIN_explanation(self,
                                                               target_class,
-                                                              instance_copy,
+                                                              instance,
                                                               old_out_data,
                                                               old_impo_rulesPlot,
                                                               instance_index,
@@ -659,7 +659,7 @@ class XPLAIN_explainer:
                 if not self.evaluate_explanation:
                     instance_explanation = XPLAIN_explanation(self,
                                                               target_class,
-                                                              instance_copy,
+                                                              instance,
                                                               old_out_data,
                                                               old_impo_rulesPlot,
                                                               instance_index,
@@ -673,7 +673,7 @@ class XPLAIN_explainer:
                 if not self.evaluate_explanation:
                     instance_explanation = XPLAIN_explanation(self,
                                                               target_class,
-                                                              instance_copy,
+                                                              instance,
                                                               out_data,
                                                               importance_rules_lines,
                                                               instance_index, k,
