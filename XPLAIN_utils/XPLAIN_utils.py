@@ -114,7 +114,7 @@ def convertOTable2Pandas(orangeTable, ids=None, sel="all", cl=None, mapName=None
 
     if cl!=None and sel!="all" and mapName!=None:
         y_pred=[mapName[cl(orangeTable[k], False)[0]] for k in sel]
-        data["pred"]=y_pred
+        data["prob"]=y_pred
 
     if ids!=None:
         data["id"]=ids
@@ -144,9 +144,9 @@ def getExtractedRulesPrintFriendly(instT, impo_rules_complete):
 
 def printImpoRuleInfo(instID, instT, NofKNN, out_data,map_difference,impo_rules_c, impo_rules):
     #print("ID: ", instID,"  K=", NofKNN)#, "Rules", impo_rules)
-    #print("PredDifference", out_data, map_difference, "\n")
+    #print("PredDifference", out_data, difference_map, "\n")
     """
-    rulesPrint, unionRulePrint=getExtractedRulesMapping(instT, impo_rules, list(map_difference.keys()), sep=", ")
+    rulesPrint, unionRulePrint=getExtractedRulesMapping(instT, impo_rules, list(difference_map.keys()), sep=", ")
     rulesPrint=list(rulesPrint.values())
     unionRulePrint=list(unionRulePrint.values())
     if rulesPrint!=[]:

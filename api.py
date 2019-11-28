@@ -12,4 +12,4 @@ def get_explanation(dataset, classifier):
 
 
 if __name__ == "__main__":
-    get_explanation("datasets/adult_d.arff", "nb")
+    get_explanation("datasets/adult_d.arff", "rf")

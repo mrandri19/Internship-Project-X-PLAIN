@@ -1,3 +1,7 @@
+dash
+numpy
+pandas
+scipy
 Orange
 snapshottest
 scikit-learn

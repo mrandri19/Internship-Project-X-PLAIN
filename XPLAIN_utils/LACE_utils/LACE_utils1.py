@@ -44,7 +44,7 @@ def import_dataset(dataset_name, n_insts, randomic):
 
 
 def import_datasets(dataname, n_insts, randomic, datasetExplain):
-    if (dataname[-4:] == "arff"):
+    if dataname[-4:] == "arff":
         dataset = loadARFF(dataname)
         dataname_to_explain = dataname[:-5] + "_explain.arff"
         dataset_to_explain = loadARFF(dataname_to_explain)
@@ -128,108 +128,100 @@ def toARFF(filename, table, try_numericize=0):
     f.close()
 
 
-def loadARFF_Weka(filename, **kwargs):
+def loadARFF_Weka(filename):
     if not os.path.exists(filename) and os.path.exists(filename + ".arff"):
         filename = filename + ".arff"
-    f = open(filename, 'r')
-    attributes = []
-    name = ''
-    state = 0  # header
-    data = []
+    with open(filename, 'r') as f:
 
-    for l in f.readlines():
-        l = l.rstrip("\n\r")  # strip trailing whitespace
-        l = l.replace('\t', ' ')  # get rid of tabs
-        x = l.split('%')[0]  # strip comments
-        if len(x.strip()) == 0:
-            continue
-        if state == 0 and x[0] != '@':
-            print(("ARFF import ignoring:", x))
-        if state == 1:
-            if x[0] == '{':  # sparse data format, begin with '{', ends with '}'
-                r = [None] * len(attributes)
-                dd = x[1:-1]
-                dd = dd.split(',')
-                for xs in dd:
-                    y = xs.split(" ")
-                    if len(y) != 2:
-                        raise ValueError("the format of the data is error")
-                    r[int(y[0])] = y[1]
-                data.append(r)
-            else:  # normal data format, split by ','
-                dd = x.split(',')
-                r = []
-                for xs in dd:
-                    y = xs.strip(" ")
-                    if len(y) > 0:
-                        if y[0] == "'" or y[0] == '"':
-                            r.append(xs.strip("'\""))
+        attributes = []
+        name = ''
+        in_header = False  # header
+        rows = []
+
+        for line in f.readlines():
+            line = line.rstrip("\n\r")  # strip trailing whitespace
+            line = line.replace('\t', ' ')  # get rid of tabs
+            line = line.split('%')[0]  # strip comments
+            if len(line.strip()) == 0:  # ignore empty lines
+                continue
+            if not in_header and line[0] != '@':
+                print(("ARFF import ignoring:", line))
+            if in_header:  # Header
+                if line[0] == '{':  # sparse data format, begin with '{', ends with '}'
+                    r = [None] * len(attributes)
+                    row = line[1:-1]
+                    row = row.split(',')
+                    for xs in row:
+                        y = xs.split(" ")
+                        if len(y) != 2:
+                            raise ValueError("the format of the data is error")
+                        r[int(y[0])] = y[1]
+                    rows.append(r)
+                else:  # normal data format, split by ','
+                    row = line.split(',')
+                    r = []
+                    for xs in row:
+                        y = xs.strip(" ")
+                        if len(y) > 0:
+                            if y[0] == "'" or y[0] == '"':
+                                r.append(xs.strip("'\""))
+                            else:
+                                ns = xs.split()
+                                for ls in ns:
+                                    if len(ls) > 0:
+                                        r.append(ls)
                         else:
-                            ns = xs.split()
-                            for ls in ns:
-                                if len(ls) > 0:
-                                    r.append(ls)
+                            r.append('?')
+                    rows.append(r[:len(attributes)])
+            else:  # Data
+                y = []
+                for cy in line.split(' '):
+                    if len(cy) > 0:
+                        y.append(cy)
+                if str.lower(y[0][1:]) == 'data':
+                    in_header = True
+                elif str.lower(y[0][1:]) == 'relation':
+                    name = str.strip(y[1])
+                elif str.lower(y[0][1:]) == 'attribute':
+                    if y[1][0] == "'":
+                        atn = y[1].strip("' ")
+                        idx = 1
+                        while y[idx][-1] != "'":
+                            idx += 1
+                            atn += ' ' + y[idx]
+                        atn = atn.strip("' ")
                     else:
-                        r.append('?')
-                data.append(r[:len(attributes)])
+                        atn = y[1]
+                    z = line.split('{')
+                    w = z[-1].split('}')
+                    if len(z) > 1 and len(w) > 1:
+                        # there is a list of values
+                        vals = []
+                        for y in w[0].split(','):
+                            sy = y.strip(" '\"")
+                            if len(sy) > 0:
+                                vals.append(sy)
+                        a = Orange.data.DiscreteVariable.make(atn, vals, True, 0)
+                    else:
+                        a = Orange.data.variable.ContinuousVariable.make(atn)
+                    attributes.append(a)
+
+        # generate the domain
+        if attributes[-1].name == name:
+            domain = Orange.data.Domain(attributes[:-1], attributes[-1])
         else:
-            y = []
-            for cy in x.split(' '):
-                if len(cy) > 0:
-                    y.append(cy)
-            if str.lower(y[0][1:]) == 'data':
-                state = 1
-            elif str.lower(y[0][1:]) == 'relation':
-                name = str.strip(y[1])
-            elif str.lower(y[0][1:]) == 'attribute':
-                if y[1][0] == "'":
-                    atn = y[1].strip("' ")
-                    idx = 1
-                    while y[idx][-1] != "'":
-                        idx += 1
-                        atn += ' ' + y[idx]
-                    atn = atn.strip("' ")
-                else:
-                    atn = y[1]
-                z = x.split('{')
-                w = z[-1].split('}')
-                if len(z) > 1 and len(w) > 1:
-                    # there is a list of values
-                    vals = []
-                    for y in w[0].split(','):
-                        sy = y.strip(" '\"")
-                        if len(sy) > 0:
-                            vals.append(sy)
-                    a = Orange.data.DiscreteVariable.make(atn, vals, True, 0)
-                else:
-                    # real...
-                    a = Orange.data.variable.ContinuousVariable.make(atn, [])
-                attributes.append(a)
-                # attributeLoadStatus.append(s)
+            new_attr = []
+            for att in attributes:
+                if att != name:
+                    new_attr.append(att)
+            domain = Orange.data.Domain(new_attr)
 
-    # generate the domain
-    if attributes[-1].name == name:
-        d = Orange.data.Domain(attributes[:-1], attributes[-1])
-    else:
-        new_attr = []
-        for att in attributes:
-            if att != name:
-                new_attr.append(att)
-            else:
-                class_target = att
-        d = Orange.data.Domain(new_attr, att)
+        instances = [Orange.data.Instance(domain, row) for row in rows]
 
-    lex = []
-    for dd in data:
-        e = Orange.data.Instance(d, dd)
-        lex.append(e)
+        table = Orange.data.Table.from_list(domain, instances)
+        table.name = name
 
-    t = Orange.data.Table(d, lex)
-    t.name = name
-
-    f.close()
-
-    return t
+        return table
 
 
 def loadARFF(filename, **kwargs):
@@ -337,7 +329,7 @@ def getClassifier(training_dataset, args, exit):
     elif classif == "knn":
         if args["classifierparameter"] == None:
             exit = 1
-            reason = "KNN - missing the K parameter"
+            reason = "k - missing the K parameter"
         elif (len(args["classifierparameter"].split("-")) == 1):
             KofKNN = int(args["classifierparameter"].split("-")[0])
             distance = ""
@@ -477,7 +469,7 @@ def getClassifier_v2(training_dataset, classif, classifierparameter, exit):
     elif classif == "knn":
         if classifierparameter == None:
             exit = 1
-            reason = "KNN - missing the K parameter"
+            reason = "k - missing the K parameter"
         elif (len(classifierparameter.split("-")) == 1):
             KofKNN = int(classifierparameter.split("-")[0])
             distance = ""

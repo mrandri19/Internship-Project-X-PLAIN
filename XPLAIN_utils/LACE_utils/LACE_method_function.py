@@ -112,7 +112,7 @@ def LACEMethod(dataname, n_insts, classname, classif, classifierparameter=None, 
             c=classifier(instTmp2, False)
 
             startingK=K_NN
-            #Problem with very small training dataset. The starting KNN is low, very few examples: difficult to capture the locality.
+            #Problem with very small training dataset. The starting k is low, very few examples: difficult to capture the locality.
             #Risks: examples too similar, only 1 class. Starting K: proportional to the class frequence
             small_dataset_len=150
             if len_dataset<small_dataset_len:
@@ -251,7 +251,7 @@ def LACEMethod(dataname, n_insts, classname, classif, classifierparameter=None, 
             map_instance_NofKNN[k]=map_instance_NofKNN[k]/startingK
 
         avg, minv, maxv=getmap_instance_NofKNNIterationInfo(map_instance_NofKNN)
-        print("KNN-Info, avg, min, max", avg, minv, maxv)
+        print("k-Info, avg, min, max", avg, minv, maxv)
         
     
 
