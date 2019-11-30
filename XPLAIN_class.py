@@ -42,16 +42,16 @@ class XPLAIN_explainer:
         self.instance_indices = []
         if dataset_name == "datasets/adult_d.arff" \
                 or dataset_name == "datasets/compas-scores-two-years_d.arff":
-            self.training_dataset, self.explain_dataset, self.len_dataset, self.instance_indices = \
+            self.training_dataset, self.explain_dataset, self.dataset_len, self.instance_indices = \
                 import_datasets(
-                    dataset_name, self.instance_indices, train_explain_set, False)
+                    dataset_name, [], train_explain_set, False)
         else:
-            self.training_dataset, self.explain_dataset, self.len_dataset, self.instance_indices = \
+            self.training_dataset, self.explain_dataset, self.dataset_len, self.instance_indices = \
                 import_dataset(
-                    dataset_name, self.instance_indices, train_explain_set)
+                    dataset_name, [], train_explain_set)
 
         self.K, _, self.max_K = get_KNN_threshold_max(KneighborsUser,
-                                                      self.len_dataset,
+                                                      self.dataset_len,
                                                       threshold_error,
                                                       maxKNNUser)
 
@@ -279,9 +279,9 @@ class XPLAIN_explainer:
         # Problem with very small training dataset. The starting k is low, very few examples: difficult to capture the locality.
         # Risks: examples too similar, only 1 class. Starting K: proportional to the class frequence
         small_dataset_len = 150
-        if self.len_dataset < small_dataset_len:
+        if self.dataset_len < small_dataset_len:
             self.starting_K = max(int(self.mappa_class[self.map_names_class[
-                c[0]]] * self.len_dataset), self.starting_K)
+                c[0]]] * self.dataset_len), self.starting_K)
 
         plot = False
         for NofKNN in range(self.starting_K, self.max_K, self.K):
@@ -501,9 +501,9 @@ class XPLAIN_explainer:
         # Problem with very small training dataset. The starting k is low, very few examples: difficult to capture the locality.
         # Risks: examples too similar, only 1 class. Starting k: proportional to the class frequence
         small_dataset_len = 150
-        if self.len_dataset < small_dataset_len:
+        if self.dataset_len < small_dataset_len:
             self.starting_K = max(int(self.mappa_class[self.map_names_class[
-                c[0]]] * self.len_dataset), self.starting_K)
+                c[0]]] * self.dataset_len), self.starting_K)
 
         # Initialize k and error to be defined in case the for loop is not entered
         k = 0
@@ -827,9 +827,9 @@ class XPLAIN_explainer:
                                         self.explain_dataset[count_inst])
         c = self.classifier(instTmp2, False)
         small_dataset_len = 150
-        if self.len_dataset < small_dataset_len:
+        if self.dataset_len < small_dataset_len:
             self.starting_K = max(int(self.mappa_class[self.map_names_class[
-                c[0]]] * self.len_dataset), self.K)
+                c[0]]] * self.dataset_len), self.K)
         if training == True:
             Kneighbors_data, removeToDo = genNeighborsInfoTraining(
                 self.training_dataset, self.NearestNeighborsAll,
@@ -857,10 +857,10 @@ class XPLAIN_explainer:
                                         self.explain_dataset[count_inst])
         c = self.classifier(instTmp2, False)
         small_dataset_len = 150
-        if self.len_dataset < small_dataset_len:
+        if self.dataset_len < small_dataset_len:
             self.starting_K = max(int(
                 self.mappa_class[
-                    self.map_names_class[c[0]]] * self.len_dataset),
+                    self.map_names_class[c[0]]] * self.dataset_len),
                 self.K)
         if training == True:
             Kneighbors_data, removeToDo = genNeighborsInfoTraining(
@@ -979,10 +979,10 @@ class XPLAIN_explainer:
                                         self.explain_dataset[count_inst])
         c = self.classifier(instTmp2, False)
         small_dataset_len = 150
-        if self.len_dataset < small_dataset_len:
+        if self.dataset_len < small_dataset_len:
             self.starting_K = max(int(
                 self.mappa_class[
-                    self.map_names_class[c[0]]] * self.len_dataset),
+                    self.map_names_class[c[0]]] * self.dataset_len),
                 self.K)
         if training == True:
             Kneighbors_data, removeToDo = genNeighborsInfoTraining(
@@ -1125,10 +1125,10 @@ class XPLAIN_explainer:
                                         self.explain_dataset[count_inst])
         c = self.classifier(instTmp2, False)
         small_dataset_len = 150
-        if self.len_dataset < small_dataset_len:
+        if self.dataset_len < small_dataset_len:
             self.starting_K = max(int(
                 self.mappa_class[
-                    self.map_names_class[c[0]]] * self.len_dataset),
+                    self.map_names_class[c[0]]] * self.dataset_len),
                 self.K)
         if training == True:
             Kneighbors_data, labelledInstance = genNeighborsInfoTraining(
