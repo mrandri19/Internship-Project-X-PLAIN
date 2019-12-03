@@ -4,10 +4,24 @@ import {
   BrowserRouter as Router,
   Switch,
   Route,
-  NavLink,
+  Link,
   Redirect
 } from "react-router-dom"
 import Plot from "react-plotly.js"
+import Button from "@material-ui/core/Button"
+import Box from "@material-ui/core/Box"
+import ThemeProvider from "@material-ui/styles/ThemeProvider"
+import { createMuiTheme } from "@material-ui/core/styles"
+import AppBar from "@material-ui/core/AppBar"
+import Tabs from "@material-ui/core/Tabs"
+import "./App.css"
+
+import Toolbar from "@material-ui/core/Toolbar"
+import Tab from "@material-ui/core/Tab"
+import Typography from "@material-ui/core/Typography"
+import List from "@material-ui/core/List"
+import ListItem from "@material-ui/core/ListItem"
+import ListItemText from "@material-ui/core/ListItemText"
 
 function Datasets() {
   const [datasets, setDatasets] = useState([])
@@ -35,16 +49,16 @@ function Datasets() {
     return <Redirect to="/classifiers" />
   }
   return (
-    <>
-      <h2>Datasets</h2>
-      <ul>
+    <Box m={1}>
+      <Typography variant="h6">Datasets</Typography>
+      <List component="ul">
         {datasets.map(datasetName => (
-          <li key={datasetName}>
-            <button onClick={postDataset(datasetName)}>{datasetName}</button>
-          </li>
+          <ListItem button key={datasetName} onClick={postDataset(datasetName)}>
+            <ListItemText primary={datasetName} />
+          </ListItem>
         ))}
-      </ul>
-    </>
+      </List>
+    </Box>
   )
 }
 
@@ -200,59 +214,54 @@ function Explanation() {
   )
 }
 
+const theme = createMuiTheme({})
+
+function LinkTab(props) {
+  return <Tab component={Link} {...props} />
+}
+
 function App() {
   return (
     <Router>
-      <div>
-        <h1>LACE</h1>
+      <ThemeProvider theme={theme}>
+        <Route path="/">
+          <>
+            <AppBar position="sticky">
+              <Toolbar>
+                <Typography variant="h6">LACE</Typography>
+                <Tabs value={window.location.pathname}>
+                  <LinkTab label="Datasets" to="/datasets" />
+                  <LinkTab label="Classifiers" to="/classifiers" />
+                  <LinkTab label="Instances" to="/instances" />
+                  <LinkTab label="Explanation" to="/explanation" />
+                </Tabs>
+              </Toolbar>
+            </AppBar>
 
-        <nav>
-          <ul>
-            <li>
-              <NavLink to="/datasets" activeClassName="nav-active">
-                Datasets
-              </NavLink>
-            </li>
-            <li>
-              <NavLink to="/classifiers" activeClassName="nav-active">
-                Classifiers
-              </NavLink>
-            </li>
-            <li>
-              <NavLink to="/instances" activeClassName="nav-active">
-                Instances
-              </NavLink>
-            </li>
-            <li>
-              <NavLink to="/explanation" activeClassName="nav-active">
-                Explanation
-              </NavLink>
-            </li>
-          </ul>
-        </nav>
+            <Switch>
+              <Route path="/datasets">
+                <Datasets />
+              </Route>
 
-        <Switch>
-          <Route path="/datasets">
-            <Datasets />
-          </Route>
+              <Route path="/classifiers">
+                <Classifiers />
+              </Route>
 
-          <Route path="/classifiers">
-            <Classifiers />
-          </Route>
+              <Route path="/instances">
+                <Instances />
+              </Route>
 
-          <Route path="/instances">
-            <Instances />
-          </Route>
+              <Route path="/explanation">
+                <Explanation />
+              </Route>
 
-          <Route path="/explanation">
-            <Explanation />
-          </Route>
-
-          <Route path="/">
-            <Redirect to="/datasets" />
-          </Route>
-        </Switch>
-      </div>
+              <Route path="/">
+                <Redirect to="/datasets" />
+              </Route>
+            </Switch>
+          </>
+        </Route>
+      </ThemeProvider>
     </Router>
   )
 }

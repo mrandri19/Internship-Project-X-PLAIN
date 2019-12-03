@@ -553,7 +553,7 @@ class XPLAIN_explainer:
                                                               single_attribute_differences,
                                                               instance_index, k,
                                                               error,
-                                                              difference_map,)
+                                                              difference_map, )
                 self.map_instance_apprE[instance_index] = PI_rel2
                 self.map_instance_NofKNN[instance_index] = k
                 break
@@ -564,7 +564,7 @@ class XPLAIN_explainer:
                     instance_explanation = XPLAIN_explanation(self,
                                                               target_class,
                                                               instance,
-                                                              old_out_data,
+                                                              old_single_attribute_differences,
                                                               instance_index,
                                                               old_k,
                                                               old_error,
@@ -577,7 +577,7 @@ class XPLAIN_explainer:
                 first_iteration = False
                 old_error = error
                 old_k = k
-                old_out_data = deepcopy(single_attribute_differences)
+                old_single_attribute_differences = deepcopy(single_attribute_differences)
                 old_map_difference = deepcopy(difference_map)
                 old_PI_rel2 = PI_rel2
         # If the for loop ended after having reached the maximum number of
@@ -589,7 +589,7 @@ class XPLAIN_explainer:
                     instance_explanation = XPLAIN_explanation(self,
                                                               target_class,
                                                               instance,
-                                                              old_out_data,
+                                                              old_single_attribute_differences,
                                                               instance_index,
                                                               old_k,
                                                               old_error,

@@ -105,11 +105,9 @@ def explanation_to_json(e: XPLAIN_explanation):
     return jsonify({
         'instance_id': e.instance_id,
         'diff_single': e.diff_single,
-        'impo_rules': e.impo_rules,
         'map_difference': e.map_difference,
         'k': e.k,
         'error': e.error,
-        'impo_rules_complete': e.impo_rules_complete,
         'target_class': e.target_class,
         'instance_class_index': e.instance_class_index,
         'prob': e.prob
