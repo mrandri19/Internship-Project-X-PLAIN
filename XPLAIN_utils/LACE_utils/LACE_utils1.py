@@ -4,46 +4,50 @@ from copy import deepcopy
 
 import Orange
 
+MAX_SAMPLE_COUNT = 100
+
 
 def import_dataset_N_evaluations(dataname, n_insts, randomic,
                                  datasetExplain=False):
     if datasetExplain:
-        return import_datasets(dataname, n_insts, randomic, datasetExplain)
+        return import_datasets(dataname, n_insts, randomic)
     else:
         return import_dataset(dataname, n_insts, randomic)
 
 
-def import_dataset(dataset_name, n_insts, randomic):
+def import_dataset(dataset_name, explain_indices, random_explain_dataset):
     if dataset_name[-4:] == "arff":
         dataset = loadARFF(dataset_name)
     else:
         dataset = Orange.data.Table(dataset_name)
 
-    len_dataset = len(dataset)
-    list_a = list(range(0, len_dataset))
+    dataset_len = len(dataset)
+    training_indices = list(range(dataset_len))
 
-    if randomic:
+    if random_explain_dataset:
         import random
         random.seed(1)
+
         # small dataset
-        samples = 100
-        if len_dataset < 2 * samples:
-            samples = int(0.2 * len_dataset)
-            # print("######\n",samples)
-        n_insts = list(random.sample(range(len_dataset), samples))
-        n_insts = [str(i) for i in n_insts]
+        if dataset_len < (2 * MAX_SAMPLE_COUNT):
+            samples = int(0.2 * dataset_len)
+        else:
+            samples = MAX_SAMPLE_COUNT
 
-    n_insts_int = list(map(int, n_insts))
-    for i_remove in n_insts_int:
-        list_a.remove(i_remove)
-    training_dataset = Orange.data.Table.from_table_rows(dataset, list_a)
-    len_training_dataset = len(training_dataset)
-    explain_dataset = Orange.data.Table.from_table_rows(dataset, n_insts_int)
+        # Randomly pick some instances to remove from the training dataset and use in the
+        # explain dataset
+        explain_indices = list(random.sample(training_indices, samples))
+    for i in explain_indices:
+        training_indices.remove(i)
 
-    return training_dataset, explain_dataset, len_training_dataset, n_insts
+    training_dataset = Orange.data.Table.from_table_rows(dataset, training_indices)
+    explain_dataset = Orange.data.Table.from_table_rows(dataset, explain_indices)
+
+    return training_dataset, explain_dataset, len(training_dataset), \
+           [str(i) for i in explain_indices]
 
 
-def import_datasets(dataname, n_insts, randomic, datasetExplain):
+def import_datasets(dataname, n_insts, randomic):
     if dataname[-4:] == "arff":
         dataset = loadARFF(dataname)
         dataname_to_explain = dataname[:-5] + "_explain.arff"

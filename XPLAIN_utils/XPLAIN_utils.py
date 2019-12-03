@@ -117,8 +117,8 @@ def convertOTable2Pandas(orangeTable, ids=None, sel="all", cl=None, mapName=None
         data["prob"]=y_pred
 
     if ids!=None:
-        data["id"]=ids
-        data=data.set_index('id')
+        data["instance_id"]=ids
+        data=data.set_index('instance_id')
 
     return data
 

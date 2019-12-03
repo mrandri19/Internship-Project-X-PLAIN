@@ -18,8 +18,7 @@ class TestGet_explanation(TestCase):
             e.instance,
             e.target_class,
             e.instance_class_index,
-            e.prob,
-            e.pred_str
+            e.prob
         ))
 
     def test_get_explanation_zoo_naive_bayes(self):
@@ -36,8 +35,7 @@ class TestGet_explanation(TestCase):
             e.instance,
             e.target_class,
             e.instance_class_index,
-            e.prob,
-            e.pred_str
+            e.prob
         ))
 
     def test_get_explanation_adult_naive_bayes(self):
@@ -54,6 +52,5 @@ class TestGet_explanation(TestCase):
             e.instance,
             e.target_class,
             e.instance_class_index,
-            e.prob,
-            e.pred_str
+            e.prob
         ))

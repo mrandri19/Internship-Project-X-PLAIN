@@ -1,16 +1,19 @@
 from flask import Flask, jsonify, abort, request
+from flask_cors import CORS
 
 from XPLAIN_class import import_datasets, import_dataset, XPLAIN_explainer
 from XPLAIN_explanation_class import XPLAIN_explanation
 
 app = Flask(__name__)
+CORS(app)
 
 # TODO: use sessions and local cache (redis?)
 # TODO: write tests instead of this
 state = {
     'dataset': 'zoo',
     'classifier': 'nb',
-    'explainer': XPLAIN_explainer('zoo', 'nb', train_explain_set=True)
+    'instance': None,
+    'explainer': XPLAIN_explainer('zoo', 'nb', random_explain_dataset=True),
 }
 
 datasets = {
@@ -74,22 +77,28 @@ def get_instances():
     if state['dataset'] is None or state['classifier'] is None:
         abort(400)
 
-    e = XPLAIN_explainer(state['dataset'], state['classifier'], train_explain_set=True)
+    e = XPLAIN_explainer(state['dataset'], state['classifier'], random_explain_dataset=True)
     # noinspection PyTypeChecker
     state['explainer'] = e
-    return jsonify([i.list for i in e.training_dataset])
+    assert (len(e.explain_indices) == len(e.explain_dataset))
+    return jsonify([(i.list, ix) for i, ix in zip(e.explain_dataset, e.explain_indices)])
 
 
-@app.route('/instance', methods=['GET', 'POST'])
-def post_instance():
-    # TODO: implement
-    return ""
+@app.route('/instance/<instance_id>', methods=['GET', 'POST'])
+def get_post_instance(instance_id):
+    if request.method == 'GET':
+        return ""
+
+    if request.method == 'POST':
+        state['instance'] = instance_id
+        return ""
 
 
 @app.route('/explanation')
 def get_explanation():
-    explainer = state['explainer']
-    return explanation_to_json(explainer.explain_instance(explainer.instance_indices[0]))
+    e = state['explainer']
+    return explanation_to_json(e.explain_instance(
+        e.explain_indices[0] if state['instance'] is None else state['instance']))
 
 
 def explanation_to_json(e: XPLAIN_explanation):
@@ -103,6 +112,5 @@ def explanation_to_json(e: XPLAIN_explanation):
         'impo_rules_complete': e.impo_rules_complete,
         'target_class': e.target_class,
         'instance_class_index': e.instance_class_index,
-        'prob': e.prob,
-        'pred_str': e.pred_str
+        'prob': e.prob
     })

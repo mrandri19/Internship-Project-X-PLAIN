@@ -67,11 +67,10 @@ def compute_prediction_difference_single(instT, classifier, indexI, dataset):
     i = deepcopy(instT)
     listaoutput = []
 
-    c0 = classifier(i, False)[0]
     c1 = classifier(i, True)[0]
     prob = c1[indexI]
 
-    for u in i.domain.attributes[:]:
+    for _ in i.domain.attributes[:]:
         listaoutput.append(0.0)
 
     t = -1
@@ -88,7 +87,6 @@ def compute_prediction_difference_single(instT, classifier, indexI, dataset):
             inst1[k] = k_ex[0]
             c1 = classifier(inst1, True)[0]
 
-            prob = 0.000000
             prob = c1[indexI]
             test = freq[k_ex] / len(dataset)
             # newvalue=prob*freq[k_ex]/len(dataset)

@@ -80,7 +80,6 @@ snapshots['TestGet_explanation::test_get_explanation_adult_naive_bayes 1'] = (
     '<=50K',
     0,
     0.9989885609941589,
-    '1.0'
 )
 
 snapshots['TestGet_explanation::test_get_explanation_zoo_naive_bayes 1'] = (
@@ -128,7 +127,6 @@ snapshots['TestGet_explanation::test_get_explanation_zoo_naive_bayes 1'] = (
     'mammal',
     5,
     0.9990739323302471,
-    '1.0'
 )
 
 snapshots['TestGet_explanation::test_get_explanation_zoo_random_forest 1'] = (
@@ -176,5 +174,4 @@ snapshots['TestGet_explanation::test_get_explanation_zoo_random_forest 1'] = (
     'mammal',
     5,
     1.0,
-    '1.0'
 )

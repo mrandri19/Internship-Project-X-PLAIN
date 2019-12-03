@@ -7,8 +7,8 @@ def get_explanation(dataset, classifier):
         warnings.simplefilter("ignore", category=DeprecationWarning)
         warnings.simplefilter("ignore", category=RuntimeWarning)
 
-        explainer = XPLAIN_explainer(dataset, classifier, train_explain_set=True)
-        return explainer.explain_instance(explainer.instance_indices[0])
+        explainer = XPLAIN_explainer(dataset, classifier, random_explain_dataset=True)
+        return explainer.explain_instance(explainer.explain_indices[0])
 
 
 if __name__ == "__main__":

@@ -2,8 +2,8 @@ from XPLAIN_utils.LACE_utils.LACE_utils1 import *
 
 
 # 15-7
-def genNeighborsInfo(training_dataset, NearestNeighborsAll, instanceIO, iID, k,
-                     unique_filename, classifier, save=True):
+def gen_neighbors_info(training_dataset, NearestNeighborsAll, instanceIO, iID, k,
+                       unique_filename, classifier, save=True):
     instanceI = instanceIO.x
     nearest_neighbors = NearestNeighborsAll.kneighbors([instanceI], k,
                                                        return_distance=False)
