@@ -2,10 +2,10 @@ from XPLAIN_utils.LACE_utils.LACE_utils1 import *
 
 
 # 15-7
-def gen_neighbors_info(training_dataset, NearestNeighborsAll, instanceIO, iID, k,
+def gen_neighbors_info(training_dataset, NearestNeighborsAll, instance, k,
                        unique_filename, classifier, save=True):
-    instanceI = instanceIO.x
-    nearest_neighbors = NearestNeighborsAll.kneighbors([instanceI], k,
+    instance_features = instance.x
+    nearest_neighbors = NearestNeighborsAll.kneighbors([instance_features], k,
                                                        return_distance=False)
 
     out_data_raw = []
@@ -18,7 +18,7 @@ def gen_neighbors_info(training_dataset, NearestNeighborsAll, instanceIO, iID, k
         instanceK.set_class(c[0])
         if i == 0:
             instanceK_i = Orange.data.Instance(training_dataset.domain,
-                                               instanceIO)
+                                               instance)
             c = classifier(instanceK_i)
             instanceTmp = deepcopy(instanceK_i)
             instanceTmp.set_class(c[0])

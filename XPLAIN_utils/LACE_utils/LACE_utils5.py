@@ -3,21 +3,16 @@ from collections import Counter
 import Orange
 
 
-def compute_prediction_difference_subset_only_existing(training_dataset,
-                                                       instance,
-                                                       rule_body_indices,
-                                                       classifier,
-                                                       instance_class_index,
-                                                       instance_predictions_cache):
+def compute_prediction_difference_subset(training_dataset,
+                                         instance,
+                                         rule_body_indices,
+                                         classifier,
+                                         instance_class_index,
+                                         instance_predictions_cache):
     """
     Compute the prediction difference for an instance in a training_dataset, w.r.t. some
     rules and a class, given a classifier
     """
-
-    print("computePredictionDifferenceSubsetRandomOnlyExisting")
-    print("instance =", instance)
-    print("rule_body_indices =", rule_body_indices)
-
     prediction_difference = 0.0
 
     rule_attributes = [
@@ -31,9 +26,6 @@ def compute_prediction_difference_subset_only_existing(training_dataset,
     # Count how many times a set of attribute values appears in the dataset
     attribute_sets_occurrences = dict(
         Counter(map(tuple, filtered_dataset.X)).items())
-
-    print("len(rule_attributes) =", len(rule_attributes),
-          " <=> len(attribute_sets_occurrences) =", len(attribute_sets_occurrences))
 
     # For each set of attributes
     for (attribute_set, occurrences) in attribute_sets_occurrences.items():

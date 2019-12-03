@@ -294,7 +294,7 @@ class XPLAIN_explainer:
             instT = deepcopy(instTmp2)
 
             gen_neighbors_info(self.training_dataset, self.NearestNeighborsAll,
-                               instT, 0, NofKNN, self.unique_filename,
+                               instT, NofKNN, self.unique_filename,
                                self.classifier)
 
             # Call L3
@@ -475,13 +475,11 @@ class XPLAIN_explainer:
         return explanation_i, axi
 
     def explain_instance(self, instance_index_str, target_class=None):
-        old_input_ar = []
-        old_mappa = {}
-
-        old_impo_rules = []
+        all_rule_body_indices = []
 
         instance_index_in_explain_indices = self.explain_indices.index(
             instance_index_str)
+        instance_index = int(instance_index_str)
 
         instance = Orange.data.Instance(self.explain_dataset.domain,
                                         self.explain_dataset[
@@ -513,6 +511,8 @@ class XPLAIN_explainer:
         k = self.starting_K
         old_error = 10.0
         error = 1e9
+        single_attribute_differences = {}
+        pred = 0.0
 
         first_iteration = True
 
@@ -523,82 +523,21 @@ class XPLAIN_explainer:
 
         # Euristically search for the best k to use to approximate the local model
         for k in range(self.starting_K, self.max_K, self.K):
-            print(f"Trying k={k}")
-            instance_index = int(instance_index_str)
-
-            gen_neighbors_info(self.training_dataset, self.NearestNeighborsAll,
-                               self.explain_dataset[
-                                   instance_index_in_explain_indices],
-                               instance_index, k,
-                               self.unique_filename, self.classifier)
-
-            # Call L3
-            subprocess.call(['java', '-jar', 'AL3.jar', '-no-cv', '-t',
-                             ('./' + self.unique_filename + '/Knnres.arff'), '-T',
-                             ('./' + self.unique_filename + '/Filetest.arff'),
-                             '-S', '1.0', '-C', '50.0', '-PN',
-                             ("./" + self.unique_filename), '-SP', '10', '-NRUL',
-                             '1'], stdout=subprocess.DEVNULL)
-
-            with open("./" + self.unique_filename + "/impo_rules.txt",
-                      "r") as myfile:
-                importance_rules_lines = myfile.read().splitlines()
-
-            # The local model is not changed
-            if set(importance_rules_lines) == set(
-                    old_impo_rules) and not first_iteration:
-                continue
-
-            old_impo_rules = importance_rules_lines
-
-            # Not interested in a rule composed of all the attributes values.
-            # By definition, its relevance is prob(y=c)-prob(c)
-            importance_rules_lines = [rule_str for rule_str in importance_rules_lines if
-                                      len(rule_str.split(",")) != len(instance.domain.attributes)]
-
-            rule_bodies_indices, n_input_ar, new_input_ar, old_ar_set = \
-                get_relevant_subset_from_local_rules(
-                    importance_rules_lines, old_input_ar)
-
-            impo_rules_complete = deepcopy(rule_bodies_indices)
-
-            mappa = old_mappa.copy()
-
             # Compute the prediction difference of single attributes only on the
             # first iteration
             if first_iteration:
                 pred = self.classifier(instance, True)[0][target_class_index]
-                out_data = compute_prediction_difference_single(instance, self.classifier,
-                                                                target_class_index,
-                                                                self.training_dataset)
+                single_attribute_differences = compute_prediction_difference_single(instance,
+                                                                                    self.classifier,
+                                                                                    target_class_index,
+                                                                                    self.training_dataset)
 
-            # Cache the subset calculation for repeated rule subsets.
-            difference_map = {}
-            for rule_body_indices in rule_bodies_indices:
-                # Consider only rules with more than 1 attribute since we compute the differences
-                # for single attribute changes already in computePredictionDifferenceSinglever2
-                if len(rule_body_indices) <= 1:
-                    continue
-                subset_difference_cache_key = tuple(rule_body_indices)
-                if subset_difference_cache_key not in cached_subset_differences:
-                    cached_subset_differences[
-                        subset_difference_cache_key] = compute_prediction_difference_subset_only_existing(
-                        self.training_dataset, instance, rule_body_indices,
-                        self.classifier, target_class_index, instance_predictions_cache)
+            PI_rel2, difference_map, error, impo_rules_complete, importance_rules_lines, single_attribute_differences = self.compute_lace_step(
+                cached_subset_differences, instance,
+                instance_predictions_cache,
+                k, all_rule_body_indices, target_class, target_class_index, pred,
+                single_attribute_differences)
 
-                difference_map_key = ",".join(map(str, rule_body_indices))
-                difference_map[difference_map_key] = cached_subset_differences[
-                    subset_difference_cache_key]
-
-            # Definition of approximation error. How we approximate the "true explanation"?
-            error_single, error, PI_rel2 = compute_error_approximation(self.mappa_class,
-                                                                       pred, out_data,
-                                                                       impo_rules_complete,
-                                                                       target_class,
-                                                                       difference_map)
-
-            old_input_ar += rule_bodies_indices
-            old_mappa.update(mappa)
             if first_iteration:
                 self.map_instance_1_apprE[instance_index] = PI_rel2
                 self.map_instance_diff_approxFirst[instance_index] = error
@@ -611,12 +550,10 @@ class XPLAIN_explainer:
                     instance_explanation = XPLAIN_explanation(self,
                                                               target_class,
                                                               instance,
-                                                              out_data,
-                                                              importance_rules_lines,
+                                                              single_attribute_differences,
                                                               instance_index, k,
                                                               error,
-                                                              difference_map,
-                                                              impo_rules_complete)
+                                                              difference_map,)
                 self.map_instance_apprE[instance_index] = PI_rel2
                 self.map_instance_NofKNN[instance_index] = k
                 break
@@ -628,12 +565,10 @@ class XPLAIN_explainer:
                                                               target_class,
                                                               instance,
                                                               old_out_data,
-                                                              old_impo_rules_plot,
                                                               instance_index,
                                                               old_k,
                                                               old_error,
-                                                              old_map_difference,
-                                                              old_impo_rules_complete)
+                                                              old_map_difference)
                 self.map_instance_apprE[instance_index] = old_PI_rel2
                 self.map_instance_NofKNN[instance_index] = old_k
                 break
@@ -642,10 +577,8 @@ class XPLAIN_explainer:
                 first_iteration = False
                 old_error = error
                 old_k = k
-                old_out_data = deepcopy(out_data)
-                old_impo_rules_plot = deepcopy(importance_rules_lines)
+                old_out_data = deepcopy(single_attribute_differences)
                 old_map_difference = deepcopy(difference_map)
-                old_impo_rules_complete = deepcopy(impo_rules_complete)
                 old_PI_rel2 = PI_rel2
         # If the for loop ended after having reached the maximum number of
         # iteration, i.e. the error did not reach the minimum.
@@ -657,12 +590,10 @@ class XPLAIN_explainer:
                                                               target_class,
                                                               instance,
                                                               old_out_data,
-                                                              old_impo_rules_plot,
                                                               instance_index,
                                                               old_k,
                                                               old_error,
-                                                              old_map_difference,
-                                                              old_impo_rules_complete)
+                                                              old_map_difference)
                 self.map_instance_apprE[instance_index] = old_PI_rel2
                 self.map_instance_NofKNN[instance_index] = old_k
             else:
@@ -670,12 +601,10 @@ class XPLAIN_explainer:
                     instance_explanation = XPLAIN_explanation(self,
                                                               target_class,
                                                               instance,
-                                                              out_data,
-                                                              importance_rules_lines,
+                                                              single_attribute_differences,
                                                               instance_index, k,
                                                               error,
-                                                              difference_map,
-                                                              impo_rules_complete)
+                                                              difference_map)
                 self.map_instance_apprE[instance_index] = PI_rel2
                 self.map_instance_NofKNN[instance_index] = k
 
@@ -692,6 +621,61 @@ class XPLAIN_explainer:
         assert (instance_explanation is not None)
 
         return instance_explanation
+
+    def compute_lace_step(self, cached_subset_differences, instance,
+                          instance_predictions_cache, k, old_input_ar, target_class,
+                          target_class_index, pred, single_attribute_differences):
+        print(f"compute_lace_step k={k}")
+
+        gen_neighbors_info(self.training_dataset, self.NearestNeighborsAll, instance, k,
+                           self.unique_filename, self.classifier)
+        subprocess.call(['java', '-jar', 'AL3.jar', '-no-cv', '-t',
+                         ('./' + self.unique_filename + '/Knnres.arff'), '-T',
+                         ('./' + self.unique_filename + '/Filetest.arff'),
+                         '-S', '1.0', '-C', '50.0', '-PN',
+                         ("./" + self.unique_filename), '-SP', '10', '-NRUL',
+                         '1'], stdout=subprocess.DEVNULL)
+        with open("./" + self.unique_filename + "/impo_rules.txt",
+                  "r") as myfile:
+            importance_rules_lines = myfile.read().splitlines()
+            # Remove rules which contain all attributes: we are not interested in a rule composed of
+            # all the attributes values. By definition, its relevance is prob(y=c)-prob(c)
+            importance_rules_lines = [rule_str for rule_str in importance_rules_lines if
+                                      len(rule_str.split(",")) != len(instance.domain.attributes)]
+
+        rule_bodies_indices, n_input_ar, new_input_ar, old_ar_set = \
+            get_relevant_subset_from_local_rules(
+                importance_rules_lines, old_input_ar)
+        impo_rules_complete = deepcopy(rule_bodies_indices)
+
+        # Cache the subset calculation for repeated rule subsets.
+        difference_map = {}
+        for rule_body_indices in rule_bodies_indices:
+            # Consider only rules with more than 1 attribute since we compute the differences
+            # for single attribute changes already in compute_prediction_difference_single
+            if len(rule_body_indices) <= 1:
+                continue
+
+            subset_difference_cache_key = tuple(rule_body_indices)
+            if subset_difference_cache_key not in cached_subset_differences:
+                cached_subset_differences[
+                    subset_difference_cache_key] = compute_prediction_difference_subset(
+                    self.training_dataset, instance, rule_body_indices,
+                    self.classifier, target_class_index, instance_predictions_cache)
+
+            difference_map_key = ",".join(map(str, rule_body_indices))
+            difference_map[difference_map_key] = cached_subset_differences[
+                subset_difference_cache_key]
+
+        error_single, error, PI_rel2 = compute_error_approximation(self.mappa_class,
+                                                                   pred,
+                                                                   single_attribute_differences,
+                                                                   impo_rules_complete,
+                                                                   target_class,
+                                                                   difference_map)
+        old_input_ar += rule_bodies_indices
+
+        return PI_rel2, difference_map, error, impo_rules_complete, importance_rules_lines, single_attribute_differences
 
     def visualizePoints(self, datapoints, Sn_inst=None, reductionMethod="mca"):
         from mpl_toolkits.mplot3d import Axes3D
@@ -834,7 +818,7 @@ class XPLAIN_explainer:
         else:
             Kneighbors_data, removeToDo = gen_neighbors_info(
                 self.training_dataset, self.NearestNeighborsAll,
-                self.explain_dataset[count_inst], n_inst, self.starting_K,
+                self.explain_dataset[count_inst], self.starting_K,
                 self.unique_filename, self.classifier, save=False)
 
         X = Kneighbors_data.X
@@ -868,8 +852,7 @@ class XPLAIN_explainer:
                 self.training_dataset,
                 self.NearestNeighborsAll,
                 self.explain_dataset[
-                    count_inst], n_inst,
-                self.starting_K,
+                    count_inst], self.starting_K,
                 self.unique_filename,
                 self.classifier,
                 save=False)
@@ -990,8 +973,7 @@ class XPLAIN_explainer:
                 self.training_dataset,
                 self.NearestNeighborsAll,
                 self.explain_dataset[
-                    count_inst], n_inst,
-                self.starting_K,
+                    count_inst], self.starting_K,
                 self.unique_filename,
                 self.classifier,
                 save=False)
@@ -1134,7 +1116,7 @@ class XPLAIN_explainer:
         else:
             Kneighbors_data, labelledInstance = gen_neighbors_info(
                 self.training_dataset, self.NearestNeighborsAll,
-                self.explain_dataset[count_inst], n_inst, self.starting_K,
+                self.explain_dataset[count_inst], self.starting_K,
                 self.unique_filename, self.classifier, save=False)
         Kneigh_pd = convertOTable2Pandas(Kneighbors_data)
         return Kneigh_pd
