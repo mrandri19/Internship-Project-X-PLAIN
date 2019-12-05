@@ -1,5 +1,5 @@
+import "./style.scss"
 import React, { useState, useEffect } from "react"
-import "bootstrap/dist/css/bootstrap.min.css"
 import "whatwg-fetch"
 import { Switch, Route, Link, Redirect, useLocation } from "react-router-dom"
 import Plot from "react-plotly.js"
@@ -146,24 +146,41 @@ function Instances() {
   if (toExplanation) {
     return <Redirect to="/explanation" />
   }
+  console.log(instances)
   return (
-    <Container>
+    <Container fluid>
       <Row>
         <Col className="mt-3">
           <h2>Instances</h2>
-          <Table hover>
-            <thead></thead>
+          <Table
+            hover
+            style={{
+              display: "block",
+              overflowX: "auto",
+              whiteSpace: "nowrap"
+            }}
+          >
+            <thead>
+              <tr>
+                <th></th>
+                {instances.domain.map(([name, _values]) => (
+                  <th key={name}>{name}</th>
+                ))}
+              </tr>
+            </thead>
             <tbody>
-              {instances.slice(0, 20).map(instance => (
+              {instances.instances.slice(0, 10).map(instance => (
                 <tr key={instance[1]}>
-                  {instance[0].map((feature, feature_ix) => (
-                    <td key={instance[1] + feature_ix}>{feature}</td>
-                  ))}
                   <td>
                     <Button size="sm" onClick={postInstance(instance[1])}>
-                      Get Explanation
+                      Explain
                     </Button>
                   </td>
+                  {instance[0].map((feature, feature_ix) => (
+                    <td key={String(instances[1]) + feature_ix}>
+                      {instances.domain.map(d => d[1])[feature_ix][feature]}
+                    </td>
+                  ))}
                 </tr>
               ))}
             </tbody>
@@ -204,9 +221,11 @@ function Explanation() {
     Object.values(explanation.map_difference)
   )
 
-  const names = Array.from(Array(explanation.diff_single.length).keys())
-    .map(i => `${i + 1}`)
-    .concat(Object.keys(explanation.map_difference).map((val, _ix) => `${val}`))
+  const names = explanation.domain
+    .map(a => a[0])
+    .concat(
+      Object.keys(explanation.map_difference).map((_, ix) => `Rule ${ix + 1}`)
+    )
 
   const trace = {
     type: "bar",
@@ -214,7 +233,9 @@ function Explanation() {
     y: names,
     orientation: "h",
     marker: {
-      color: names.map(d => (d.includes(",") ? "red" : "blue"))
+      color: names.map((d, ix) =>
+        d.startsWith("Rule") ? "#0087FF" : "#FF7A01"
+      )
     }
   }
 
@@ -235,10 +256,40 @@ function Explanation() {
             The method has converged with error {explanation.error.toFixed(3)}{" "}
             and a locality size (parameter K) of {explanation.k}.
           </p>
+          <ul>
+            {Object.keys(explanation.map_difference).map((r, ix) => (
+              <li key={r}>
+                Rule {ix + 1}:{" "}
+                {r
+                  .split(",")
+                  .map(a => explanation.domain[a][0])
+                  .join(", ")}
+              </li>
+            ))}
+          </ul>
           <p></p>
           <Plot
             data={[trace]}
-            layout={{ yaxis: { type: "category", automargin: true } }}
+            layout={{
+              autosize: true,
+              yaxis: {
+                type: "category",
+                automargin: true,
+                categoryorder: "total ascending"
+              },
+              margin: {
+                l: 0,
+                r: 0,
+                b: 0,
+                t: 0,
+                pad: 0
+              },
+              font: {
+                family: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"`,
+                size: 14
+              }
+            }}
+            config={{ displayModeBar: false }}
           />
         </Col>
       </Row>

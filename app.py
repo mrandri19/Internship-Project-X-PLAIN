@@ -77,11 +77,14 @@ def get_instances():
     if state['dataset'] is None or state['classifier'] is None:
         abort(400)
 
-    e = XPLAIN_explainer(state['dataset'], state['classifier'], random_explain_dataset=True)
+    e = XPLAIN_explainer(
+        state['dataset'], state['classifier'], random_explain_dataset=True)
     # noinspection PyTypeChecker
     state['explainer'] = e
     assert (len(e.explain_indices) == len(e.explain_dataset))
-    return jsonify([(i.list, ix) for i, ix in zip(e.explain_dataset, e.explain_indices)])
+    return jsonify({
+        'domain': [(a.name, a.values) for a in e.training_dataset.domain],
+        'instances': [(list(i.x)+list(i.y), ix) for i, ix in zip(e.explain_dataset, e.explain_indices)]})
 
 
 @app.route('/instance/<instance_id>', methods=['GET', 'POST'])
@@ -101,14 +104,16 @@ def get_explanation():
         e.explain_indices[0] if state['instance'] is None else state['instance']))
 
 
-def explanation_to_json(e: XPLAIN_explanation):
+def explanation_to_json(xp: XPLAIN_explanation):
+    e: XPLAIN_explainer = xp.XPLAIN_explainer_o
     return jsonify({
-        'instance_id': e.instance_id,
-        'diff_single': e.diff_single,
-        'map_difference': e.map_difference,
-        'k': e.k,
-        'error': e.error,
-        'target_class': e.target_class,
-        'instance_class_index': e.instance_class_index,
-        'prob': e.prob
+        'domain': [(a.name, a.values) for a in e.training_dataset.domain.attributes],
+        'instance_id': xp.instance_id,
+        'diff_single': xp.diff_single,
+        'map_difference': xp.map_difference,
+        'k': xp.k,
+        'error': xp.error,
+        'target_class': xp.target_class,
+        'instance_class_index': xp.instance_class_index,
+        'prob': xp.prob
     })
