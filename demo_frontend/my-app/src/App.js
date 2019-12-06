@@ -13,6 +13,12 @@ import Col from "react-bootstrap/Col"
 import ListGroup from "react-bootstrap/ListGroup"
 import Spinner from "react-bootstrap/Spinner"
 import Table from "react-bootstrap/Table"
+import Octicon, {
+  Question,
+  Book,
+  Telescope,
+  Italic
+} from "@primer/octicons-react"
 
 function Datasets() {
   const [datasets, setDatasets] = useState([])
@@ -42,11 +48,12 @@ function Datasets() {
   return (
     <Container>
       <Row>
-        <Col className="mt-3">
+        <Col lg={3} className="mt-3">
           <h2>Datasets</h2>
           <ListGroup>
             {datasets.map(datasetName => (
               <ListGroup.Item
+                className="text-center"
                 action
                 key={datasetName}
                 onClick={postDataset(datasetName)}
@@ -89,11 +96,12 @@ function Classifiers() {
   return (
     <Container>
       <Row>
-        <Col className="mt-3">
+        <Col lg={3} className="mt-3">
           <h2>Classifiers</h2>
           <ListGroup>
             {classifiers.map(classifier => (
               <ListGroup.Item
+                className="text-center"
                 action
                 key={classifier}
                 onClick={postClassifier(classifier)}
@@ -146,9 +154,8 @@ function Instances() {
   if (toExplanation) {
     return <Redirect to="/explanation" />
   }
-  console.log(instances)
   return (
-    <Container fluid>
+    <Container>
       <Row>
         <Col className="mt-3">
           <h2>Instances</h2>
@@ -163,6 +170,7 @@ function Instances() {
             <thead>
               <tr>
                 <th></th>
+                <th>ID</th>
                 {instances.domain.map(([name, _values]) => (
                   <th key={name}>{name}</th>
                 ))}
@@ -173,9 +181,10 @@ function Instances() {
                 <tr key={instance[1]}>
                   <td>
                     <Button size="sm" onClick={postInstance(instance[1])}>
-                      Explain
+                      <Octicon icon={Question} /> Explain
                     </Button>
                   </td>
+                  <td>{instance[1]}</td>
                   {instance[0].map((feature, feature_ix) => (
                     <td key={String(instances[1]) + feature_ix}>
                       {instances.domain.map(d => d[1])[feature_ix][feature]}
@@ -233,28 +242,28 @@ function Explanation() {
     y: names,
     orientation: "h",
     marker: {
-      color: names.map((d, ix) =>
-        d.startsWith("Rule") ? "#0087FF" : "#FF7A01"
-      )
+      color: differences
     }
   }
 
-  console.log(names)
   return (
     <Container>
-      <Row>
-        <Col className="mt-3">
+      <Row className="mt-3">
+        <Col>
           <h2>Explanation</h2>
-          <h3>Classifier Prediction</h3>
+        </Col>
+      </Row>
+      <Row>
+        <Col>
           <p>
-            The instance {explanation.instance_id} belongs to the class{" "}
-            {explanation.target_class} with probability{" "}
-            {explanation.prob.toFixed(3)}.
+            The instance <code>{explanation.instance_id}</code> belongs to the
+            class <b>{explanation.target_class}</b> with probability{" "}
+            <code>{explanation.prob.toFixed(3)}</code>.
           </p>
-          <h3>LACE Explanation</h3>
           <p>
-            The method has converged with error {explanation.error.toFixed(3)}{" "}
-            and a locality size (parameter K) of {explanation.k}.
+            The method has converged with error{" "}
+            <code>{explanation.error.toFixed(3)}</code> and a locality of size{" "}
+            <code>{explanation.k}</code> (parameter K).
           </p>
           <ul>
             {Object.keys(explanation.map_difference).map((r, ix) => (
@@ -268,6 +277,8 @@ function Explanation() {
             ))}
           </ul>
           <p></p>
+        </Col>
+        <Col>
           <Plot
             data={[trace]}
             layout={{
@@ -277,12 +288,15 @@ function Explanation() {
                 automargin: true,
                 categoryorder: "total ascending"
               },
+              xaxis: {
+                dtick: 0.05,
+                ticks: "inside"
+              },
               margin: {
                 l: 0,
                 r: 0,
-                b: 0,
-                t: 0,
-                pad: 0
+                t: 0
+                // pad: 0
               },
               font: {
                 family: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"`,
@@ -311,22 +325,22 @@ function App() {
             <Nav activeKey={location.pathname} navbar={true}>
               <NavItem href="/datasets">
                 <Nav.Link as={Link} eventKey="/datasets" to="/datasets">
-                  Datasets
+                  <Octicon icon={Book} /> Datasets
                 </Nav.Link>
               </NavItem>
               <NavItem href="/classifiers">
                 <Nav.Link as={Link} eventKey="/classifiers" to="/classifiers">
-                  Classifiers
+                  <Octicon icon={Telescope} /> Classifiers
                 </Nav.Link>
               </NavItem>
               <NavItem href="/instances">
                 <Nav.Link as={Link} eventKey="/instances" to="/instances">
-                  Instances
+                  <Octicon icon={Italic} /> Instances
                 </Nav.Link>
               </NavItem>
               <NavItem href="/explanation">
                 <Nav.Link as={Link} eventKey="/explanation" to="/explanation">
-                  Explanation
+                  <Octicon icon={Question} /> Explanation
                 </Nav.Link>
               </NavItem>
             </Nav>
