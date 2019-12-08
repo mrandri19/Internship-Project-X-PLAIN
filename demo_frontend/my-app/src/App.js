@@ -17,7 +17,11 @@ import Octicon, {
   Question,
   Book,
   Telescope,
-  Italic
+  Italic,
+  Check,
+  Graph,
+  PrimitiveDot,
+  MortarBoard
 } from "@primer/octicons-react"
 
 function Datasets() {
@@ -47,9 +51,13 @@ function Datasets() {
   }
   return (
     <Container>
+      <Row className="mt-3">
+        <Col>
+          <h2>Select a dataset</h2>
+        </Col>
+      </Row>
       <Row>
-        <Col lg={3} className="mt-3">
-          <h2>Datasets</h2>
+        <Col lg={3}>
           <ListGroup>
             {datasets.map(datasetName => (
               <ListGroup.Item
@@ -95,9 +103,13 @@ function Classifiers() {
   }
   return (
     <Container>
+      <Row className="mt-3">
+        <Col>
+          <h2>Select a classifier</h2>
+        </Col>
+      </Row>
       <Row>
         <Col lg={3} className="mt-3">
-          <h2>Classifiers</h2>
           <ListGroup>
             {classifiers.map(classifier => (
               <ListGroup.Item
@@ -118,7 +130,7 @@ function Classifiers() {
 
 function Instances() {
   const [instances, setInstances] = useState([])
-  const [toExplanation, setToExplanation] = useState(false)
+  const [toAnalyses, setToAnalyses] = useState(false)
 
   useEffect(() => {
     async function fetchData() {
@@ -134,7 +146,7 @@ function Instances() {
       await fetch(`http://127.0.0.1:5000/instance/${instanceId}`, {
         method: "POST"
       })
-      setToExplanation(true)
+      setToAnalyses(true)
     }
   }
 
@@ -151,14 +163,18 @@ function Instances() {
     )
   }
 
-  if (toExplanation) {
-    return <Redirect to="/explanation" />
+  if (toAnalyses) {
+    return <Redirect to="/analyses" />
   }
   return (
     <Container>
+      <Row className="mt-3">
+        <Col>
+          <h2>Select an instance</h2>
+        </Col>
+      </Row>
       <Row>
-        <Col className="mt-3">
-          <h2>Instances</h2>
+        <Col>
           <Table
             hover
             style={{
@@ -181,7 +197,7 @@ function Instances() {
                 <tr key={instance[1]}>
                   <td>
                     <Button size="sm" onClick={postInstance(instance[1])}>
-                      <Octicon icon={Question} /> Explain
+                      <Octicon icon={Check} /> Select
                     </Button>
                   </td>
                   <td>{instance[1]}</td>
@@ -200,6 +216,97 @@ function Instances() {
   )
 }
 
+function Analyses() {
+  const [analyses, setAnalyses] = useState([])
+
+  const [toExplanation, setToExplanation] = useState(false)
+  const [toWhatIf, setToWhatIf] = useState(false)
+
+  useEffect(() => {
+    async function fetchData() {
+      const res = await fetch("http://127.0.0.1:5000/analyses")
+      const json = await res.json()
+      setAnalyses(json)
+    }
+    fetchData()
+  }, [])
+
+  function postAnalysis(analysisName) {
+    return async () => {
+      await fetch(`http://127.0.0.1:5000/analysis/${analysisName}`, {
+        method: "POST"
+      })
+      if (analysisName === "explain") {
+        setToExplanation(true)
+        return
+      }
+      if (analysisName === "whatif") {
+        setToWhatIf(true)
+        return
+      }
+    }
+  }
+
+  if (toExplanation) {
+    return <Redirect to="/explanation" />
+  }
+  if (toWhatIf) {
+    return <Redirect to="/whatif" />
+  }
+
+  return (
+    <Container>
+      <Row className="mt-3">
+        <Col>
+          <h2>Select the analysis to perform</h2>
+        </Col>
+      </Row>
+      <Row>
+        <Col lg={3}>
+          <ListGroup>
+            {analyses.map(analysis => (
+              <ListGroup.Item
+                className="text-center"
+                action
+                key={analysis.id}
+                onClick={postAnalysis(analysis.id)}
+              >
+                <Octicon
+                  icon={(id => {
+                    switch (id) {
+                      case "explain":
+                        return Question
+
+                      case "whatif":
+                        return MortarBoard
+
+                      default:
+                        return PrimitiveDot
+                    }
+                  })(analysis.id)}
+                />{" "}
+                {analysis.display_name}
+              </ListGroup.Item>
+            ))}
+          </ListGroup>
+        </Col>
+      </Row>
+    </Container>
+  )
+}
+
+function WhatIf() {
+  return (
+    <Container>
+      <Row className="mt-3">
+        <Col>
+          <h2>What If Analysis</h2>
+        </Col>
+      </Row>
+    </Container>
+  )
+}
+
 function Explanation() {
   const [explanation, setExplanation] = useState(null)
 
@@ -207,7 +314,6 @@ function Explanation() {
     async function fetchData() {
       const res = await fetch("http://127.0.0.1:5000/explanation")
       const json = await res.json()
-      console.log(json)
       setExplanation(json)
     }
     fetchData()
@@ -265,23 +371,31 @@ function Explanation() {
             <code>{explanation.error.toFixed(3)}</code> and a locality of size{" "}
             <code>{explanation.k}</code> (parameter K).
           </p>
-          <ul>
-            {Object.keys(explanation.map_difference).map((r, ix) => (
-              <li key={r}>
-                Rule {ix + 1}:{" "}
-                {r
-                  .split(",")
-                  .map(a => explanation.domain[a][0])
-                  .join(", ")}
-              </li>
-            ))}
-          </ul>
+          {Object.keys(explanation.map_difference).map((r, ix) => (
+            <p key={r}>
+              Rule {ix + 1}:{" "}
+              {(() => {
+                let attributes = r.split(",")
+                attributes.sort((a1, a2) => {
+                  return (
+                    explanation.diff_single[a1 - 1] <
+                    explanation.diff_single[a2 - 1]
+                  )
+                })
+
+                return attributes
+                  .map(a => explanation.domain[a - 1][0])
+                  .join(", ")
+              })()}
+            </p>
+          ))}
           <p></p>
         </Col>
         <Col>
           <Plot
             data={[trace]}
             layout={{
+              title: "Rule/Attribute prediction contribution",
               autosize: true,
               yaxis: {
                 type: "category",
@@ -289,26 +403,31 @@ function Explanation() {
                 categoryorder: "total ascending"
               },
               xaxis: {
+                title: "Contribution",
                 dtick: 0.05,
                 ticks: "inside"
               },
               margin: {
                 l: 0,
                 r: 0,
-                t: 0
-                // pad: 0
+                t: 40,
+                p: 0
               },
               font: {
                 family: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"`,
-                size: 14
+                size: 16
               }
             }}
-            config={{ displayModeBar: false }}
+            config={{ displayModeBar: false, responsive: true }}
           />
         </Col>
       </Row>
     </Container>
   )
+}
+
+function RouteNotFound() {
+  return <h1>Route not found</h1>
 }
 
 function App() {
@@ -338,9 +457,9 @@ function App() {
                   <Octicon icon={Italic} /> Instances
                 </Nav.Link>
               </NavItem>
-              <NavItem href="/explanation">
-                <Nav.Link as={Link} eventKey="/explanation" to="/explanation">
-                  <Octicon icon={Question} /> Explanation
+              <NavItem href="/analyses">
+                <Nav.Link as={Link} eventKey="/analyses" to="/analyses">
+                  <Octicon icon={Graph} /> Analyses
                 </Nav.Link>
               </NavItem>
             </Nav>
@@ -360,13 +479,22 @@ function App() {
             <Instances />
           </Route>
 
+          <Route path="/analyses">
+            <Analyses />
+          </Route>
+
+          <Route path="/whatif">
+            <WhatIf />
+          </Route>
+
           <Route path="/explanation">
             <Explanation />
           </Route>
 
-          <Route path="/">
+          <Route exact path="/">
             <Redirect to="/datasets" />
           </Route>
+          <Route component={RouteNotFound} />
         </Switch>
       </main>
     </Route>

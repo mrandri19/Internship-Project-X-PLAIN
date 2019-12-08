@@ -13,7 +13,9 @@ state = {
     'dataset': 'zoo',
     'classifier': 'nb',
     'instance': None,
+    'analysis': 'explain',
     'explainer': XPLAIN_explainer('zoo', 'nb', random_explain_dataset=True),
+    'cached_explanations': {}
 }
 
 datasets = {
@@ -72,6 +74,7 @@ def get_post_classifer(name):
         return ""
 
 
+# TODO(andrea): cache
 @app.route('/instances')
 def get_instances():
     if state['dataset'] is None or state['classifier'] is None:
@@ -87,18 +90,37 @@ def get_instances():
         'instances': [(list(i.x)+list(i.y), ix) for i, ix in zip(e.explain_dataset, e.explain_indices)]})
 
 
-@app.route('/instance/<instance_id>', methods=['GET', 'POST'])
+@app.route('/instance/<instance_id>', methods=['POST'])
 def get_post_instance(instance_id):
-    if request.method == 'GET':
-        return ""
-
     if request.method == 'POST':
         state['instance'] = instance_id
         return ""
 
 
+analyses = [{"id": "explain", "display_name": "Explain the prediction"}, {
+    "id": "whatif", "display_name": "What If analysis"}]
+
+
+@app.route('/analyses')
+def get_analyses():
+    if state['dataset'] is None or state['classifier'] is None or state['instance'] is None:
+        abort(400)
+    return jsonify(analyses)
+
+
+@app.route('/analysis/<analysis_name>', methods=['POST'])
+def post_analysis(analysis_name):
+    if state['dataset'] is None or state['classifier'] is None or state['instance'] is None or analysis_name not in analyses:
+        abort(400)
+    if request.method == 'POST':
+        state['analysis'] = analysis_name
+        return ""
+
+
 @app.route('/explanation')
 def get_explanation():
+    if state['dataset'] is None or state['classifier'] is None or state['explainer'] is None:
+        abort(400)
     e = state['explainer']
     return explanation_to_json(e.explain_instance(
         e.explain_indices[0] if state['instance'] is None else state['instance']))
@@ -106,6 +128,7 @@ def get_explanation():
 
 def explanation_to_json(xp: XPLAIN_explanation):
     e: XPLAIN_explainer = xp.XPLAIN_explainer_o
+    print(xp.map_difference)
     return jsonify({
         'domain': [(a.name, a.values) for a in e.training_dataset.domain.attributes],
         'instance_id': xp.instance_id,
