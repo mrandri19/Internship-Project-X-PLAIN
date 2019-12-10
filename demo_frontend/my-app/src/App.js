@@ -1,53 +1,53 @@
-import "./style.scss"
-import React, { useState, useEffect } from "react"
-import "whatwg-fetch"
-import { Switch, Route, Link, Redirect, useLocation } from "react-router-dom"
-import Plot from "react-plotly.js"
-import Navbar from "react-bootstrap/Navbar"
-import Nav from "react-bootstrap/Nav"
-import NavItem from "react-bootstrap/NavItem"
-import Container from "react-bootstrap/Container"
-import Button from "react-bootstrap/Button"
-import Row from "react-bootstrap/Row"
-import Col from "react-bootstrap/Col"
-import ListGroup from "react-bootstrap/ListGroup"
-import Spinner from "react-bootstrap/Spinner"
-import Table from "react-bootstrap/Table"
+import "./style.scss";
+import React, { useState, useEffect } from "react";
+import "whatwg-fetch";
+import { Switch, Route, Link, Redirect, useLocation } from "react-router-dom";
+import Plot from "react-plotly.js";
+import Navbar from "react-bootstrap/Navbar";
+import Nav from "react-bootstrap/Nav";
+import NavItem from "react-bootstrap/NavItem";
+import Container from "react-bootstrap/Container";
+import Row from "react-bootstrap/Row";
+import Col from "react-bootstrap/Col";
+import ListGroup from "react-bootstrap/ListGroup";
+import Button from "react-bootstrap/Button";
+import Spinner from "react-bootstrap/Spinner";
+import Table from "react-bootstrap/Table";
 import Octicon, {
   Question,
   Book,
   Telescope,
   Italic,
-  Check,
   Graph,
   PrimitiveDot,
   MortarBoard
-} from "@primer/octicons-react"
+} from "@primer/octicons-react";
+import { useTable, usePagination, useSortBy } from "react-table";
 
 function Datasets() {
-  const [datasets, setDatasets] = useState([])
-  const [toClassifiers, setToClassfiers] = useState(false)
+  const [datasets, setDatasets] = useState([]);
+  const [toClassifiers, setToClassfiers] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
-      const res = await fetch("http://127.0.0.1:5000/datasets")
-      const json = await res.json()
-      setDatasets(json)
+      const res = await fetch("http://127.0.0.1:5000/datasets");
+      const json = await res.json();
+      setDatasets(json);
     }
-    fetchData()
-  }, [])
+    fetchData();
+  }, []);
 
   function postDataset(datasetName) {
     return async () => {
       await fetch(`http://127.0.0.1:5000/dataset/${datasetName}`, {
         method: "POST"
-      })
-      setToClassfiers(true)
-    }
+      });
+      setToClassfiers(true);
+    };
   }
 
   if (toClassifiers) {
-    return <Redirect to="/classifiers" />
+    return <Redirect to="/classifiers" />;
   }
   return (
     <Container>
@@ -73,33 +73,33 @@ function Datasets() {
         </Col>
       </Row>
     </Container>
-  )
+  );
 }
 
 function Classifiers() {
-  const [classifiers, setClassifiers] = useState([])
-  const [toInstances, setToInstances] = useState(false)
+  const [classifiers, setClassifiers] = useState([]);
+  const [toInstances, setToInstances] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
-      const res = await fetch("http://127.0.0.1:5000/classifiers")
-      const json = await res.json()
-      setClassifiers(json)
+      const res = await fetch("http://127.0.0.1:5000/classifiers");
+      const json = await res.json();
+      setClassifiers(json);
     }
-    fetchData()
-  }, [])
+    fetchData();
+  }, []);
 
   function postClassifier(datasetName) {
     return async () => {
       await fetch(`http://127.0.0.1:5000/classifier/${datasetName}`, {
         method: "POST"
-      })
-      setToInstances(true)
-    }
+      });
+      setToInstances(true);
+    };
   }
 
   if (toInstances) {
-    return <Redirect to="/instances" />
+    return <Redirect to="/instances" />;
   }
   return (
     <Container>
@@ -125,29 +125,190 @@ function Classifiers() {
         </Col>
       </Row>
     </Container>
-  )
+  );
+}
+
+function MyTable({ columns, data, postInstance }) {
+  // Use the state and functions returned from useTable to build your UI
+  const {
+    getTableProps,
+    getTableBodyProps,
+    headerGroups,
+    prepareRow,
+    page, // Instead of using 'rows', we'll use page,
+    // which has only the rows for the active page
+
+    // The rest of these things are super handy, too ;)
+    canPreviousPage,
+    canNextPage,
+    pageOptions,
+    pageCount,
+    gotoPage,
+    nextPage,
+    previousPage,
+    setPageSize,
+    state: { pageIndex, pageSize }
+  } = useTable(
+    {
+      columns,
+      data,
+      initialState: { pageIndex: 0 }
+    },
+    useSortBy,
+    usePagination
+  );
+
+  // Render the UI for your table
+  return (
+    <>
+      <Table
+        {...getTableProps()}
+        hover
+        style={{
+          display: "block",
+          overflowX: "auto",
+          whiteSpace: "nowrap"
+        }}
+      >
+        <thead>
+          {headerGroups.map(headerGroup => (
+            <tr {...headerGroup.getHeaderGroupProps()}>
+              <th></th>
+              {headerGroup.headers.map(column => (
+                <th {...column.getHeaderProps(column.getSortByToggleProps())}>
+                  {column.render("Header")}
+                  <span>
+                    {column.isSorted ? (column.isSortedDesc ? " 🔽" : " 🔼") : ""}
+                  </span>
+                </th>
+              ))}
+            </tr>
+          ))}
+        </thead>
+        <tbody {...getTableBodyProps()}>
+          {page.map((row, i) => {
+            prepareRow(row);
+            return (
+              <tr {...row.getRowProps()}>
+                <td>
+                  <Button onClick={postInstance(row.values.id)}>Select</Button>
+                </td>
+                {row.cells.map(cell => {
+                  return <td {...cell.getCellProps()}>{cell.render("Cell")}</td>;
+                })}
+              </tr>
+            );
+          })}
+        </tbody>
+      </Table>
+      {/*
+        Pagination can be built however you'd like.
+        This is just a very basic UI implementation:
+      */}
+      <div className="pagination">
+        <button onClick={() => gotoPage(0)} disabled={!canPreviousPage}>
+          {"<<"}
+        </button>{" "}
+        <button onClick={() => previousPage()} disabled={!canPreviousPage}>
+          {"<"}
+        </button>{" "}
+        <button onClick={() => nextPage()} disabled={!canNextPage}>
+          {">"}
+        </button>{" "}
+        <button onClick={() => gotoPage(pageCount - 1)} disabled={!canNextPage}>
+          {">>"}
+        </button>{" "}
+        <span>
+          Page{" "}
+          <strong>
+            {pageIndex + 1} of {pageOptions.length}
+          </strong>{" "}
+        </span>
+        <span>
+          | Go to page:{" "}
+          <input
+            type="number"
+            defaultValue={pageIndex + 1}
+            onChange={e => {
+              const page = e.target.value ? Number(e.target.value) - 1 : 0;
+              gotoPage(page);
+            }}
+            style={{ width: "100px" }}
+          />
+        </span>{" "}
+        <select
+          value={pageSize}
+          onChange={e => {
+            setPageSize(Number(e.target.value));
+          }}
+        >
+          {[10, 20, 30, 40, 50].map(pageSize => (
+            <option key={pageSize} value={pageSize}>
+              Show {pageSize}
+            </option>
+          ))}
+        </select>
+      </div>
+    </>
+  );
 }
 
 function Instances() {
-  const [instances, setInstances] = useState([])
-  const [toAnalyses, setToAnalyses] = useState(false)
+  function makeData(instances) {
+    return instances.instances.map(instance => {
+      const row = {};
+      row["id"] = instance[1];
+      instances.domain.forEach((attribute, attribute_ix) => {
+        row[attribute[0]] = attribute[1][instance[0][attribute_ix]];
+      });
+      return row;
+    });
+  }
+
+  function makeColumns(domain) {
+    return domain
+      .map(attribute => {
+        const name = attribute[0];
+        return {
+          Header: name,
+          accessor: name
+        };
+      })
+      .concat([
+        {
+          Header: "id",
+          accessor: "id"
+        }
+      ]);
+  }
+
+  const [instances, setInstances] = useState({});
+  const [toAnalyses, setToAnalyses] = useState(false);
+
+  const columns = React.useMemo(() => makeColumns(instances.domain || []), [
+    instances.domain
+  ]);
+  const data = React.useMemo(
+    () => (Object.entries(instances).length === 0 ? [] : makeData(instances)),
+    [instances]
+  );
 
   useEffect(() => {
     async function fetchData() {
-      const res = await fetch("http://127.0.0.1:5000/instances")
-      const json = await res.json()
-      setInstances(json)
+      const res = await fetch("http://127.0.0.1:5000/instances");
+      const json = await res.json();
+      setInstances(json);
     }
-    fetchData()
-  }, [])
+    fetchData();
+  }, []);
 
   function postInstance(instanceId) {
     return async () => {
       await fetch(`http://127.0.0.1:5000/instance/${instanceId}`, {
         method: "POST"
-      })
-      setToAnalyses(true)
-    }
+      });
+      setToAnalyses(true);
+    };
   }
 
   if (instances.length === 0) {
@@ -160,11 +321,11 @@ function Instances() {
           </Col>
         </Row>
       </Container>
-    )
+    );
   }
 
   if (toAnalyses) {
-    return <Redirect to="/analyses" />
+    return <Redirect to="/analyses" />;
   }
   return (
     <Container>
@@ -175,83 +336,49 @@ function Instances() {
       </Row>
       <Row>
         <Col>
-          <Table
-            hover
-            style={{
-              display: "block",
-              overflowX: "auto",
-              whiteSpace: "nowrap"
-            }}
-          >
-            <thead>
-              <tr>
-                <th></th>
-                <th>ID</th>
-                {instances.domain.map(([name, _values]) => (
-                  <th key={name}>{name}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {instances.instances.slice(0, 10).map(instance => (
-                <tr key={instance[1]}>
-                  <td>
-                    <Button size="sm" onClick={postInstance(instance[1])}>
-                      <Octicon icon={Check} /> Select
-                    </Button>
-                  </td>
-                  <td>{instance[1]}</td>
-                  {instance[0].map((feature, feature_ix) => (
-                    <td key={String(instances[1]) + feature_ix}>
-                      {instances.domain.map(d => d[1])[feature_ix][feature]}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </Table>
+          <MyTable columns={columns} data={data} postInstance={postInstance} />
         </Col>
       </Row>
     </Container>
-  )
+  );
 }
 
 function Analyses() {
-  const [analyses, setAnalyses] = useState([])
+  const [analyses, setAnalyses] = useState([]);
 
-  const [toExplanation, setToExplanation] = useState(false)
-  const [toWhatIf, setToWhatIf] = useState(false)
+  const [toExplanation, setToExplanation] = useState(false);
+  const [toWhatIf, setToWhatIf] = useState(false);
 
   useEffect(() => {
     async function fetchData() {
-      const res = await fetch("http://127.0.0.1:5000/analyses")
-      const json = await res.json()
-      setAnalyses(json)
+      const res = await fetch("http://127.0.0.1:5000/analyses");
+      const json = await res.json();
+      setAnalyses(json);
     }
-    fetchData()
-  }, [])
+    fetchData();
+  }, []);
 
   function postAnalysis(analysisName) {
     return async () => {
       await fetch(`http://127.0.0.1:5000/analysis/${analysisName}`, {
         method: "POST"
-      })
+      });
       if (analysisName === "explain") {
-        setToExplanation(true)
-        return
+        setToExplanation(true);
+        return;
       }
       if (analysisName === "whatif") {
-        setToWhatIf(true)
-        return
+        setToWhatIf(true);
+        return;
       }
-    }
+    };
   }
 
   if (toExplanation) {
-    return <Redirect to="/explanation" />
+    return <Redirect to="/explanation" />;
   }
   if (toWhatIf) {
-    return <Redirect to="/whatif" />
+    return <Redirect to="/whatif" />;
   }
 
   return (
@@ -275,13 +402,13 @@ function Analyses() {
                   icon={(id => {
                     switch (id) {
                       case "explain":
-                        return Question
+                        return Question;
 
                       case "whatif":
-                        return MortarBoard
+                        return MortarBoard;
 
                       default:
-                        return PrimitiveDot
+                        return PrimitiveDot;
                     }
                   })(analysis.id)}
                 />{" "}
@@ -292,7 +419,7 @@ function Analyses() {
         </Col>
       </Row>
     </Container>
-  )
+  );
 }
 
 function WhatIf() {
@@ -304,20 +431,20 @@ function WhatIf() {
         </Col>
       </Row>
     </Container>
-  )
+  );
 }
 
 function Explanation() {
-  const [explanation, setExplanation] = useState(null)
+  const [explanation, setExplanation] = useState(null);
 
   useEffect(() => {
     async function fetchData() {
-      const res = await fetch("http://127.0.0.1:5000/explanation")
-      const json = await res.json()
-      setExplanation(json)
+      const res = await fetch("http://127.0.0.1:5000/explanation");
+      const json = await res.json();
+      setExplanation(json);
     }
-    fetchData()
-  }, [])
+    fetchData();
+  }, []);
 
   if (explanation === null) {
     return (
@@ -329,18 +456,16 @@ function Explanation() {
           </Col>
         </Row>
       </Container>
-    )
+    );
   }
 
   const differences = explanation.diff_single.concat(
     Object.values(explanation.map_difference)
-  )
+  );
 
   const names = explanation.domain
     .map(a => a[0])
-    .concat(
-      Object.keys(explanation.map_difference).map((_, ix) => `Rule ${ix + 1}`)
-    )
+    .concat(Object.keys(explanation.map_difference).map((_, ix) => `Rule ${ix + 1}`));
 
   const trace = {
     type: "bar",
@@ -350,7 +475,7 @@ function Explanation() {
     marker: {
       color: differences
     }
-  }
+  };
 
   return (
     <Container>
@@ -362,30 +487,24 @@ function Explanation() {
       <Row>
         <Col>
           <p>
-            The instance <code>{explanation.instance_id}</code> belongs to the
-            class <b>{explanation.target_class}</b> with probability{" "}
+            The instance <code>{explanation.instance_id}</code> belongs to the class{" "}
+            <b>{explanation.target_class}</b> with probability{" "}
             <code>{explanation.prob.toFixed(3)}</code>.
           </p>
           <p>
-            The method has converged with error{" "}
-            <code>{explanation.error.toFixed(3)}</code> and a locality of size{" "}
-            <code>{explanation.k}</code> (parameter K).
+            The method has converged with error <code>{explanation.error.toFixed(3)}</code>{" "}
+            and a locality of size <code>{explanation.k}</code> (parameter K).
           </p>
           {Object.keys(explanation.map_difference).map((r, ix) => (
             <p key={r}>
               Rule {ix + 1}:{" "}
               {(() => {
-                let attributes = r.split(",")
+                let attributes = r.split(",");
                 attributes.sort((a1, a2) => {
-                  return (
-                    explanation.diff_single[a1 - 1] <
-                    explanation.diff_single[a2 - 1]
-                  )
-                })
+                  return explanation.diff_single[a1 - 1] < explanation.diff_single[a2 - 1];
+                });
 
-                return attributes
-                  .map(a => explanation.domain[a - 1][0])
-                  .join(", ")
+                return attributes.map(a => explanation.domain[a - 1][0]).join(", ");
               })()}
             </p>
           ))}
@@ -423,15 +542,15 @@ function Explanation() {
         </Col>
       </Row>
     </Container>
-  )
+  );
 }
 
 function RouteNotFound() {
-  return <h1>Route not found</h1>
+  return <h1>Route not found</h1>;
 }
 
 function App() {
-  const location = useLocation()
+  const location = useLocation();
 
   return (
     <Route path="/">
@@ -498,7 +617,7 @@ function App() {
         </Switch>
       </main>
     </Route>
-  )
+  );
 }
 
-export default App
+export default App;

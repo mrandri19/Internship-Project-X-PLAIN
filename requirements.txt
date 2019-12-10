@@ -2,7 +2,6 @@ flask
 numpy
 pandas
 scipy
-Orange
 snapshottest
 scikit-learn
 matplotlib
