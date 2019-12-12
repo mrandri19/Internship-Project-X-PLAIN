@@ -1,18 +1,18 @@
-import "./style.scss";
-import React, { useState, useEffect } from "react";
-import "whatwg-fetch";
-import { Switch, Route, Link, Redirect, useLocation } from "react-router-dom";
-import Plot from "react-plotly.js";
-import Navbar from "react-bootstrap/Navbar";
-import Nav from "react-bootstrap/Nav";
-import NavItem from "react-bootstrap/NavItem";
-import Container from "react-bootstrap/Container";
-import Row from "react-bootstrap/Row";
-import Col from "react-bootstrap/Col";
-import ListGroup from "react-bootstrap/ListGroup";
-import Button from "react-bootstrap/Button";
-import Spinner from "react-bootstrap/Spinner";
-import Table from "react-bootstrap/Table";
+import "./style.scss"
+import React, { useState, useEffect } from "react"
+import "whatwg-fetch"
+import { Switch, Route, Link, Redirect, useLocation } from "react-router-dom"
+import Plot from "react-plotly.js"
+import Navbar from "react-bootstrap/Navbar"
+import Nav from "react-bootstrap/Nav"
+import NavItem from "react-bootstrap/NavItem"
+import Container from "react-bootstrap/Container"
+import Row from "react-bootstrap/Row"
+import Col from "react-bootstrap/Col"
+import ListGroup from "react-bootstrap/ListGroup"
+import Button from "react-bootstrap/Button"
+import Spinner from "react-bootstrap/Spinner"
+import Table from "react-bootstrap/Table"
 import Octicon, {
   Question,
   Book,
@@ -21,33 +21,33 @@ import Octicon, {
   Graph,
   PrimitiveDot,
   MortarBoard
-} from "@primer/octicons-react";
-import { useTable, usePagination, useSortBy } from "react-table";
+} from "@primer/octicons-react"
+import { useTable, usePagination, useSortBy } from "react-table"
 
 function Datasets() {
-  const [datasets, setDatasets] = useState([]);
-  const [toClassifiers, setToClassfiers] = useState(false);
+  const [datasets, setDatasets] = useState([])
+  const [toClassifiers, setToClassfiers] = useState(false)
 
   useEffect(() => {
     async function fetchData() {
-      const res = await fetch("http://127.0.0.1:5000/datasets");
-      const json = await res.json();
-      setDatasets(json);
+      const res = await fetch("http://127.0.0.1:5000/datasets")
+      const json = await res.json()
+      setDatasets(json)
     }
-    fetchData();
-  }, []);
+    fetchData()
+  }, [])
 
   function postDataset(datasetName) {
     return async () => {
       await fetch(`http://127.0.0.1:5000/dataset/${datasetName}`, {
         method: "POST"
-      });
-      setToClassfiers(true);
-    };
+      })
+      setToClassfiers(true)
+    }
   }
 
   if (toClassifiers) {
-    return <Redirect to="/classifiers" />;
+    return <Redirect to="/classifiers" />
   }
   return (
     <Container>
@@ -73,33 +73,33 @@ function Datasets() {
         </Col>
       </Row>
     </Container>
-  );
+  )
 }
 
 function Classifiers() {
-  const [classifiers, setClassifiers] = useState([]);
-  const [toInstances, setToInstances] = useState(false);
+  const [classifiers, setClassifiers] = useState([])
+  const [toInstances, setToInstances] = useState(false)
 
   useEffect(() => {
     async function fetchData() {
-      const res = await fetch("http://127.0.0.1:5000/classifiers");
-      const json = await res.json();
-      setClassifiers(json);
+      const res = await fetch("http://127.0.0.1:5000/classifiers")
+      const json = await res.json()
+      setClassifiers(json)
     }
-    fetchData();
-  }, []);
+    fetchData()
+  }, [])
 
   function postClassifier(datasetName) {
     return async () => {
       await fetch(`http://127.0.0.1:5000/classifier/${datasetName}`, {
         method: "POST"
-      });
-      setToInstances(true);
-    };
+      })
+      setToInstances(true)
+    }
   }
 
   if (toInstances) {
-    return <Redirect to="/instances" />;
+    return <Redirect to="/instances" />
   }
   return (
     <Container>
@@ -125,7 +125,7 @@ function Classifiers() {
         </Col>
       </Row>
     </Container>
-  );
+  )
 }
 
 function MyTable({ columns, data, postInstance }) {
@@ -156,7 +156,7 @@ function MyTable({ columns, data, postInstance }) {
     },
     useSortBy,
     usePagination
-  );
+  )
 
   // Render the UI for your table
   return (
@@ -178,7 +178,11 @@ function MyTable({ columns, data, postInstance }) {
                 <th {...column.getHeaderProps(column.getSortByToggleProps())}>
                   {column.render("Header")}
                   <span>
-                    {column.isSorted ? (column.isSortedDesc ? " 🔽" : " 🔼") : ""}
+                    {column.isSorted
+                      ? column.isSortedDesc
+                        ? " 🔽"
+                        : " 🔼"
+                      : ""}
                   </span>
                 </th>
               ))}
@@ -187,17 +191,17 @@ function MyTable({ columns, data, postInstance }) {
         </thead>
         <tbody {...getTableBodyProps()}>
           {page.map((row, i) => {
-            prepareRow(row);
+            prepareRow(row)
             return (
               <tr {...row.getRowProps()}>
                 <td>
                   <Button onClick={postInstance(row.values.id)}>Select</Button>
                 </td>
                 {row.cells.map(cell => {
-                  return <td {...cell.getCellProps()}>{cell.render("Cell")}</td>;
+                  return <td {...cell.getCellProps()}>{cell.render("Cell")}</td>
                 })}
               </tr>
-            );
+            )
           })}
         </tbody>
       </Table>
@@ -230,8 +234,8 @@ function MyTable({ columns, data, postInstance }) {
             type="number"
             defaultValue={pageIndex + 1}
             onChange={e => {
-              const page = e.target.value ? Number(e.target.value) - 1 : 0;
-              gotoPage(page);
+              const page = e.target.value ? Number(e.target.value) - 1 : 0
+              gotoPage(page)
             }}
             style={{ width: "100px" }}
           />
@@ -239,7 +243,7 @@ function MyTable({ columns, data, postInstance }) {
         <select
           value={pageSize}
           onChange={e => {
-            setPageSize(Number(e.target.value));
+            setPageSize(Number(e.target.value))
           }}
         >
           {[10, 20, 30, 40, 50].map(pageSize => (
@@ -250,65 +254,65 @@ function MyTable({ columns, data, postInstance }) {
         </select>
       </div>
     </>
-  );
+  )
 }
 
 function Instances() {
   function makeData(instances) {
     return instances.instances.map(instance => {
-      const row = {};
-      row["id"] = instance[1];
+      const row = {}
+      row["id"] = instance[1]
       instances.domain.forEach((attribute, attribute_ix) => {
-        row[attribute[0]] = attribute[1][instance[0][attribute_ix]];
-      });
-      return row;
-    });
+        row[attribute[0]] = attribute[1][instance[0][attribute_ix]]
+      })
+      return row
+    })
   }
 
   function makeColumns(domain) {
     return domain
       .map(attribute => {
-        const name = attribute[0];
+        const name = attribute[0]
         return {
           Header: name,
           accessor: name
-        };
+        }
       })
       .concat([
         {
           Header: "id",
           accessor: "id"
         }
-      ]);
+      ])
   }
 
-  const [instances, setInstances] = useState({});
-  const [toAnalyses, setToAnalyses] = useState(false);
+  const [instances, setInstances] = useState({})
+  const [toAnalyses, setToAnalyses] = useState(false)
 
   const columns = React.useMemo(() => makeColumns(instances.domain || []), [
     instances.domain
-  ]);
+  ])
   const data = React.useMemo(
     () => (Object.entries(instances).length === 0 ? [] : makeData(instances)),
     [instances]
-  );
+  )
 
   useEffect(() => {
     async function fetchData() {
-      const res = await fetch("http://127.0.0.1:5000/instances");
-      const json = await res.json();
-      setInstances(json);
+      const res = await fetch("http://127.0.0.1:5000/instances")
+      const json = await res.json()
+      setInstances(json)
     }
-    fetchData();
-  }, []);
+    fetchData()
+  }, [])
 
   function postInstance(instanceId) {
     return async () => {
       await fetch(`http://127.0.0.1:5000/instance/${instanceId}`, {
         method: "POST"
-      });
-      setToAnalyses(true);
-    };
+      })
+      setToAnalyses(true)
+    }
   }
 
   if (instances.length === 0) {
@@ -321,11 +325,11 @@ function Instances() {
           </Col>
         </Row>
       </Container>
-    );
+    )
   }
 
   if (toAnalyses) {
-    return <Redirect to="/analyses" />;
+    return <Redirect to="/analyses" />
   }
   return (
     <Container>
@@ -340,45 +344,42 @@ function Instances() {
         </Col>
       </Row>
     </Container>
-  );
+  )
 }
 
 function Analyses() {
-  const [analyses, setAnalyses] = useState([]);
+  const [analyses, setAnalyses] = useState([])
 
-  const [toExplanation, setToExplanation] = useState(false);
-  const [toWhatIf, setToWhatIf] = useState(false);
+  const [toExplanation, setToExplanation] = useState(false)
+  const [toWhatIf, setToWhatIf] = useState(false)
 
   useEffect(() => {
     async function fetchData() {
-      const res = await fetch("http://127.0.0.1:5000/analyses");
-      const json = await res.json();
-      setAnalyses(json);
+      const res = await fetch("http://127.0.0.1:5000/analyses")
+      const json = await res.json()
+      setAnalyses(json)
     }
-    fetchData();
-  }, []);
+    fetchData()
+  }, [])
 
   function postAnalysis(analysisName) {
     return async () => {
-      await fetch(`http://127.0.0.1:5000/analysis/${analysisName}`, {
-        method: "POST"
-      });
       if (analysisName === "explain") {
-        setToExplanation(true);
-        return;
+        setToExplanation(true)
+        return
       }
       if (analysisName === "whatif") {
-        setToWhatIf(true);
-        return;
+        setToWhatIf(true)
+        return
       }
-    };
+    }
   }
 
   if (toExplanation) {
-    return <Redirect to="/explanation" />;
+    return <Redirect to="/explanation" />
   }
   if (toWhatIf) {
-    return <Redirect to="/whatif" />;
+    return <Redirect to="/whatif" />
   }
 
   return (
@@ -402,13 +403,13 @@ function Analyses() {
                   icon={(id => {
                     switch (id) {
                       case "explain":
-                        return Question;
+                        return Question
 
                       case "whatif":
-                        return MortarBoard;
+                        return MortarBoard
 
                       default:
-                        return PrimitiveDot;
+                        return PrimitiveDot
                     }
                   })(analysis.id)}
                 />{" "}
@@ -419,7 +420,7 @@ function Analyses() {
         </Col>
       </Row>
     </Container>
-  );
+  )
 }
 
 function WhatIf() {
@@ -431,20 +432,20 @@ function WhatIf() {
         </Col>
       </Row>
     </Container>
-  );
+  )
 }
 
 function Explanation() {
-  const [explanation, setExplanation] = useState(null);
+  const [explanation, setExplanation] = useState(null)
 
   useEffect(() => {
     async function fetchData() {
-      const res = await fetch("http://127.0.0.1:5000/explanation");
-      const json = await res.json();
-      setExplanation(json);
+      const res = await fetch("http://127.0.0.1:5000/explanation")
+      const json = await res.json()
+      setExplanation(json)
     }
-    fetchData();
-  }, []);
+    fetchData()
+  }, [])
 
   if (explanation === null) {
     return (
@@ -456,16 +457,18 @@ function Explanation() {
           </Col>
         </Row>
       </Container>
-    );
+    )
   }
 
   const differences = explanation.diff_single.concat(
     Object.values(explanation.map_difference)
-  );
+  )
 
   const names = explanation.domain
     .map(a => a[0])
-    .concat(Object.keys(explanation.map_difference).map((_, ix) => `Rule ${ix + 1}`));
+    .concat(
+      Object.keys(explanation.map_difference).map((_, ix) => `Rule ${ix + 1}`)
+    )
 
   const trace = {
     type: "bar",
@@ -473,9 +476,26 @@ function Explanation() {
     y: names,
     orientation: "h",
     marker: {
-      color: differences
+      color: differences.map(x => {
+        return [
+          "rgb(165,0,38)",
+          "rgb(215,48,39)",
+          "rgb(244,109,67)",
+          "rgb(253,174,97)",
+          "rgb(254,224,144)",
+          "rgb(255,255,191)",
+          "rgb(224,243,248)",
+          "rgb(171,217,233)",
+          "rgb(116,173,209)",
+          "rgb(69,117,180)",
+          "rgb(49,54,149)"
+        ][(((x + 1) / 2) * 10) | 0]
+      }),
+      line: {
+        width: 1
+      }
     }
-  };
+  }
 
   return (
     <Container>
@@ -487,24 +507,30 @@ function Explanation() {
       <Row>
         <Col>
           <p>
-            The instance <code>{explanation.instance_id}</code> belongs to the class{" "}
-            <b>{explanation.target_class}</b> with probability{" "}
+            The instance <code>{explanation.instance_id}</code> belongs to the
+            class <b>{explanation.target_class}</b> with probability{" "}
             <code>{explanation.prob.toFixed(3)}</code>.
           </p>
           <p>
-            The method has converged with error <code>{explanation.error.toFixed(3)}</code>{" "}
-            and a locality of size <code>{explanation.k}</code> (parameter K).
+            The method has converged with error{" "}
+            <code>{explanation.error.toFixed(3)}</code> and a locality of size{" "}
+            <code>{explanation.k}</code> (parameter K).
           </p>
           {Object.keys(explanation.map_difference).map((r, ix) => (
             <p key={r}>
               Rule {ix + 1}:{" "}
               {(() => {
-                let attributes = r.split(",");
+                let attributes = r.split(",")
                 attributes.sort((a1, a2) => {
-                  return explanation.diff_single[a1 - 1] < explanation.diff_single[a2 - 1];
-                });
+                  return (
+                    explanation.diff_single[a1 - 1] <
+                    explanation.diff_single[a2 - 1]
+                  )
+                })
 
-                return attributes.map(a => explanation.domain[a - 1][0]).join(", ");
+                return attributes
+                  .map(a => explanation.domain[a - 1][0])
+                  .join(", ")
               })()}
             </p>
           ))}
@@ -519,12 +545,14 @@ function Explanation() {
               yaxis: {
                 type: "category",
                 automargin: true,
+                dtick: 1,
                 categoryorder: "total ascending"
               },
               xaxis: {
                 title: "Contribution",
-                dtick: 0.05,
-                ticks: "inside"
+                dtick: 0.1,
+                ticks: "inside",
+                range: [-1, 1]
               },
               margin: {
                 l: 0,
@@ -542,15 +570,15 @@ function Explanation() {
         </Col>
       </Row>
     </Container>
-  );
+  )
 }
 
 function RouteNotFound() {
-  return <h1>Route not found</h1>;
+  return <h1>Route not found</h1>
 }
 
 function App() {
-  const location = useLocation();
+  const location = useLocation()
 
   return (
     <Route path="/">
@@ -617,7 +645,7 @@ function App() {
         </Switch>
       </main>
     </Route>
-  );
+  )
 }
 
-export default App;
+export default App

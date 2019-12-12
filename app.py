@@ -13,7 +13,6 @@ state = {
     'dataset': 'zoo',
     'classifier': 'nb',
     'instance': None,
-    'analysis': 'explain',
     'explainer': XPLAIN_explainer('zoo', 'nb', random_explain_dataset=True),
     'cached_explanations': {}
 }
@@ -108,15 +107,6 @@ def get_analyses():
     return jsonify(analyses)
 
 
-@app.route('/analysis/<analysis_name>', methods=['POST'])
-def post_analysis(analysis_name):
-    if state['dataset'] is None or state['classifier'] is None or state['instance'] is None or analysis_name not in analyses:
-        abort(400)
-    if request.method == 'POST':
-        state['analysis'] = analysis_name
-        return ""
-
-
 @app.route('/explanation')
 def get_explanation():
     if state['dataset'] is None or state['classifier'] is None or state['explainer'] is None:
@@ -125,6 +115,12 @@ def get_explanation():
     return explanation_to_json(e.explain_instance(
         e.explain_indices[0] if state['instance'] is None else state['instance']))
 
+
+# TODO: this could be an idea for the next api iteration
+# @app.route('/datasets/<dataset_id>/instances')
+# def get_explanation(dataset_id):
+#     print(dataset_id)
+#     return ""
 
 def explanation_to_json(xp: XPLAIN_explanation):
     e: XPLAIN_explainer = xp.XPLAIN_explainer_o
