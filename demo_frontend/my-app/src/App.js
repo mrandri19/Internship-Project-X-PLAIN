@@ -499,13 +499,9 @@ function Explanation() {
 
   return (
     <Container>
-      <Row className="mt-3">
+      <Row className="mt-3 mb-3">
         <Col>
           <h2>Explanation</h2>
-        </Col>
-      </Row>
-      <Row>
-        <Col>
           <p>
             The instance <code>{explanation.instance_id}</code> belongs to the
             class <b>{explanation.target_class}</b> with probability{" "}
@@ -516,24 +512,56 @@ function Explanation() {
             <code>{explanation.error.toFixed(3)}</code> and a locality of size{" "}
             <code>{explanation.k}</code> (parameter K).
           </p>
-          {Object.keys(explanation.map_difference).map((r, ix) => (
-            <p key={r}>
-              Rule {ix + 1}:{" "}
-              {(() => {
-                let attributes = r.split(",")
-                attributes.sort((a1, a2) => {
-                  return (
-                    explanation.diff_single[a1 - 1] <
-                    explanation.diff_single[a2 - 1]
-                  )
-                })
+        </Col>
+      </Row>
+      <Row>
+        <Col>
+          {Object.entries(explanation.map_difference)
+            .map((rule, ix) => [rule, ix])
+            .sort(([[, v1]], [[, v2]]) => v1 < v2)
+            .map(([[rule, contribution], ix]) => (
+              <p key={rule} style={{ fontFamily: "serif", fontSize: "1.1rem" }}>
+                <span
+                  style={{
+                    background: [
+                      "rgb(165,0,38)",
+                      "rgb(215,48,39)",
+                      "rgb(244,109,67)",
+                      "rgb(253,174,97)",
+                      "rgb(254,224,144)",
+                      "rgb(255,255,191)",
+                      "rgb(224,243,248)",
+                      "rgb(171,217,233)",
+                      "rgb(116,173,209)",
+                      "rgb(69,117,180)",
+                      "rgb(49,54,149)"
+                    ][(((contribution + 1) / 2) * 10) | 0]
+                  }}
+                >
+                  Rule {ix + 1}
+                </span>{" "}
+                ={" "}
+                {(() => {
+                  let attributes = rule.split(",")
+                  attributes.sort((a1, a2) => {
+                    return (
+                      explanation.diff_single[a1 - 1] <
+                      explanation.diff_single[a2 - 1]
+                    )
+                  })
 
-                return attributes
-                  .map(a => explanation.domain[a - 1][0])
-                  .join(", ")
-              })()}
-            </p>
-          ))}
+                  return (
+                    <span>
+                      {"{"}
+                      {attributes
+                        .map(a => explanation.domain[a - 1][0])
+                        .join(", ")}
+                      {"}"}
+                    </span>
+                  )
+                })()}
+              </p>
+            ))}
           <p></p>
         </Col>
         <Col>
@@ -552,6 +580,7 @@ function Explanation() {
                 title: "Contribution",
                 dtick: 0.1,
                 ticks: "inside",
+                tickangle: 45,
                 range: [-1, 1]
               },
               margin: {
