@@ -270,20 +270,19 @@ function Instances() {
   }
 
   function makeColumns(domain) {
-    return domain
-      .map(attribute => {
+    return [
+      {
+        Header: "id",
+        accessor: "id"
+      },
+      ...domain.map(attribute => {
         const name = attribute[0]
         return {
           Header: name,
           accessor: name
         }
       })
-      .concat([
-        {
-          Header: "id",
-          accessor: "id"
-        }
-      ])
+    ]
   }
 
   const [instances, setInstances] = useState({})
@@ -580,12 +579,12 @@ function Explanation() {
                 title: "Contribution",
                 dtick: 0.1,
                 ticks: "inside",
-                tickangle: 45,
-                range: [-1, 1]
+                tickangle: 45
+                // range: [-1, 1]
               },
               margin: {
                 l: 0,
-                r: 0,
+                r: 40,
                 t: 40,
                 p: 0
               },
