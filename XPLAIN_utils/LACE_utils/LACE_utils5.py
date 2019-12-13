@@ -13,8 +13,6 @@ def compute_prediction_difference_subset(training_dataset,
     Compute the prediction difference for an instance in a training_dataset, w.r.t. some
     rules and a class, given a classifier
     """
-    prediction_difference = 0.0
-
     rule_attributes = [
         training_dataset.domain.attributes[rule_body_index - 1] for
         rule_body_index in rule_body_indices]
@@ -28,29 +26,38 @@ def compute_prediction_difference_subset(training_dataset,
         Counter(map(tuple, filtered_dataset.X)).items())
 
     # For each set of attributes
-    for (attribute_set, occurrences) in attribute_sets_occurrences.items():
-        perturbed_instance = Orange.data.Instance(training_dataset.domain, instance.list)
-        for i in range(len(rule_attributes)):
-            perturbed_instance[rule_domain[i]] = attribute_set[i]
+    differences = [compute_perturbed_difference(item, classifier, instance, instance_class_index,
+                                                rule_attributes, rule_domain, training_dataset) for
+                   item in
+                   attribute_sets_occurrences.items()]
 
-        cache_key = tuple(perturbed_instance.x)
-        if cache_key not in instance_predictions_cache:
-            instance_predictions_cache[cache_key] = classifier(perturbed_instance, True)[0][
-                instance_class_index]
-        prob = instance_predictions_cache[cache_key]
-
-        # Update the prediction difference using the weighted average of the
-        # probability over the frequency of this attribute set in the
-        # dataset
-        prediction_difference += (
-                prob * occurrences / len(training_dataset)
-        )
+    prediction_difference = sum(differences)
 
     # p(y=c|x) i.e. Probability that instance x belongs to class c
     p = classifier(instance, True)[0][instance_class_index]
     prediction_differences = p - prediction_difference
 
     return prediction_differences
+
+
+def compute_perturbed_difference(item, classifier, instance, instance_class_index,
+                                 rule_attributes, rule_domain, training_dataset):
+    (attribute_set, occurrences) = item
+    perturbed_instance = Orange.data.Instance(training_dataset.domain, instance.list)
+    for i in range(len(rule_attributes)):
+        perturbed_instance[rule_domain[i]] = attribute_set[i]
+    # cache_key = tuple(perturbed_instance.x)
+    # if cache_key not in instance_predictions_cache:
+    #     instance_predictions_cache[cache_key] = classifier(perturbed_instance, True)[0][
+    #         instance_class_index]
+    # prob = instance_predictions_cache[cache_key]
+    prob = classifier(perturbed_instance, True)[0][instance_class_index]
+
+    # Compute the prediction difference using the weighted average of the
+    # probability over the frequency of this attribute set in the
+    # dataset
+    difference = prob * occurrences / len(training_dataset)
+    return difference
 
 
 # Single explanation. Change 1 value at the time e compute the difference

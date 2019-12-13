@@ -233,19 +233,9 @@ class XPLAIN_explainer:
         c = self.classifier(i, False)
         return self.map_names_class[c[0]], str(i.get_class())
 
-    def explain_instance(self, instance, target_class=None):
-        all_rule_body_indices = []
+    def explain_instance(self, instance, target_class):
 
         c = self.classifier(instance, False)
-
-        if target_class is None:
-            target_class = self.map_names_class[c[0]]
-        elif target_class == "predicted":
-            target_class = self.map_names_class[c[0]]
-        elif target_class == "trueLabel":
-            target_class = str(instance.get_class())
-        else:
-            target_class = str(target_class)
         target_class_index = self.get_class_index(target_class)
 
         self.starting_K = self.K
@@ -263,6 +253,7 @@ class XPLAIN_explainer:
         error = 1e9
         single_attribute_differences = {}
         pred = 0.0
+        difference_map = {}
 
         first_iteration = True
 
@@ -270,6 +261,8 @@ class XPLAIN_explainer:
         # classifications
         cached_subset_differences = {}
         instance_predictions_cache = {}
+
+        all_rule_body_indices = []
 
         # Euristically search for the best k to use to approximate the local model
         for k in range(self.starting_K, self.max_K, self.K):
@@ -288,66 +281,25 @@ class XPLAIN_explainer:
                 k, all_rule_body_indices, target_class, target_class_index, pred,
                 single_attribute_differences)
 
-            # If we have reached the minimum
-            if error < ERROR_THRESHOLD:
-                instance_explanation = XPLAIN_explanation(self,
-                                                          target_class,
-                                                          instance,
-                                                          single_attribute_differences,
-                                                          k,
-                                                          error,
-                                                          difference_map)
+            # If we have reached the minimum or we are stuck in a local minimum
+            if (error < ERROR_THRESHOLD) or ((abs(error) - abs(
+                    old_error)) > ERROR_DIFFERENCE_THRESHOLD and not first_iteration):
                 break
-            # If we are stuck in a local minimum
-            elif (abs(error) - abs(
-                    old_error)) > ERROR_DIFFERENCE_THRESHOLD and not first_iteration:
-                instance_explanation = XPLAIN_explanation(self,
-                                                          target_class,
-                                                          instance,
-                                                          old_single_attribute_differences,
-                                                          old_k,
-                                                          old_error,
-                                                          old_map_difference)
-                break
-            # If we have neither reached the minimum nor in al local minimum
             else:
                 first_iteration = False
                 old_error = error
-                old_k = k
-                old_single_attribute_differences = deepcopy(single_attribute_differences)
-                old_map_difference = deepcopy(difference_map)
-        # If the for loop ended after having reached the maximum number of
-        # iteration, i.e. the error did not reach the minimum.
-        else:
-            # If we are stuck, i.e. the error did not change between iterations
-            if error == old_error:
-                instance_explanation = XPLAIN_explanation(self,
-                                                          target_class,
-                                                          instance,
-                                                          old_single_attribute_differences,
-                                                          old_k,
-                                                          old_error,
-                                                          old_map_difference)
-            else:
-                instance_explanation = XPLAIN_explanation(self,
-                                                          target_class,
-                                                          instance,
-                                                          single_attribute_differences,
-                                                          k,
-                                                          error,
-                                                          difference_map)
+        instance_explanation = XPLAIN_explanation(self,
+                                                  target_class,
+                                                  instance,
+                                                  single_attribute_differences,
+                                                  k,
+                                                  error,
+                                                  difference_map)
 
         # Remove the temporary folder and dir
         import shutil
         if os.path.exists("./" + self.unique_filename):
             shutil.rmtree("./" + self.unique_filename)
-
-        # instance_explanation cannot be None since it's set in all 4 cases:
-        # 1. Minimum reached
-        # 2. Local minimum reached
-        # 3. Exceeded max_K and did not reduce the error in the last iteration
-        # 4. Exceeded max_K and did reduce the error in the last iteration
-        assert (instance_explanation is not None)
 
         return instance_explanation
 
