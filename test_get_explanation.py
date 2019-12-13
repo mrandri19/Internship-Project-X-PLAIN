@@ -8,7 +8,6 @@ class TestGet_explanation(TestCase):
         e = get_explanation("zoo", "rf")
         self.assertMatchSnapshot((
             e.XPLAIN_explainer_o,
-            e.instance_id,
             e.diff_single,
             e.map_difference,
             e.k,
@@ -23,7 +22,6 @@ class TestGet_explanation(TestCase):
         e = get_explanation("zoo", "nb")
         self.assertMatchSnapshot((
             e.XPLAIN_explainer_o,
-            e.instance_id,
             e.diff_single,
             e.map_difference,
             e.k,
@@ -38,7 +36,6 @@ class TestGet_explanation(TestCase):
         e = get_explanation("datasets/adult_d.arff", "nb")
         self.assertMatchSnapshot((
             e.XPLAIN_explainer_o,
-            e.instance_id,
             e.diff_single,
             e.map_difference,
             e.k,

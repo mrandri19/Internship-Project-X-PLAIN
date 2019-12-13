@@ -29,7 +29,6 @@ class XPLAIN_explainer:
         self.dataset_name = dataset_name
         self.classifier_name = classifier_name
         self.present = False
-        self.evaluate_explanation = False
 
         # Temporary folder
         import uuid
@@ -112,10 +111,6 @@ class XPLAIN_explainer:
 
         self.mappa_class = computeMappaClass_b(self.training_dataset)
         self.count_inst = -1
-        self.map_instance_apprE = {}
-        self.map_instance_NofKNN = {}
-        self.map_instance_1_apprE = {}
-        self.map_instance_diff_approxFirst = {}
         self.mispredictedInstances = None
         self.classes = list(self.map_names_class.values())
 
@@ -181,21 +176,6 @@ class XPLAIN_explainer:
     def getMispredictedTrueLabelComparison(self, instID):
         e1, e2 = self.getExplanationComparison(instID, "predicted", "trueLabel")
 
-    def comparePerturbed(self, Sn_inst, Sn_inst1, inst1, indexes=[]):
-
-        fig2 = plt.figure(figsize=plt.figaspect(0.5))
-        ax1 = fig2.add_subplot(1, 2, 1)
-        explanation_1, ax1 = self.getExplanation_i_axis(ax1, Sn_inst)
-        ax2 = fig2.add_subplot(1, 2, 2)
-        explanation_2, ax2 = self.getExplanationPerturbed_i_axis(ax2, Sn_inst1,
-                                                                 inst1)
-
-        for i in indexes:
-            ax2.get_yticklabels()[i].set_color("red")
-        plt.tight_layout()
-        plt.show()
-        return explanation_1, explanation_2
-
     def getExplanationComparison(self, Sn_inst, targetClass1,
                                  targetClass2=None):
 
@@ -253,237 +233,9 @@ class XPLAIN_explainer:
         c = self.classifier(i, False)
         return self.map_names_class[c[0]], str(i.get_class())
 
-    def getExplanationPerturbed_i_axis(self, axi, Sn_inst, instTmp2,
-                                       targetClass=None):
-
-        oldinputAr = []
-        oldMappa = {}
-        count_inst = -1
-
-        old_impo_rules = []
-        firstKNN = True
-        oldError = 10.0
-        # count_inst=self.explain_indices.index(Sn_inst)
-
-        # n_inst2=int(Sn_inst)
-        # instTmp2 = Orange.data.Instance(self.explain_dataset.domain, self.explain_dataset[count_inst])
-        c = self.classifier(instTmp2, False)
-
-        if targetClass == None:
-            # default
-            targetClass = self.map_names_class[c[0]]
-        elif targetClass == "trueLabel":
-            targetClass = str(instTmp2.get_class())
-        else:
-            targetClass = str(targetClass)
-        indexI = self.get_class_index(targetClass)
-
-        self.starting_K = self.K
-        # Problem with very small training dataset. The starting k is low, very few examples: difficult to capture the locality.
-        # Risks: examples too similar, only 1 class. Starting K: proportional to the class frequence
-        small_dataset_len = 150
-        if self.training_dataset_len < small_dataset_len:
-            self.starting_K = max(int(self.mappa_class[self.map_names_class[
-                c[0]]] * self.training_dataset_len), self.starting_K)
-
-        plot = False
-        for NofKNN in range(self.starting_K, self.max_K, self.K):
-            # DO TO MULTIPLE
-            instTmp = deepcopy(instTmp2)
-            n_inst = Sn_inst
-            instT = deepcopy(instTmp2)
-
-            gen_neighbors_info(self.training_dataset, self.NearestNeighborsAll,
-                               instT, NofKNN, self.unique_filename,
-                               self.classifier)
-
-            # Call L3
-            subprocess.call(['java', '-jar', 'AL3.jar', '-no-cv', '-t',
-                             './' + self.unique_filename + '/Knnres.arff', '-T',
-                             './' + self.unique_filename + '/Filetest.arff',
-                             '-S', '1.0', '-C', '50.0', '-PN',
-                             "./" + self.unique_filename, '-SP', '10', '-NRUL',
-                             '1'])
-
-            self.datanamepred = "./" + self.unique_filename + "/gen-k0.arff"
-            with open("./" + self.unique_filename + "/impo_rules.txt",
-                      "r") as myfile:
-                impo_rules = myfile.read().splitlines()
-
-            # The local model is not changed
-            if set(impo_rules) == set(old_impo_rules) and firstKNN == False:
-                continue
-
-            old_impo_rules = impo_rules[:]
-
-            impo_rules_N = []
-
-            reduceOverfitting = False
-            for impo_r in impo_rules:
-                # Not interested in a rule composed of all the attributes values. By definition, its relevance is prob(y=c)-prob(c)
-                if len(impo_r.split(",")) != len(instTmp.domain.attributes):
-                    impo_rules_N.append(impo_r)
-
-            impo_rules = impo_rules_N[:]
-
-            inputAr, nInputAr, newInputAr, oldAr_set = get_relevant_subset_from_local_rules(
-                impo_rules, oldinputAr)
-
-            impo_rules_complete = deepcopy(inputAr)
-
-            # Compute probability of Single attribute or Set of Attributes
-            firstInstance = 0
-            mappaNew = {}
-            mappa = oldMappa.copy()
-            mappa.update(mappaNew)
-
-            if firstKNN:
-                c1 = self.classifier(instT, True)[0]
-                pred = c1[indexI]
-                pred_str = str(round(c1[indexI], 2))
-                out_data = compute_prediction_difference_single(instT,
-                                                                self.classifier,
-                                                                indexI,
-                                                                self.training_dataset)
-
-            map_difference = {}
-            map_difference = computePredictionDifferenceSubsetRandomOnlyExisting(
-                self.training_dataset, instT, inputAr, targetClass,
-                self.classifier, indexI, map_difference)
-
-            # Definition of approximation error. How we approximate the "true explanation"?
-            error_single, error, PI_rel2 = compute_error_approximation(self.mappa_class,
-                                                                       pred, out_data,
-                                                                       impo_rules_complete,
-                                                                       targetClass,
-                                                                       map_difference)
-
-            minlen, minlenname, minvalue = getMinRelevantSet(instT,
-                                                             impo_rules_complete,
-                                                             map_difference)
-
-            oldinputAr = inputAr + oldinputAr
-            oldinputAr_set = set(map(tuple, oldinputAr))
-            oldMappa.update(mappa)
-            if firstKNN:
-                self.map_instance_1_apprE[n_inst] = PI_rel2
-                self.map_instance_diff_approxFirst[n_inst] = error
-                self.map_instance_apprE[n_inst] = PI_rel2
-                self.map_instance_NofKNN[n_inst] = NofKNN
-
-            # if (error)*100<threshold:
-            threshold = 0.02
-            if (error) < threshold:
-                # final
-                if not (self.evaluate_explanation):
-                    plotTheInfo_axi(instT, out_data, impo_rules, n_inst,
-                                    self.dataset_name, NofKNN, "f", minlenname,
-                                    minvalue, targetClass, error, error_single,
-                                    self.classifier_name, map_difference,
-                                    impo_rules_complete, pred_str, axi)
-                    explanation_i = XPLAIN_explanation(self, targetClass, instT,
-                                                       out_data, impo_rules,
-                                                       n_inst, NofKNN, error,
-                                                       map_difference,
-                                                       impo_rules_complete)
-                self.map_instance_apprE[n_inst] = PI_rel2
-                self.map_instance_NofKNN[n_inst] = NofKNN
-                printImpoRuleInfo(n_inst, instT, NofKNN, out_data,
-                                  map_difference, impo_rules_complete,
-                                  impo_rules)
-                plot = True
-                break
-            # local minimum
-            elif (abs(error) - abs(oldError)) > 0.01 and firstKNN == False:
-                # PLOT OLD ERROR AS BETTER
-                if not (self.evaluate_explanation):
-                    plotTheInfo_axi(instT, old_out_data, old_impo_rulesPlot,
-                                    n_inst, self.dataset_name, oldNofKNN, "f",
-                                    minlenname, minvalue, targetClass, oldError,
-                                    error_single, self.classifier_name,
-                                    old_map_difference, old_impo_rules_complete,
-                                    pred_str, axi)
-                    explanation_i = XPLAIN_explanation(self, targetClass, instT,
-                                                       old_out_data,
-                                                       old_impo_rulesPlot,
-                                                       n_inst, oldNofKNN,
-                                                       oldError,
-                                                       old_map_difference,
-                                                       old_impo_rules_complete)
-                plot = True
-                self.map_instance_apprE[n_inst] = PI_rel2_old
-                self.map_instance_NofKNN[n_inst] = oldNofKNN
-                printImpoRuleInfo(n_inst, instT, oldNofKNN, old_out_data,
-                                  old_map_difference, old_impo_rules_complete,
-                                  old_impo_rulesPlot)
-                break
-            else:
-                firstKNN = False
-                oldError = error
-                oldNofKNN = NofKNN
-                old_out_data = deepcopy(out_data)
-                old_impo_rulesPlot = deepcopy(impo_rules)
-                old_map_difference = deepcopy(map_difference)
-                old_impo_rules_complete = deepcopy(impo_rules_complete)
-                PI_rel2_old = PI_rel2
-
-        # if NofKNN>=(self.maxN-startingK):
-        if NofKNN >= (self.max_K) or plot == False:
-            if (error) == (oldError):
-                if not (self.evaluate_explanation):
-                    plotTheInfo_axi(instT, old_out_data, old_impo_rulesPlot,
-                                    n_inst, self.dataset_name, oldNofKNN, "f",
-                                    minlenname, minvalue, targetClass, oldError,
-                                    error_single, self.classifier_name,
-                                    old_map_difference, old_impo_rules_complete,
-                                    pred_str, axi)
-                    explanation_i = XPLAIN_explanation(self, targetClass, instT,
-                                                       old_out_data,
-                                                       old_impo_rulesPlot,
-                                                       n_inst, oldNofKNN,
-                                                       oldError,
-                                                       old_map_difference,
-                                                       old_impo_rules_complete)
-                self.map_instance_apprE[n_inst] = PI_rel2_old
-                self.map_instance_NofKNN[n_inst] = oldNofKNN
-                printImpoRuleInfo(n_inst, instT, oldNofKNN, old_out_data,
-                                  old_map_difference, old_impo_rules_complete,
-                                  old_impo_rulesPlot)
-
-            else:
-                if not (self.evaluate_explanation):
-                    plotTheInfo_axi(instT, out_data, impo_rules, n_inst,
-                                    self.dataset_name, NofKNN, "f", minlenname,
-                                    minvalue, targetClass, error, error_single,
-                                    self.classifier_name, map_difference,
-                                    impo_rules_complete, pred_str, axi)
-                    explanation_i = XPLAIN_explanation(self, targetClass, instT,
-                                                       out_data, impo_rules,
-                                                       n_inst, NofKNN, error,
-                                                       map_difference,
-                                                       impo_rules_complete)
-                self.map_instance_apprE[n_inst] = PI_rel2
-                self.map_instance_NofKNN[n_inst] = NofKNN
-                printImpoRuleInfo(n_inst, instT, out_data, map_difference,
-                                  impo_rules_complete, impo_rules)
-
-        # Remove the temporary folder and dir
-        import shutil
-        if os.path.exists("./" + self.unique_filename):
-            shutil.rmtree("./" + self.unique_filename)
-
-        return explanation_i, axi
-
-    def explain_instance(self, instance_index_str, target_class=None):
+    def explain_instance(self, instance, target_class=None):
         all_rule_body_indices = []
 
-        instance_index_in_explain_indices = self.explain_indices.index(
-            instance_index_str)
-        instance_index = int(instance_index_str)
-
-        instance = Orange.data.Instance(self.explain_dataset.domain,
-                                        self.explain_dataset[
-                                            instance_index_in_explain_indices])
         c = self.classifier(instance, False)
 
         if target_class is None:
@@ -495,8 +247,6 @@ class XPLAIN_explainer:
         else:
             target_class = str(target_class)
         target_class_index = self.get_class_index(target_class)
-
-        instance_explanation = None
 
         self.starting_K = self.K
         # Problem with very small training dataset. The starting k is low, very few examples:
@@ -538,39 +288,26 @@ class XPLAIN_explainer:
                 k, all_rule_body_indices, target_class, target_class_index, pred,
                 single_attribute_differences)
 
-            if first_iteration:
-                self.map_instance_1_apprE[instance_index] = PI_rel2
-                self.map_instance_diff_approxFirst[instance_index] = error
-                self.map_instance_apprE[instance_index] = PI_rel2
-                self.map_instance_NofKNN[instance_index] = k
-
             # If we have reached the minimum
             if error < ERROR_THRESHOLD:
-                if not self.evaluate_explanation:
-                    instance_explanation = XPLAIN_explanation(self,
-                                                              target_class,
-                                                              instance,
-                                                              single_attribute_differences,
-                                                              instance_index, k,
-                                                              error,
-                                                              difference_map, )
-                self.map_instance_apprE[instance_index] = PI_rel2
-                self.map_instance_NofKNN[instance_index] = k
+                instance_explanation = XPLAIN_explanation(self,
+                                                          target_class,
+                                                          instance,
+                                                          single_attribute_differences,
+                                                          k,
+                                                          error,
+                                                          difference_map)
                 break
             # If we are stuck in a local minimum
             elif (abs(error) - abs(
                     old_error)) > ERROR_DIFFERENCE_THRESHOLD and not first_iteration:
-                if not self.evaluate_explanation:
-                    instance_explanation = XPLAIN_explanation(self,
-                                                              target_class,
-                                                              instance,
-                                                              old_single_attribute_differences,
-                                                              instance_index,
-                                                              old_k,
-                                                              old_error,
-                                                              old_map_difference)
-                self.map_instance_apprE[instance_index] = old_PI_rel2
-                self.map_instance_NofKNN[instance_index] = old_k
+                instance_explanation = XPLAIN_explanation(self,
+                                                          target_class,
+                                                          instance,
+                                                          old_single_attribute_differences,
+                                                          old_k,
+                                                          old_error,
+                                                          old_map_difference)
                 break
             # If we have neither reached the minimum nor in al local minimum
             else:
@@ -579,34 +316,26 @@ class XPLAIN_explainer:
                 old_k = k
                 old_single_attribute_differences = deepcopy(single_attribute_differences)
                 old_map_difference = deepcopy(difference_map)
-                old_PI_rel2 = PI_rel2
         # If the for loop ended after having reached the maximum number of
         # iteration, i.e. the error did not reach the minimum.
         else:
             # If we are stuck, i.e. the error did not change between iterations
             if error == old_error:
-                if not self.evaluate_explanation:
-                    instance_explanation = XPLAIN_explanation(self,
-                                                              target_class,
-                                                              instance,
-                                                              old_single_attribute_differences,
-                                                              instance_index,
-                                                              old_k,
-                                                              old_error,
-                                                              old_map_difference)
-                self.map_instance_apprE[instance_index] = old_PI_rel2
-                self.map_instance_NofKNN[instance_index] = old_k
+                instance_explanation = XPLAIN_explanation(self,
+                                                          target_class,
+                                                          instance,
+                                                          old_single_attribute_differences,
+                                                          old_k,
+                                                          old_error,
+                                                          old_map_difference)
             else:
-                if not self.evaluate_explanation:
-                    instance_explanation = XPLAIN_explanation(self,
-                                                              target_class,
-                                                              instance,
-                                                              single_attribute_differences,
-                                                              instance_index, k,
-                                                              error,
-                                                              difference_map)
-                self.map_instance_apprE[instance_index] = PI_rel2
-                self.map_instance_NofKNN[instance_index] = k
+                instance_explanation = XPLAIN_explanation(self,
+                                                          target_class,
+                                                          instance,
+                                                          single_attribute_differences,
+                                                          k,
+                                                          error,
+                                                          difference_map)
 
         # Remove the temporary folder and dir
         import shutil
@@ -1120,35 +849,6 @@ class XPLAIN_explainer:
                 self.unique_filename, self.classifier, save=False)
         Kneigh_pd = convertOTable2Pandas(Kneighbors_data)
         return Kneigh_pd
-
-    def interactiveTargetClass(self, instID):
-        from ipywidgets import HBox
-        classes = ["predicted"] + self.classes[:]
-        w = widgets.Dropdown(
-            options=classes,
-            description='Target class',
-            value="predicted",
-            disabled=False
-        )
-        display(w)
-
-        def clearAndShow(btNewObj):
-            clear_output()
-            display(w)
-            display(h)
-
-        def getExplainInteractiveButton(btn_object):
-            if w.value == "predicted":
-                rule_Index = self.explain_instance(instID)
-            else:
-                rule_Index = self.explain_instance(instID, w.value)
-
-        btnTargetC = widgets.Button(description='Compute')
-        btnTargetC.on_click(getExplainInteractiveButton)
-        btnNewSel = widgets.Button(description='Clear')
-        btnNewSel.on_click(clearAndShow)
-        h = HBox([btnTargetC, btnNewSel])
-        display(h)
 
     def interactiveMispredicted(self, mispred_class=False):
         from ipywidgets import HBox

@@ -2,10 +2,8 @@ from XPLAIN_utils.LACE_utils.LACE_utils4 import *
 
 
 class XPLAIN_explanation:
-    def __init__(self, explainer, target_class, instance, diff_single,
-                 instance_id, k, error, difference_map):
+    def __init__(self, explainer, target_class, instance, diff_single, k, error, difference_map):
         self.XPLAIN_explainer_o = explainer
-        self.instance_id = instance_id
         self.diff_single = diff_single
         self.map_difference = deepcopy(difference_map)
         self.k = k

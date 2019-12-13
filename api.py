@@ -8,7 +8,8 @@ def get_explanation(dataset, classifier):
         warnings.simplefilter("ignore", category=RuntimeWarning)
 
         explainer = XPLAIN_explainer(dataset, classifier, random_explain_dataset=True)
-        return explainer.explain_instance(explainer.explain_indices[0])
+        instance = explainer.explain_dataset[0]
+        return explainer.explain_instance(instance)
 
 
 if __name__ == "__main__":
