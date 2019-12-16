@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 from flask import Flask, jsonify, abort, request
 from flask_cors import CORS
 
@@ -86,13 +88,15 @@ def get_instances():
     assert (len(e.explain_indices) == len(e.explain_dataset))
     return jsonify({
         'domain': [(a.name, a.values) for a in e.training_dataset.domain],
-        'instances': [(list(i.x)+list(i.y), ix) for i, ix in zip(e.explain_dataset, e.explain_indices)]})
+        'instances': [(list(i.x) + list(i.y), ix) for i, ix in zip(e.explain_dataset, e.explain_indices)]})
 
 
 @app.route('/instance/<instance_id>', methods=['POST'])
 def get_post_instance(instance_id):
     if request.method == 'POST':
-        state['instance'] = instance_id
+        print(instance_id)
+        # TODO(andrea): fix
+        state['instance'] = state['explainer'].explain_dataset[0]
         return ""
 
 
@@ -102,7 +106,7 @@ analyses = [{"id": "explain", "display_name": "Explain the prediction"}, {
 
 @app.route('/analyses')
 def get_analyses():
-    if state['dataset'] is None or state['classifier'] is None or state['instance'] is None:
+    if state['dataset'] is None or state['classifier'] is None:
         abort(400)
     return jsonify(analyses)
 
@@ -113,7 +117,42 @@ def get_explanation():
         abort(400)
     e = state['explainer']
     instance = e.explain_dataset[0] if state['instance'] is None else state['instance']
-    return explanation_to_json(e.explain_instance(instance, target_class=instance.get_class().value))
+    return jsonify(explanation_to_dict(e.explain_instance(instance, target_class=instance.get_class().value)))
+
+
+@app.route('/whatIfExplanation', methods=['GET', 'POST'])
+def get_what_if_explanation():
+    if state['dataset'] is None or state['classifier'] is None or state['explainer'] is None:
+        abort(400)
+
+    e = state['explainer']
+    instance = e.explain_dataset[0] if state['instance'] is None else state['instance']
+
+    if request.method == 'GET':
+        return jsonify(
+            {'explanation': explanation_to_dict(e.explain_instance(instance, target_class=instance.get_class().value)),
+             'attributes': {a.name: {'value': a.values[int(i)], 'options': a.values} for (a, i) in
+                            zip(instance.domain.attributes, instance.x)}})
+    if request.method == 'POST':
+        perturbed_attributes = request.get_json(force=True)
+        print(perturbed_attributes)
+
+        perturbed_instance = deepcopy(instance)
+        for k, v in perturbed_attributes.items():
+
+            print(k,v['options'].index(v['value']))
+            perturbed_instance[k] = v['options'].index(v['value'])
+
+        print('instance')
+        print(list(instance.attributes()))
+        print('perturbed_instance')
+        print(list(perturbed_instance.attributes()))
+
+        return jsonify(
+            {'explanation': explanation_to_dict(
+                e.explain_instance(perturbed_instance, target_class=perturbed_instance.get_class().value)),
+                'attributes': {a.name: {'value': a.values[int(i)], 'options': a.values} for (a, i) in
+                               zip(perturbed_instance.domain.attributes, perturbed_instance.x)}})
 
 
 # TODO: this could be an idea for the next api iteration
@@ -122,10 +161,9 @@ def get_explanation():
 #     print(dataset_id)
 #     return ""
 
-def explanation_to_json(xp: XPLAIN_explanation):
+def explanation_to_dict(xp: XPLAIN_explanation):
     e: XPLAIN_explainer = xp.XPLAIN_explainer_o
-    print(xp.map_difference)
-    return jsonify({
+    return {
         'domain': [(a.name, a.values) for a in e.training_dataset.domain.attributes],
         'diff_single': xp.diff_single,
         'map_difference': xp.map_difference,
@@ -134,4 +172,4 @@ def explanation_to_json(xp: XPLAIN_explanation):
         'target_class': xp.target_class,
         'instance_class_index': xp.instance_class_index,
         'prob': xp.prob
-    })
+    }
