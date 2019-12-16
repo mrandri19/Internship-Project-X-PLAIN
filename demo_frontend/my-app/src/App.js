@@ -432,6 +432,7 @@ function Analyses() {
 function WhatIf() {
   const [whatIfExplanation, setwhatIfExplanation] = useState(null)
   const [instanceAttributes, setInstanceAttributes] = useState(null)
+  const [recomputeLoading, setRecomputeLoading] = useState(false)
 
   useEffect(() => {
     async function fetchData() {
@@ -453,8 +454,10 @@ function WhatIf() {
       const json = await res.json()
       setwhatIfExplanation(json.explanation)
       setInstanceAttributes(json.attributes)
+      setRecomputeLoading(false)
     }
 
+    setRecomputeLoading(true)
     fetchData()
   }
 
@@ -479,12 +482,24 @@ function WhatIf() {
     <Container>
       <Row className="mt-3 d-flex align-items-center">
         <h2 className="p-2">What If analysis</h2>
-        <Button className="ml-auto p-2" onClick={handleRecompute}>Recompute</Button>
+        {
+          (recomputeLoading) ?
+            (<Button className="ml-auto p-2" variant="primary" disabled>
+              <Spinner
+                as="span"
+                size="sm"
+                animation="border"
+                role="status"
+                aria-hidden="true"
+              />
+              <span className="sr-only">Loading...</span>
+            </Button>) :
+            (<Button className="ml-auto p-2" onClick={handleRecompute}>Recompute</Button>)
+        }
       </Row>
       <Row className="mb-3">
         <Col>
-
-          <Table size={"sm"}>
+          <Table size="sm">
             <thead>
             <tr>
               <td>Feature</td>
@@ -566,7 +581,7 @@ function ExplanationPlot({trace}) {
 
 function getNames(explanation) {
   return explanation.domain
-  .map(a => a[0])
+  .map(([name,]) => `${name}=${explanation.instance[name].value}`)
   .concat(
     Object.keys(explanation.map_difference).map((_, ix) => `Rule ${ix + 1}`)
   )
@@ -608,7 +623,7 @@ function getDifferences(explanation) {
 }
 
 function Rules({explanation}) {
-  const {map_difference, diff_single, domain} = explanation
+  const {map_difference, diff_single, domain, instance} = explanation
   return (<>
     {Object.entries(map_difference)
     .map((rule, ix) => [rule, ix])
@@ -636,19 +651,20 @@ function Rules({explanation}) {
               </span>{" "}
         ={" "}
         {(() => {
-          let attributes = rule.split(",")
-          attributes.sort((a1, a2) => {
+          let attribute_indices = rule.split(",")
+          attribute_indices.sort((ix_1, ix_2) => {
             return (
-              diff_single[a1 - 1] <
-              diff_single[a2 - 1]
+              diff_single[ix_1 - 1] <
+              diff_single[ix_2 - 1]
             )
           })
 
           return (
             <span>
               {"{"}
-              {attributes
-              .map(a => domain[a - 1][0])
+              {attribute_indices
+              .map(ix => domain[ix - 1][0])
+              .map(attribute_name => `${attribute_name}=${instance[attribute_name].value}`)
               .join(", ")}
               {"}"}
               </span>

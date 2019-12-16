@@ -139,14 +139,7 @@ def get_what_if_explanation():
 
         perturbed_instance = deepcopy(instance)
         for k, v in perturbed_attributes.items():
-
-            print(k,v['options'].index(v['value']))
             perturbed_instance[k] = v['options'].index(v['value'])
-
-        print('instance')
-        print(list(instance.attributes()))
-        print('perturbed_instance')
-        print(list(perturbed_instance.attributes()))
 
         return jsonify(
             {'explanation': explanation_to_dict(
@@ -164,6 +157,8 @@ def get_what_if_explanation():
 def explanation_to_dict(xp: XPLAIN_explanation):
     e: XPLAIN_explainer = xp.XPLAIN_explainer_o
     return {
+        'instance': {a.name: {'value': a.values[int(i)], 'options': a.values} for (a, i) in
+                     zip(xp.instance.domain.attributes, xp.instance.x)},
         'domain': [(a.name, a.values) for a in e.training_dataset.domain.attributes],
         'diff_single': xp.diff_single,
         'map_difference': xp.map_difference,
