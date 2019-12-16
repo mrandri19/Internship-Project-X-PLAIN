@@ -112,8 +112,8 @@ def get_explanation():
     if state['dataset'] is None or state['classifier'] is None or state['explainer'] is None:
         abort(400)
     e = state['explainer']
-    return explanation_to_json(e.explain_instance(
-        e.explain_indices[0] if state['instance'] is None else state['instance']))
+    instance = e.explain_dataset[0] if state['instance'] is None else state['instance']
+    return explanation_to_json(e.explain_instance(instance, target_class=instance.get_class().value))
 
 
 # TODO: this could be an idea for the next api iteration
@@ -127,7 +127,6 @@ def explanation_to_json(xp: XPLAIN_explanation):
     print(xp.map_difference)
     return jsonify({
         'domain': [(a.name, a.values) for a in e.training_dataset.domain.attributes],
-        'instance_id': xp.instance_id,
         'diff_single': xp.diff_single,
         'map_difference': xp.map_difference,
         'k': xp.k,
