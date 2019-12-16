@@ -176,7 +176,7 @@ function MyTable({columns, data, postInstance}) {
         <thead>
         {headerGroups.map(headerGroup => (
           <tr {...headerGroup.getHeaderGroupProps()}>
-            <th></th>
+            <th>{""}</th>
             {headerGroup.headers.map(column => (
               <th {...column.getHeaderProps(column.getSortByToggleProps())}>
                 {column.render("Header")}
@@ -193,7 +193,7 @@ function MyTable({columns, data, postInstance}) {
         ))}
         </thead>
         <tbody {...getTableBodyProps()}>
-        {page.map((row, i) => {
+        {page.map(row => {
           prepareRow(row)
           return (
             <tr {...row.getRowProps()}>
@@ -374,11 +374,9 @@ function Analyses() {
     return async () => {
       if (analysisName === "explain") {
         setToExplanation(true)
-        return
       }
       if (analysisName === "whatif") {
         setToWhatIf(true)
-        return
       }
     }
   }
@@ -526,6 +524,7 @@ function WhatIf() {
         </Col>
         <Col>
           <ExplanationPlot trace={trace}/>
+          <Rules explanation={whatIfExplanation}/>
         </Col>
       </Row>
     </Container>
@@ -608,6 +607,58 @@ function getDifferences(explanation) {
   )
 }
 
+function Rules({explanation}) {
+  const {map_difference, diff_single, domain} = explanation
+  return (<>
+    {Object.entries(map_difference)
+    .map((rule, ix) => [rule, ix])
+    .sort(([[, v1]], [[, v2]]) => v1 < v2)
+    .map(([[rule, contribution], ix]) => (
+      <p key={rule} style={{fontFamily: "serif", fontSize: "1.1rem"}}>
+              <span
+                style={{
+                  background: [
+                    "rgb(165,0,38)",
+                    "rgb(215,48,39)",
+                    "rgb(244,109,67)",
+                    "rgb(253,174,97)",
+                    "rgb(254,224,144)",
+                    "rgb(255,255,191)",
+                    "rgb(224,243,248)",
+                    "rgb(171,217,233)",
+                    "rgb(116,173,209)",
+                    "rgb(69,117,180)",
+                    "rgb(49,54,149)"
+                  ][(((contribution + 1) / 2) * 10) | 0]
+                }}
+              >
+              Rule {ix + 1}
+              </span>{" "}
+        ={" "}
+        {(() => {
+          let attributes = rule.split(",")
+          attributes.sort((a1, a2) => {
+            return (
+              diff_single[a1 - 1] <
+              diff_single[a2 - 1]
+            )
+          })
+
+          return (
+            <span>
+              {"{"}
+              {attributes
+              .map(a => domain[a - 1][0])
+              .join(", ")}
+              {"}"}
+              </span>
+          )
+        })()}
+      </p>
+    ))}
+  </>)
+}
+
 function Explanation() {
   const [explanation, setExplanation] = useState(null)
 
@@ -659,52 +710,7 @@ function Explanation() {
       </Row>
       <Row>
         <Col>
-          {Object.entries(explanation.map_difference)
-          .map((rule, ix) => [rule, ix])
-          .sort(([[, v1]], [[, v2]]) => v1 < v2)
-          .map(([[rule, contribution], ix]) => (
-            <p key={rule} style={{fontFamily: "serif", fontSize: "1.1rem"}}>
-              <span
-                style={{
-                  background: [
-                    "rgb(165,0,38)",
-                    "rgb(215,48,39)",
-                    "rgb(244,109,67)",
-                    "rgb(253,174,97)",
-                    "rgb(254,224,144)",
-                    "rgb(255,255,191)",
-                    "rgb(224,243,248)",
-                    "rgb(171,217,233)",
-                    "rgb(116,173,209)",
-                    "rgb(69,117,180)",
-                    "rgb(49,54,149)"
-                  ][(((contribution + 1) / 2) * 10) | 0]
-                }}
-              >
-              Rule {ix + 1}
-              </span>{" "}
-              ={" "}
-              {(() => {
-                let attributes = rule.split(",")
-                attributes.sort((a1, a2) => {
-                  return (
-                    explanation.diff_single[a1 - 1] <
-                    explanation.diff_single[a2 - 1]
-                  )
-                })
-
-                return (
-                  <span>
-              {"{"}
-                    {attributes
-                    .map(a => explanation.domain[a - 1][0])
-                    .join(", ")}
-                    {"}"}
-              </span>
-                )
-              })()}
-            </p>
-          ))}
+          <Rules explanation={explanation}/>
         </Col>
         <Col>
           <ExplanationPlot trace={trace}/>
