@@ -1,7 +1,7 @@
 import "./style.scss"
-import React, {useState, useEffect} from "react"
+import React, {useEffect, useState} from "react"
 import "whatwg-fetch"
-import {Switch, Route, Link, Redirect, useLocation} from "react-router-dom"
+import {Link, Redirect, Route, Switch, useLocation} from "react-router-dom"
 import Plot from "react-plotly.js"
 import Navbar from "react-bootstrap/Navbar"
 import Nav from "react-bootstrap/Nav"
@@ -15,15 +15,15 @@ import Button from "react-bootstrap/Button"
 import Spinner from "react-bootstrap/Spinner"
 import Table from "react-bootstrap/Table"
 import Octicon, {
-  Question,
   Book,
-  Telescope,
-  Italic,
   Graph,
+  Italic,
+  MortarBoard,
   PrimitiveDot,
-  MortarBoard
+  Question,
+  Telescope
 } from "@primer/octicons-react"
-import {useTable, usePagination, useSortBy} from "react-table"
+import {usePagination, useSortBy, useTable} from "react-table"
 
 function Datasets() {
   const [datasets, setDatasets] = useState([])
@@ -398,12 +398,12 @@ function Analyses() {
       <Row>
         <Col lg={3}>
           <ListGroup>
-            {analyses.map(analysis => (
+            {Object.entries(analyses).map(([id, {display_name}]) => (
               <ListGroup.Item
                 className="text-center"
                 action
-                key={analysis.id}
-                onClick={postAnalysis(analysis.id)}
+                key={id}
+                onClick={postAnalysis(id)}
               >
                 <Octicon
                   icon={(id => {
@@ -417,9 +417,9 @@ function Analyses() {
                       default:
                         return PrimitiveDot
                     }
-                  })(analysis.id)}
+                  })(id)}
                 />{" "}
-                {analysis.display_name}
+                {display_name}
               </ListGroup.Item>
             ))}
           </ListGroup>
@@ -494,7 +494,8 @@ function WhatIf() {
               />
               <span className="sr-only">Loading...</span>
             </Button>) :
-            (<Button className="ml-auto p-2" onClick={handleRecompute}>Recompute</Button>)
+            (<Button className="ml-auto p-2"
+                     onClick={handleRecompute}>Recompute</Button>)
         }
       </Row>
       <Row className="mb-3">
@@ -539,6 +540,16 @@ function WhatIf() {
         </Col>
         <Col>
           <ExplanationPlot trace={trace}/>
+          <p>
+            The instance <code>{whatIfExplanation.instance_id}</code> belongs to the
+            class <b>{whatIfExplanation.target_class}</b> with probability{" "}
+            <code>{whatIfExplanation.prob.toFixed(3)}</code>.
+          </p>
+          <p>
+            The method has converged with error{" "}
+            <code>{whatIfExplanation.error.toFixed(3)}</code> and a locality of size{" "}
+            <code>{whatIfExplanation.k}</code> (parameter K).
+          </p>
           <Rules explanation={whatIfExplanation}/>
         </Col>
       </Row>
