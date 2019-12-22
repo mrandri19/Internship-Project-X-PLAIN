@@ -73,6 +73,7 @@ function WhatIf() {
                 role="status"
                 aria-hidden="true"
               />
+              <span className={"ml-2"}>Recomputing...</span>
               <span className="sr-only">Loading...</span>
             </Button>) :
             (<Button className="ml-auto p-2"

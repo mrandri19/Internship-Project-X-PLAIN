@@ -28,6 +28,7 @@ analyses = {"explain": {"display_name": "Explain the prediction"},
 state = {
     'dataset': 'zoo',
     'classifier': 'nb',
+    'class': None,
     'instance': None,
     'explainer': XPLAIN_explainer('zoo', 'nb', random_explain_dataset=True),
 }
@@ -82,10 +83,14 @@ def get_instances():
     state['explainer'] = xp = XPLAIN_explainer(
         state['dataset'], state['classifier'], random_explain_dataset=True)
 
+    d = xp.explain_dataset
+
     return jsonify({
-        'domain': [(attr.name, attr.values) for attr in xp.training_dataset.domain],
+        'domain': [(attr.name, attr.values) for attr in d.domain],
         'instances': [(list(instance.x) + list(instance.y), ix) for instance, ix in
-                      zip(xp.explain_dataset, xp.explain_indices)]})
+                      zip(d, xp.explain_indices)],
+        'classes': [*d.domain.class_var.values]
+    })
 
 
 @app.route('/instance/<id>', methods=['POST'])
@@ -94,8 +99,12 @@ def post_instance(id):
     if state['dataset'] is None or state['classifier'] is None:
         abort(400)
 
+    body = request.get_json(force=True)
+    print(body)
+
     xp = state['explainer']
     state['instance'] = xp.explain_dataset[xp.explain_indices.index(id)]
+    state['class'] = body['class']
     return ""
 
 
@@ -142,7 +151,9 @@ def get_explanation():
     # Initialized with a default value to speed up development
     instance = xp.explain_dataset[0] if state['instance'] is None else state['instance']
 
-    e = xp.explain_instance(instance, target_class=instance.get_class().value)
+    class_ = instance.get_class().value if state['class'] is None else state['class']
+
+    e = xp.explain_instance(instance, target_class=class_)
     return jsonify(explanation_to_dict(e))
 
 
@@ -175,7 +186,8 @@ def get_what_if_explanation():
 
         instance = perturbed_instance
 
-    e = xp.explain_instance(instance, target_class=instance.get_class().value)
+    class_ = instance.get_class().value if state['class'] is None else state['class']
+    e = xp.explain_instance(instance, target_class=class_)
     return jsonify(
         {'explanation': explanation_to_dict(e),
          'attributes': {a.name: {'value': a.values[int(i)], 'options': a.values} for (a, i)

@@ -1,15 +1,17 @@
 import {useTable, useSortBy, usePagination} from "react-table"
 import Table from "react-bootstrap/Table"
-import Button from "react-bootstrap/Button"
 import React, {useState, useEffect} from "react"
 import Container from "react-bootstrap/Container"
 import Row from "react-bootstrap/Row"
 import Col from "react-bootstrap/Col"
 import Spinner from "react-bootstrap/Spinner"
+import Form from "react-bootstrap/Form"
 import {Redirect} from "react-router-dom"
+import Button from "react-bootstrap/Button"
+import ButtonGroup from "react-bootstrap/ButtonGroup"
 
 function Instances() {
-  function MyTable({columns, data, postInstance}) {
+  function MyTable({columns, data, onCheck, isChecked}) {
     // Use the state and functions returned from useTable to build your UI
     const {
       getTableProps,
@@ -76,7 +78,8 @@ function Instances() {
             return (
               <tr {...row.getRowProps()}>
                 <td>
-                  <Button onClick={postInstance(row.values.id)}>Select</Button>
+                  <Form.Check checked={isChecked(row)} type="radio"
+                              onChange={onCheck(row)}/>
                 </td>
                 {row.cells.map(cell => {
                   return <td {...cell.getCellProps()}>{cell.render("Cell")}</td>
@@ -86,67 +89,78 @@ function Instances() {
           })}
           </tbody>
         </Table>
-        {/*
-        Pagination can be built however you'd like.
-        This is just a very basic UI implementation:
-      */}
-        <div className="pagination">
-          <button onClick={() => gotoPage(0)} disabled={!canPreviousPage}>
-            {"<<"}
-          </button>
-          {" "}
-          <button onClick={() => previousPage()} disabled={!canPreviousPage}>
-            {"<"}
-          </button>
-          {" "}
-          <button onClick={() => nextPage()} disabled={!canNextPage}>
-            {">"}
-          </button>
-          {" "}
-          <button onClick={() => gotoPage(pageCount - 1)} disabled={!canNextPage}>
-            {">>"}
-          </button>
-          {" "}
-          <span>
-          Page{" "}
-            <strong>
-            {pageIndex + 1} of {pageOptions.length}
-          </strong>{" "}
-        </span>
-          <span>
-          | Go to page:{" "}
-            <input
-              type="number"
-              defaultValue={pageIndex + 1}
-              onChange={e => {
-                const page = e.target.value ? Number(e.target.value) - 1 : 0
-                gotoPage(page)
-              }}
-              style={{width: "100px"}}
-            />
-        </span>{" "}
-          <select
-            value={pageSize}
-            onChange={e => {
-              setPageSize(Number(e.target.value))
-            }}
-          >
-            {[10, 20, 30, 40, 50].map(pageSize => (
-              <option key={pageSize} value={pageSize}>
-                Show {pageSize}
-              </option>
-            ))}
-          </select>
+        <div>
+          <div>
+            <ButtonGroup className={"mr-3"}>
+              <Button onClick={() => gotoPage(0)} disabled={!canPreviousPage}>
+                {"<<"}
+              </Button>
+              {" "}
+              <Button onClick={() => previousPage()} disabled={!canPreviousPage}>
+                {"<"}
+              </Button>
+              {" "}
+              <Button onClick={() => nextPage()} disabled={!canNextPage}>
+                {">"}
+              </Button>
+              {" "}
+              <Button onClick={() => gotoPage(pageCount - 1)} disabled={!canNextPage}>
+                {">>"}
+              </Button>
+            </ButtonGroup>
+
+            <span>
+              Page{" "}
+              <strong>
+                {pageIndex + 1} of {pageOptions.length}
+              </strong>{" "}
+            </span>
+          </div>
+          <div className={"mt-3 mb-3"}>
+
+            <Form.Row>
+              <Col>
+                <Form.Group>
+                  <Form.Control
+                    size={"sm"}
+                    type="number"
+                    defaultValue={pageIndex + 1}
+                    onChange={e => {
+                      const page = e.target.value ? Number(e.target.value) - 1 : 0
+                      gotoPage(page)
+                    }}
+                  />
+                </Form.Group>
+              </Col>
+              <Col>
+                <Form.Group>
+                  <Form.Control
+                    size={"sm"} as={"select"}
+                    value={pageSize}
+                    onChange={e => {
+                      setPageSize(Number(e.target.value))
+                    }}
+                  >
+                    {[10, 20, 30, 40, 50].map(pageSize => (
+                      <option key={pageSize} value={pageSize}>
+                        Show {pageSize}
+                      </option>
+                    ))}
+                  </Form.Control>
+                </Form.Group>
+              </Col>
+            </Form.Row>
+          </div>
         </div>
       </>
     )
   }
 
-  function makeData(instances) {
-    return instances.instances.map(instance => {
+  function makeInstances(response) {
+    return response.instances.map(instance => {
       const row = {}
       row["id"] = instance[1]
-      instances.domain.forEach((attribute, attribute_ix) => {
+      response.domain.forEach((attribute, attribute_ix) => {
         row[attribute[0]] = attribute[1][instance[0][attribute_ix]]
       })
       return row
@@ -169,37 +183,49 @@ function Instances() {
     ]
   }
 
-  const [instances, setInstances] = useState({})
-  const [toAnalyses, setToAnalyses] = useState(false)
+  function makeClasses(classes) {
+    return classes.map(c => {
+      return {
+        type: c
+      }
+    })
+  }
 
-  const columns = React.useMemo(() => makeColumns(instances.domain || []), [
-    instances.domain
+  const [response, setResponse] = useState({})
+  const [toAnalyses, setToAnalyses] = useState(false)
+  const [selectedClass, setSelectedClass] = useState(null)
+  const [selectedInstance, setSelectedInstance] = useState(null)
+
+  const domain = React.useMemo(() => makeColumns(response.domain || []), [
+    response.domain
   ])
-  const data = React.useMemo(
-    () => (Object.entries(instances).length === 0 ? [] : makeData(instances)),
-    [instances]
+  const instances = React.useMemo(
+    () => (Object.entries(response).length === 0 ? [] : makeInstances(response)),
+    [response]
   )
+  const classes = React.useMemo(() => makeClasses(response.classes || []), [response.classes])
 
   useEffect(() => {
     async function fetchData() {
       const res = await fetch("http://127.0.0.1:5000/instances")
       const json = await res.json()
-      setInstances(json)
+      setResponse(json)
     }
 
     fetchData()
   }, [])
 
-  function postInstance(instanceId) {
+  function postInstance(instanceId, class_) {
     return async () => {
       await fetch(`http://127.0.0.1:5000/instance/${instanceId}`, {
-        method: "POST"
+        method: "POST",
+        body: JSON.stringify({"class": class_})
       })
       setToAnalyses(true)
     }
   }
 
-  if (instances.length === 0) {
+  if (response.length === 0) {
     return (
       <Container>
         <Row>
@@ -217,14 +243,26 @@ function Instances() {
   }
   return (
     <Container>
-      <Row className="mt-3">
-        <Col>
-          <h2>Select an instance</h2>
-        </Col>
+      <Row className="mt-3 d-flex align-items-center">
+        <h2 className="p-2">Instances</h2>
+        <Button disabled={(selectedInstance === null) || (selectedClass === null)}
+                className="ml-auto p-2"
+                onClick={postInstance(selectedInstance, selectedClass)}>Analyse</Button>
       </Row>
       <Row>
-        <Col>
-          <MyTable columns={columns} data={data} postInstance={postInstance}/>
+        <Col lg={8}>
+          <h2>Select an instance</h2>
+          <MyTable columns={domain} data={instances}
+                   onCheck={row => e => setSelectedInstance(row.values.id)}
+                   isChecked={row => row.values.id === selectedInstance}/>
+        </Col>
+        <Col lg={4}>
+          <h2>Select a class</h2>
+          <MyTable columns={[{
+            Header: "Type",
+            accessor: "type"
+          }]} data={classes} onCheck={row => e => setSelectedClass(row.values.type)}
+                   isChecked={row => row.values.type === selectedClass}/>
         </Col>
       </Row>
     </Container>
