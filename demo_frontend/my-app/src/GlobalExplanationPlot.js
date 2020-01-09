@@ -1,7 +1,6 @@
 import Plot from "react-plotly.js"
 import React from "react"
 
-
 function getTrace(differences, names) {
   return {
     type: "bar",
@@ -31,11 +30,9 @@ function getTrace(differences, names) {
   }
 }
 
-
 function getNames(globalExplanation) {
   return globalExplanation.x
 }
-
 
 function getDifferences(globalExplanation) {
   return globalExplanation.y
@@ -43,38 +40,40 @@ function getDifferences(globalExplanation) {
 
 //    {compare ? '' : '{{}}'}
 //style={{width: '100%', height: '100%'}}
-function GlobalExplanationPlot({trace, title, xaxistitle}) {
-  return <Plot
-    data={[trace]}
-    style={{}}
-    layout={{
-    title: title,      
+function GlobalExplanationPlot({ trace, title, xaxistitle }) {
+  return (
+    <Plot
+      data={[trace]}
+      style={{}}
+      layout={{
+        title: title,
         autosize: true,
-      yaxis: {
-        type: "category",
-        automargin: true,
-        dtick: 1,
-        categoryorder: "total ascending"
-      },
-      xaxis: {
-        title: xaxistitle,
-        dtick: 0.1,
-        ticks: "inside",
-        tickangle: 45
-      },
-      margin: {
-        l: 0,
-        r: 40,
-        t: 40,
-        p: 0
-      },
-      font: {
-        family: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"`,
-        size: 16
-      }
-    }}
-    config={{displayModeBar: false, responsive: true}}
-  />
+        yaxis: {
+          type: "category",
+          automargin: true,
+          dtick: 1,
+          categoryorder: "total ascending"
+        },
+        xaxis: {
+          title: xaxistitle,
+          dtick: 0.1,
+          ticks: "inside",
+          tickangle: 45
+        },
+        margin: {
+          l: 0,
+          r: 40,
+          t: 40,
+          p: 0
+        },
+        font: {
+          family: `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"`,
+          size: 16
+        }
+      }}
+      config={{ displayModeBar: false, responsive: true }}
+    />
+  )
 }
 
-export {GlobalExplanationPlot, getTrace, getDifferences, getNames}
+export { GlobalExplanationPlot, getTrace, getDifferences, getNames }

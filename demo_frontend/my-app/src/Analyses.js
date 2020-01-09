@@ -1,10 +1,19 @@
-import React, {useState, useEffect} from "react"
-import {Redirect} from "react-router-dom"
+import React, { useState, useEffect } from "react"
+import { Redirect } from "react-router-dom"
 import Container from "react-bootstrap/Container"
 import Row from "react-bootstrap/Row"
 import Col from "react-bootstrap/Col"
 import ListGroup from "react-bootstrap/ListGroup"
-import Octicon, {Question, MortarBoard, PrimitiveDot, Search, Person, Law, Globe, Versions} from "@primer/octicons-react"
+import Octicon, {
+  Question,
+  MortarBoard,
+  PrimitiveDot,
+  Search,
+  Person,
+  Law,
+  Globe,
+  Versions
+} from "@primer/octicons-react"
 
 function Analyses() {
   const [analyses, setAnalyses] = useState([])
@@ -38,35 +47,33 @@ function Analyses() {
       await fetch(`http://127.0.0.1:5000/analyses/${analysisName}`, {
         method: "POST"
       })
-      } 
     }
-  
+  }
 
   if (toRedirect) {
-    if (toGlobalExplanation){
-      return <Redirect to="/global_explanation"/>
+    if (toGlobalExplanation) {
+      return <Redirect to="/global_explanation" />
     }
-    if(toMispredicted){
-      return <Redirect to="/mispred_instances"/>
+    if (toMispredicted) {
+      return <Redirect to="/mispred_instances" />
     }
     if (toClassComparison) {
-    return <Redirect to="/instances_class_comparison"/>
+      return <Redirect to="/instances_class_comparison" />
     }
-    return <Redirect to="/instances"/>
- }
-
+    return <Redirect to="/instances" />
+  }
 
   return (
-    <Container  >
-      <Row >
+    <Container>
+      <Row>
         <Col>
           <h2>Select the analysis to perform</h2>
         </Col>
       </Row>
-      <Row  className="justify-content-md-center">
+      <Row className="justify-content-md-center">
         <Col lg={6}>
           <ListGroup>
-            {Object.entries(analyses).map(([id, {display_name}]) => (
+            {Object.entries(analyses).map(([id, { display_name }]) => (
               <ListGroup.Item
                 className="text-center"
                 action
@@ -86,7 +93,7 @@ function Analyses() {
                         return Search
 
                       case "user_rules":
-                        return  Person
+                        return Person
 
                       case "explaination_comparison":
                         return Law

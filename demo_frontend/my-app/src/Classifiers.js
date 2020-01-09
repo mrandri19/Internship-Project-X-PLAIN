@@ -1,5 +1,5 @@
-import React, {useState, useEffect} from "react"
-import {Redirect} from "react-router-dom"
+import React, { useState, useEffect } from "react"
+import { Redirect } from "react-router-dom"
 import Container from "react-bootstrap/Container"
 import Row from "react-bootstrap/Row"
 import Col from "react-bootstrap/Col"
@@ -30,7 +30,7 @@ function Classifiers() {
   }
 
   if (toAnalyses) {
-    return <Redirect to="/show_instances"/>
+    return <Redirect to="/show_instances" />
   }
   return (
     <Container>
@@ -40,7 +40,7 @@ function Classifiers() {
         </Col>
       </Row>
       <Row className="justify-content-md-center">
-        <Col lg={3} >
+        <Col lg={3}>
           <ListGroup>
             {classifiers.map(classifier => (
               <ListGroup.Item

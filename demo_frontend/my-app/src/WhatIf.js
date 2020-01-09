@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from "react"
+import React, { useState, useEffect } from "react"
 import Container from "react-bootstrap/Container"
 import Row from "react-bootstrap/Row"
 import Col from "react-bootstrap/Col"
@@ -6,11 +6,16 @@ import Spinner from "react-bootstrap/Spinner"
 import Button from "react-bootstrap/Button"
 import Table from "react-bootstrap/Table"
 import Dropdown from "react-bootstrap/Dropdown"
-import Octicon, {Graph, Sync} from "@primer/octicons-react"
+import Octicon, { Graph, Sync } from "@primer/octicons-react"
 import ButtonGroup from "react-bootstrap/ButtonGroup"
 
 import Rules from "./Rules"
-import {ExplanationPlot, getTrace, getDifferences, getNames} from "./ExplanationPlot"
+import {
+  ExplanationPlot,
+  getTrace,
+  getDifferences,
+  getNames
+} from "./ExplanationPlot"
 
 function WhatIf() {
   const [whatIfExplanation, setwhatIfExplanation] = useState(null)
@@ -34,7 +39,6 @@ function WhatIf() {
 
   function handleRecompute2(e) {
     async function fetchData() {
-
       setwhatIfExplanation(oldWhatIfExplanation)
       setInstanceAttributes(oldInstanceAttributes)
     }
@@ -64,7 +68,7 @@ function WhatIf() {
         <Row>
           <Col className="mt-3">
             <h2>What If Analysis</h2>
-            <Spinner animation="border"/>
+            <Spinner animation="border" />
           </Col>
         </Row>
       </Container>
@@ -78,13 +82,12 @@ function WhatIf() {
   return (
     <Container>
       <Row className="mt-3 d-flex align-items-center">
-      <Col xs={7}>
-        <h2 className="p-2">What If analysis</h2> </Col>
+        <Col xs={7}>
+          <h2 className="p-2">What If analysis</h2>{" "}
+        </Col>
         <Col>
-        
-{
-          (recomputeLoading) ?
-            (<Button  variant="dark" disabled>
+          {recomputeLoading ? (
+            <Button variant="dark" disabled>
               <Spinner
                 as="span"
                 size="sm"
@@ -94,73 +97,113 @@ function WhatIf() {
               />
               <span className={"ml-2"}>Recomputing...</span>
               <span className="sr-only">Loading...</span>
-            </Button>) :
-            (<ButtonGroup>
-              <Button variant="outline-dark" className="ml-auto p-2" href="/analyses_new"> <Octicon icon={Graph}/> New analyses  </Button>     
-              <Button variant="secondary" className="ml-auto p-2"
-                     onClick={handleRecompute2}>  Restore  </Button>
-              <Button variant="dark" className="ml-auto p-2"
-                     onClick={handleRecompute}>  <Octicon icon={Sync}/>  Recompute explanation </Button>
-              </ButtonGroup>
-              )
-        }        </Col>
+            </Button>
+          ) : (
+            <ButtonGroup>
+              <Button
+                variant="outline-dark"
+                className="ml-auto p-2"
+                href="/analyses_new"
+              >
+                {" "}
+                <Octicon icon={Graph} /> New analyses{" "}
+              </Button>
+              <Button
+                variant="secondary"
+                className="ml-auto p-2"
+                onClick={handleRecompute2}
+              >
+                {" "}
+                Restore{" "}
+              </Button>
+              <Button
+                variant="dark"
+                className="ml-auto p-2"
+                onClick={handleRecompute}
+              >
+                {" "}
+                <Octicon icon={Sync} /> Recompute explanation{" "}
+              </Button>
+            </ButtonGroup>
+          )}{" "}
+        </Col>
       </Row>
 
       <Row className="mb-3">
         <Col>
           <Table size="sm">
             <thead>
-            <tr>
-              <td>Feature</td>
-              <td>Values</td>
-            </tr>
+              <tr>
+                <td>Feature</td>
+                <td>Values</td>
+              </tr>
             </thead>
             <tbody>
-            {Object.entries(instanceAttributes).map(([name, {options, value}]) =>
-              <tr key={name}>
-                <td>{name}</td>
-                <td>
-                  <Dropdown  variant="dark" onSelect={newValue => {
-                    const newInstanceAttributes = {
-                      ...instanceAttributes
-                    }
-                    newInstanceAttributes[name] = {
-                      ...newInstanceAttributes[name],
-                      value: newValue
-                    }
+              {Object.entries(instanceAttributes).map(
+                ([name, { options, value }]) => (
+                  <tr key={name}>
+                    <td>{name}</td>
+                    <td>
+                      <Dropdown
+                        variant="dark"
+                        onSelect={newValue => {
+                          const newInstanceAttributes = {
+                            ...instanceAttributes
+                          }
+                          newInstanceAttributes[name] = {
+                            ...newInstanceAttributes[name],
+                            value: newValue
+                          }
 
-                    setInstanceAttributes(newInstanceAttributes)
-                  }}>
-                    <Dropdown.Toggle  variant="dark" id={name}>
-                      {value}
-                    </Dropdown.Toggle>
-                    <Dropdown.Menu>
-                      {options.map(o =>
-                        <Dropdown.Item eventKey={o}
-                                       key={name + o}>{o}</Dropdown.Item>)}
-                    </Dropdown.Menu>
-                  </Dropdown>
-                </td>
-              </tr>
-            )}
+                          setInstanceAttributes(newInstanceAttributes)
+                        }}
+                      >
+                        <Dropdown.Toggle variant="dark" id={name}>
+                          {value}
+                        </Dropdown.Toggle>
+                        <Dropdown.Menu>
+                          {options.map(o => (
+                            <Dropdown.Item eventKey={o} key={name + o}>
+                              {o}
+                            </Dropdown.Item>
+                          ))}
+                        </Dropdown.Menu>
+                      </Dropdown>
+                    </td>
+                  </tr>
+                )
+              )}
             </tbody>
           </Table>
         </Col>
         <Col>
-          <ExplanationPlot trace={trace}
-          title={ "Dataset: " + whatIfExplanation.explainer_info.dataset_name + "  model="+whatIfExplanation.explainer_info.classifier_name+"<br>p(y="+whatIfExplanation.target_class+"|"+whatIfExplanation.explainer_info.meta+")="+whatIfExplanation.prob.toFixed(3)  }
-          xaxistitle={"Δ - target class = " + whatIfExplanation.target_class}/>
+          <ExplanationPlot
+            trace={trace}
+            title={
+              "Dataset: " +
+              whatIfExplanation.explainer_info.dataset_name +
+              "  model=" +
+              whatIfExplanation.explainer_info.classifier_name +
+              "<br>p(y=" +
+              whatIfExplanation.target_class +
+              "|" +
+              whatIfExplanation.explainer_info.meta +
+              ")=" +
+              whatIfExplanation.prob.toFixed(3)
+            }
+            xaxistitle={"Δ - target class = " + whatIfExplanation.target_class}
+          />
           <p>
-            The instance <code>{whatIfExplanation.instance_id}</code> belongs to the
-            class <b>{whatIfExplanation.target_class}</b> with probability{" "}
+            The instance <code>{whatIfExplanation.instance_id}</code> belongs to
+            the class <b>{whatIfExplanation.target_class}</b> with probability{" "}
             <code>{whatIfExplanation.prob.toFixed(3)}</code>.
           </p>
           <p>
             The method has converged with error{" "}
-            <code>{whatIfExplanation.error.toFixed(3)}</code> and a locality of size{" "}
-            <code>{whatIfExplanation.k}</code> (parameter K).
+            <code>{whatIfExplanation.error.toFixed(3)}</code> and a locality of
+            size <code>{whatIfExplanation.k}</code> (parameter K).
           </p>
-          <Rules explanation={whatIfExplanation}/>
+          <Rules explanation={whatIfExplanation} />
         </Col>
       </Row>
     </Container>

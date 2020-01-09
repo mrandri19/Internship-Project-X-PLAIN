@@ -1,10 +1,19 @@
-import React, {useState, useEffect} from "react"
-import {Redirect} from "react-router-dom"
+import React, { useState, useEffect } from "react"
+import { Redirect } from "react-router-dom"
 import Container from "react-bootstrap/Container"
 import Row from "react-bootstrap/Row"
 import Col from "react-bootstrap/Col"
 import ListGroup from "react-bootstrap/ListGroup"
-import Octicon, {Question, MortarBoard, PrimitiveDot, Search, Person, Law, Globe, Versions} from "@primer/octicons-react"
+import Octicon, {
+  Question,
+  MortarBoard,
+  PrimitiveDot,
+  Search,
+  Person,
+  Law,
+  Globe,
+  Versions
+} from "@primer/octicons-react"
 
 function AnalysesNew() {
   const [analysesInstance, setAnalysesInstance] = useState([])
@@ -32,32 +41,32 @@ function AnalysesNew() {
   }, [])
 
   function postAnalysis(analysisName) {
-    var proceed="false"
+    var proceed = "false"
     return async () => {
       if (analysisName === "explain") {
         setToExplanation(true)
       }
       if (analysisName === "whatif") {
         setToWhatIf(true)
-        proceed="true"
+        proceed = "true"
       }
       if (analysisName === "mispredicted") {
         setToMispredicted(true)
       }
       if (analysisName === "user_rules") {
         setToUserRules(true)
-        proceed="true"
+        proceed = "true"
       }
       if (analysisName === "explaination_comparison") {
         setToExplanationComparison(true)
-        proceed="true"
+        proceed = "true"
       }
       if (analysisName === "global_explanation") {
         setToGlobalExplanation(true)
       }
       if (analysisName === "t_class_comparison") {
         setToClassComparison(true)
-        proceed="true"
+        proceed = "true"
       }
       await fetch(`http://127.0.0.1:5000/analyses_new/${proceed}`, {
         method: "POST"
@@ -66,47 +75,50 @@ function AnalysesNew() {
   }
 
   if (toExplanation) {
-    return <Redirect to="/instances"/>
+    return <Redirect to="/instances" />
   }
   if (toWhatIf) {
-    return <Redirect to="/whatif"/>
+    return <Redirect to="/whatif" />
   }
 
   if (toMispredicted) {
-    return <Redirect to="/mispred_instances"/>
+    return <Redirect to="/mispred_instances" />
   }
 
   if (toUserRules) {
-    return <Redirect to="/user_rules"/>
+    return <Redirect to="/user_rules" />
   }
   if (toExplanationComparison) {
-    return <Redirect to="/classifiers_2"/>
+    return <Redirect to="/classifiers_2" />
   }
 
   if (toGlobalExplanation) {
-    return <Redirect to="/global_explanation"/>
+    return <Redirect to="/global_explanation" />
   }
-    if (toClassComparison) {
-    return <Redirect to="/class_comparison"/>
+  if (toClassComparison) {
+    return <Redirect to="/class_comparison" />
   }
-
 
   return (
-    <Container  >
-      <Row >
+    <Container>
+      <Row>
         <Col>
           <h2>Select the analysis to perform</h2>
         </Col>
       </Row>
-      <Row >
-      <p>Continue the analysis of instance <code>{response.instance_id}</code> of dataset <code>{response.dataset_name}</code> for the <code>{response.classifier_name}</code> classifier</p>
+      <Row>
+        <p>
+          Continue the analysis of instance <code>{response.instance_id}</code>{" "}
+          of dataset <code>{response.dataset_name}</code> for the{" "}
+          <code>{response.classifier_name}</code> classifier
+        </p>
       </Row>
-      <Row  className="justify-content-md-center">
+      <Row className="justify-content-md-center">
         <Col lg={6}>
           <ListGroup>
-            {Object.entries(analysesInstance).map(([id, {display_name}]) => (
+            {Object.entries(analysesInstance).map(([id, { display_name }]) => (
               <ListGroup.Item
-              variant="info"
+                variant="info"
                 className="text-center"
                 action
                 key={id}
@@ -125,7 +137,7 @@ function AnalysesNew() {
                         return Search
 
                       case "user_rules":
-                        return  Person
+                        return Person
 
                       case "explaination_comparison":
                         return Law
@@ -147,11 +159,14 @@ function AnalysesNew() {
           </ListGroup>
         </Col>
       </Row>
-      <Row> <p>Proceed with new analysis</p></Row>
-            <Row  className="justify-content-md-center">
+      <Row>
+        {" "}
+        <p>Proceed with new analysis</p>
+      </Row>
+      <Row className="justify-content-md-center">
         <Col lg={6}>
           <ListGroup>
-            {Object.entries(analysesGlobal).map(([id, {display_name}]) => (
+            {Object.entries(analysesGlobal).map(([id, { display_name }]) => (
               <ListGroup.Item
                 className="text-center"
                 action
@@ -171,7 +186,7 @@ function AnalysesNew() {
                         return Search
 
                       case "user_rules":
-                        return  Person
+                        return Person
 
                       case "explaination_comparison":
                         return Law

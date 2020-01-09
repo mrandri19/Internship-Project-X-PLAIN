@@ -1,5 +1,5 @@
-import React, {useEffect, useState} from "react"
-import {Redirect} from "react-router-dom"
+import React, { useEffect, useState } from "react"
+import { Redirect } from "react-router-dom"
 import Container from "react-bootstrap/Container"
 import Row from "react-bootstrap/Row"
 import Col from "react-bootstrap/Col"
@@ -33,13 +33,12 @@ function Datasets() {
     }
   }
 
-  function handleChangeForm(event){
+  function handleChangeForm(event) {
     setInputValue(event.target.value)
   }
 
-
   if (toClassifiers) {
-    return <Redirect to="/classifiers"/>
+    return <Redirect to="/classifiers" />
   }
   return (
     <Container>
@@ -61,21 +60,25 @@ function Datasets() {
                 {datasetName}
               </ListGroup.Item>
             ))}
-            <ListGroup.Item>   
-            <Form>
-             <InputGroup className="mb-3" >
-            
-              <FormControl
-                placeholder="Dataset name"
-                aria-label="Dataset name"
-                aria-describedby="basic-addon2"
-                onChange={handleChangeForm}
-              />
-              <InputGroup.Append>
-                <Button variant="outline-secondary" onClick={postDataset(inputValue)} >Select</Button>
-              </InputGroup.Append>
-            </InputGroup>
-            </Form>
+            <ListGroup.Item>
+              <Form>
+                <InputGroup className="mb-3">
+                  <FormControl
+                    placeholder="Dataset name"
+                    aria-label="Dataset name"
+                    aria-describedby="basic-addon2"
+                    onChange={handleChangeForm}
+                  />
+                  <InputGroup.Append>
+                    <Button
+                      variant="outline-secondary"
+                      onClick={postDataset(inputValue)}
+                    >
+                      Select
+                    </Button>
+                  </InputGroup.Append>
+                </InputGroup>
+              </Form>
             </ListGroup.Item>
           </ListGroup>
         </Col>

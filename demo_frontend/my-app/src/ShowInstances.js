@@ -1,6 +1,6 @@
-import {useTable, useSortBy, usePagination} from "react-table"
+import { useTable, useSortBy, usePagination } from "react-table"
 import Table from "react-bootstrap/Table"
-import React, {useState, useEffect} from "react"
+import React, { useState, useEffect } from "react"
 import Container from "react-bootstrap/Container"
 import Row from "react-bootstrap/Row"
 import Col from "react-bootstrap/Col"
@@ -9,11 +9,10 @@ import Form from "react-bootstrap/Form"
 import Button from "react-bootstrap/Button"
 import ButtonGroup from "react-bootstrap/ButtonGroup"
 
-import Octicon, {Graph} from "@primer/octicons-react"
-
+import Octicon, { Graph } from "@primer/octicons-react"
 
 function ShowInstances() {
-  function MyTablev2({columns, data}) {
+  function MyTablev2({ columns, data }) {
     // Use the state and functions returned from useTable to build your UI
     const {
       getTableProps,
@@ -32,12 +31,12 @@ function ShowInstances() {
       nextPage,
       previousPage,
       setPageSize,
-      state: {pageIndex, pageSize}
+      state: { pageIndex, pageSize }
     } = useTable(
       {
         columns,
         data,
-        initialState: {pageIndex: 0}
+        initialState: { pageIndex: 0 }
       },
       useSortBy,
       usePagination
@@ -56,53 +55,67 @@ function ShowInstances() {
           }}
         >
           <thead>
-          {headerGroups.map(headerGroup => (
-            <tr {...headerGroup.getHeaderGroupProps()}>
-              {headerGroup.headers.map(column => (
-                <th {...column.getHeaderProps(column.getSortByToggleProps())}>
-                  {column.render("Header")}
-                  <span>
-                    {column.isSorted
-                      ? column.isSortedDesc
-                        ? " 🔽"
-                        : " 🔼"
-                      : ""}
-                  </span>
-                </th>
-              ))}
-            </tr>
-          ))}
+            {headerGroups.map(headerGroup => (
+              <tr {...headerGroup.getHeaderGroupProps()}>
+                {headerGroup.headers.map(column => (
+                  <th {...column.getHeaderProps(column.getSortByToggleProps())}>
+                    {column.render("Header")}
+                    <span>
+                      {column.isSorted
+                        ? column.isSortedDesc
+                          ? " 🔽"
+                          : " 🔼"
+                        : ""}
+                    </span>
+                  </th>
+                ))}
+              </tr>
+            ))}
           </thead>
           <tbody {...getTableBodyProps()}>
-          {page.map(row => {
-            prepareRow(row)
-            return (
-              <tr {...row.getRowProps()}>
-
-                {row.cells.map(cell => {
-                  return <td {...cell.getCellProps()}>{cell.render("Cell")}</td>
-                })}
-              </tr>
-            )
-          })}
+            {page.map(row => {
+              prepareRow(row)
+              return (
+                <tr {...row.getRowProps()}>
+                  {row.cells.map(cell => {
+                    return (
+                      <td {...cell.getCellProps()}>{cell.render("Cell")}</td>
+                    )
+                  })}
+                </tr>
+              )
+            })}
           </tbody>
         </Table>
         <div>
           <div>
             <ButtonGroup className={"mr-3"}>
-              <Button variant="dark" onClick={() => gotoPage(0)} disabled={!canPreviousPage}>
+              <Button
+                variant="dark"
+                onClick={() => gotoPage(0)}
+                disabled={!canPreviousPage}
+              >
                 {"<<"}
-              </Button>
-              {" "}
-              <Button variant="dark" onClick={() => previousPage()} disabled={!canPreviousPage}>
+              </Button>{" "}
+              <Button
+                variant="dark"
+                onClick={() => previousPage()}
+                disabled={!canPreviousPage}
+              >
                 {"<"}
-              </Button>
-              {" "}
-              <Button variant="dark" onClick={() => nextPage()} disabled={!canNextPage}>
+              </Button>{" "}
+              <Button
+                variant="dark"
+                onClick={() => nextPage()}
+                disabled={!canNextPage}
+              >
                 {">"}
-              </Button>
-              {" "}
-              <Button variant="dark" onClick={() => gotoPage(pageCount - 1)} disabled={!canNextPage}>
+              </Button>{" "}
+              <Button
+                variant="dark"
+                onClick={() => gotoPage(pageCount - 1)}
+                disabled={!canNextPage}
+              >
                 {">>"}
               </Button>
             </ButtonGroup>
@@ -115,7 +128,6 @@ function ShowInstances() {
             </span>
           </div>
           <div className={"mt-3 mb-3"}>
-
             <Form.Row>
               <Col>
                 <Form.Group>
@@ -124,7 +136,9 @@ function ShowInstances() {
                     type="number"
                     defaultValue={pageIndex + 1}
                     onChange={e => {
-                      const page = e.target.value ? Number(e.target.value) - 1 : 0
+                      const page = e.target.value
+                        ? Number(e.target.value) - 1
+                        : 0
                       gotoPage(page)
                     }}
                   />
@@ -133,7 +147,8 @@ function ShowInstances() {
               <Col>
                 <Form.Group>
                   <Form.Control
-                    size={"sm"} as={"select"}
+                    size={"sm"}
+                    as={"select"}
                     value={pageSize}
                     onChange={e => {
                       setPageSize(Number(e.target.value))
@@ -181,21 +196,16 @@ function ShowInstances() {
     ]
   }
 
-
-
   const [response, setResponse] = useState({})
-
-
-
 
   const domain = React.useMemo(() => makeColumns(response.domain || []), [
     response.domain
   ])
   const instances = React.useMemo(
-    () => (Object.entries(response).length === 0 ? [] : makeInstances(response)),
+    () =>
+      Object.entries(response).length === 0 ? [] : makeInstances(response),
     [response]
   )
-
 
   useEffect(() => {
     async function fetchData() {
@@ -207,31 +217,34 @@ function ShowInstances() {
     fetchData()
   }, [])
 
-
   if (response.length === 0) {
     return (
       <Container>
         <Row>
           <Col className="mt-3">
             <h2>Instances</h2>
-            <Spinner animation="border"/>
+            <Spinner animation="border" />
           </Col>
         </Row>
       </Container>
     )
   }
 
-
   return (
     <Container>
       <Row className="mt-3 d-flex align-items-center">
         <h2 className="p-2">Instances</h2>
-        <Button variant="dark" className="ml-auto p-2" href="/analyses"> <Octicon icon={Graph}/> Analyze  </Button> 
+        <Button variant="dark" className="ml-auto p-2" href="/analyses">
+          {" "}
+          <Octicon icon={Graph} /> Analyze{" "}
+        </Button>
       </Row>
       <Row>
         <Col lg={12}>
-          <h5>Instances of dataset <code>{response.dataset_name}</code></h5>
-          <MyTablev2 columns={domain} data={instances}/>
+          <h5>
+            Instances of dataset <code>{response.dataset_name}</code>
+          </h5>
+          <MyTablev2 columns={domain} data={instances} />
         </Col>
       </Row>
     </Container>

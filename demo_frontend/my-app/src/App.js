@@ -4,14 +4,13 @@ import "whatwg-fetch"
 
 import React from "react"
 
-import {Link, Redirect, Route, Switch, useLocation} from "react-router-dom"
+import { Link, Redirect, Route, Switch, useLocation } from "react-router-dom"
 
 import Navbar from "react-bootstrap/Navbar"
 import Nav from "react-bootstrap/Nav"
 import NavItem from "react-bootstrap/NavItem"
 
-
-import Octicon, {Book, Graph, Italic, Telescope} from "@primer/octicons-react"
+import Octicon, { Book, Graph, Italic, Telescope } from "@primer/octicons-react"
 
 import Datasets from "./Datasets"
 import Classifiers from "./Classifiers"
@@ -37,8 +36,6 @@ import ExplanationClassComparison from "./ExplanationClassComparison"
 
 import ClassCompare from "./ClassCompare"
 
-
-
 function RouteNotFound() {
   return <h1>Route not found</h1>
 }
@@ -57,22 +54,26 @@ function App() {
             <Nav activeKey={location.pathname} navbar={true}>
               <NavItem href="/datasets">
                 <Nav.Link as={Link} eventKey="/datasets" to="/datasets">
-                  <Octicon icon={Book}/> Datasets
+                  <Octicon icon={Book} /> Datasets
                 </Nav.Link>
               </NavItem>
               <NavItem href="/classifiers">
                 <Nav.Link as={Link} eventKey="/classifiers" to="/classifiers">
-                  <Octicon icon={Telescope}/> Classifiers
+                  <Octicon icon={Telescope} /> Classifiers
                 </Nav.Link>
               </NavItem>
               <NavItem href="/show_instances">
-                <Nav.Link as={Link} eventKey="/show_instances" to="/show_instances">
-                  <Octicon icon={Italic}/> Show Instances
+                <Nav.Link
+                  as={Link}
+                  eventKey="/show_instances"
+                  to="/show_instances"
+                >
+                  <Octicon icon={Italic} /> Show Instances
                 </Nav.Link>
               </NavItem>
               <NavItem href="/analyses">
                 <Nav.Link as={Link} eventKey="/analyses" to="/analyses">
-                  <Octicon icon={Graph}/> Analyses
+                  <Octicon icon={Graph} /> Analyses
                 </Nav.Link>
               </NavItem>
             </Nav>
@@ -81,77 +82,73 @@ function App() {
 
         <Switch>
           <Route path="/datasets">
-            <Datasets/>
+            <Datasets />
           </Route>
 
           <Route path="/classifiers">
-            <Classifiers/>
+            <Classifiers />
           </Route>
 
           <Route path="/instances_class_comparison">
-            <InstancesExplClassCompare/>
+            <InstancesExplClassCompare />
           </Route>
 
           <Route path="/instances">
-            <Instances/>
+            <Instances />
           </Route>
 
           <Route path="/mispred_instances">
-            <MispredInstances/>
+            <MispredInstances />
           </Route>
 
           <Route path="/analyses">
-            <Analyses/>
+            <Analyses />
           </Route>
 
           <Route path="/whatif">
-            <WhatIf/>
+            <WhatIf />
           </Route>
 
           <Route path="/explanation">
-            <Explanation/>
+            <Explanation />
           </Route>
 
-
           <Route path="/show_instances">
-            <ShowInstances/>
+            <ShowInstances />
           </Route>
 
           <Route path="/explanation_comparison">
-            <ExplanationComparison/>
+            <ExplanationComparison />
           </Route>
 
           <Route path="/explanation_class_comparison">
-            <ExplanationClassComparison/>
+            <ExplanationClassComparison />
           </Route>
           <Route path="/class_comparison">
-            <ClassCompare/>
-          </Route>
-          
-          
-          <Route path="/global_explanation">
-            <GlobalExplanation/>
+            <ClassCompare />
           </Route>
 
+          <Route path="/global_explanation">
+            <GlobalExplanation />
+          </Route>
 
           <Route path="/user_rules">
-            <UserRules/>
+            <UserRules />
           </Route>
 
           <Route exact path="/">
-            <Redirect to="/datasets"/>
+            <Redirect to="/datasets" />
           </Route>
 
           <Route path="/classifiers_2">
-            <Classifiers2/>
+            <Classifiers2 />
           </Route>
 
           <Route path="/analyses_new">
-            <AnalysesNew/>
+            <AnalysesNew />
           </Route>
 
-
-          <Route component={RouteNotFound}/>
+          <Route component={RouteNotFound} />
         </Switch>
       </main>
     </Route>
