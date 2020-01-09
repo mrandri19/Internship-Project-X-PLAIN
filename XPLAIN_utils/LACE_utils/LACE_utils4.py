@@ -12,9 +12,11 @@ def getMinRelevantSet(instT, impo_rules_complete, map_difference):
     minlen = len(instT.domain.attributes)
     minlenname = ""
     minvalue = 0.0
-
-    impo_rules_completeC = ''.join(str(e) + ", " for e in list(impo_rules_complete[0]))
-    impo_rules_completeC = impo_rules_completeC[:-2]
+    #UPDATED_PE
+    
+    impo_rules_completeC=", ".join(map(str, list(max(impo_rules_complete, key=len))))
+    #impo_rules_completeC = ''.join(str(e) + ", " for e in list(impo_rules_complete[0]))
+    #impo_rules_completeC = impo_rules_completeC[:-2]
 
     if impo_rules_completeC != "":
         if len(impo_rules_completeC.replace(" ", "").split(",")) > 1:

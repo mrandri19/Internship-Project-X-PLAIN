@@ -36,31 +36,36 @@ function getNames(explanation) {
   return explanation.domain
   .map(([name,]) => `${name}=${explanation.instance[name].value}`)
   .concat(
-    Object.keys(explanation.map_difference).map((_, ix) => `Rule ${ix + 1}`)
-  )
+    Object.keys(explanation.map_difference).map(function(rule, ix) {
+        if(rule.length === 1){ return null } else { return `Rule ${ix + 1}`} }).filter( x=> x!=null))
 }
 
 
 function getDifferences(explanation) {
   return explanation.diff_single.concat(
-    Object.values(explanation.map_difference)
-  )
+    Object.keys(explanation.map_difference).map(function(key, _) {
+      if(key.length === 1){ return null } else { return explanation.map_difference[key] } }).filter( x=> x!=null))
 }
 
-function ExplanationPlot({trace}) {
+//    {compare ? '' : '{{}}'}
+//style={{width: '100%', height: '100%'}}
+function ExplanationPlot({trace, title, xaxistitle}) {
   return <Plot
     data={[trace]}
+    style={{}}
     layout={{
-      title: "Rule/Attribute prediction contribution",
+      title: {text: title, font: {
+      size: 14,
+    }},
       autosize: true,
       yaxis: {
         type: "category",
         automargin: true,
         dtick: 1,
-        categoryorder: "total ascending"
+        categoryorder: "total ascending",
       },
       xaxis: {
-        title: "Contribution",
+        title: xaxistitle,
         dtick: 0.1,
         ticks: "inside",
         tickangle: 45

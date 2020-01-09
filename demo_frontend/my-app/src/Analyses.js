@@ -4,13 +4,14 @@ import Container from "react-bootstrap/Container"
 import Row from "react-bootstrap/Row"
 import Col from "react-bootstrap/Col"
 import ListGroup from "react-bootstrap/ListGroup"
-import Octicon, {Question, MortarBoard, PrimitiveDot} from "@primer/octicons-react"
+import Octicon, {Question, MortarBoard, PrimitiveDot, Search, Person, Law, Globe, Versions} from "@primer/octicons-react"
 
 function Analyses() {
   const [analyses, setAnalyses] = useState([])
-
-  const [toExplanation, setToExplanation] = useState(false)
-  const [toWhatIf, setToWhatIf] = useState(false)
+  const [toGlobalExplanation, setToGlobalExplanation] = useState(false)
+  const [toRedirect, setToRedirect] = useState(false)
+  const [toMispredicted, setToMispredicted] = useState(false)
+  const [toClassComparison, setToClassComparison] = useState(false)
 
   useEffect(() => {
     async function fetchData() {
@@ -24,31 +25,46 @@ function Analyses() {
 
   function postAnalysis(analysisName) {
     return async () => {
-      if (analysisName === "explain") {
-        setToExplanation(true)
+      if (analysisName === "global_explanation") {
+        setToGlobalExplanation(true)
       }
-      if (analysisName === "whatif") {
-        setToWhatIf(true)
+      if (analysisName === "mispredicted") {
+        setToMispredicted(true)
       }
+      if (analysisName === "t_class_comparison") {
+        setToClassComparison(true)
+      }
+      setToRedirect(true)
+      await fetch(`http://127.0.0.1:5000/analyses/${analysisName}`, {
+        method: "POST"
+      })
+      } 
     }
-  }
+  
 
-  if (toExplanation) {
-    return <Redirect to="/explanation"/>
-  }
-  if (toWhatIf) {
-    return <Redirect to="/whatif"/>
-  }
+  if (toRedirect) {
+    if (toGlobalExplanation){
+      return <Redirect to="/global_explanation"/>
+    }
+    if(toMispredicted){
+      return <Redirect to="/mispred_instances"/>
+    }
+    if (toClassComparison) {
+    return <Redirect to="/instances_class_comparison"/>
+    }
+    return <Redirect to="/instances"/>
+ }
+
 
   return (
-    <Container>
-      <Row className="mt-3">
+    <Container  >
+      <Row >
         <Col>
           <h2>Select the analysis to perform</h2>
         </Col>
       </Row>
-      <Row>
-        <Col lg={3}>
+      <Row  className="justify-content-md-center">
+        <Col lg={6}>
           <ListGroup>
             {Object.entries(analyses).map(([id, {display_name}]) => (
               <ListGroup.Item
@@ -65,6 +81,21 @@ function Analyses() {
 
                       case "whatif":
                         return MortarBoard
+
+                      case "mispredicted":
+                        return Search
+
+                      case "user_rules":
+                        return  Person
+
+                      case "explaination_comparison":
+                        return Law
+
+                      case "global_explanation":
+                        return Globe
+
+                      case "t_class_comparison":
+                        return Versions
 
                       default:
                         return PrimitiveDot

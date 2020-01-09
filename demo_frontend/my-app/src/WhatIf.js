@@ -6,6 +6,8 @@ import Spinner from "react-bootstrap/Spinner"
 import Button from "react-bootstrap/Button"
 import Table from "react-bootstrap/Table"
 import Dropdown from "react-bootstrap/Dropdown"
+import Octicon, {Graph, Sync} from "@primer/octicons-react"
+import ButtonGroup from "react-bootstrap/ButtonGroup"
 
 import Rules from "./Rules"
 import {ExplanationPlot, getTrace, getDifferences, getNames} from "./ExplanationPlot"
@@ -14,6 +16,8 @@ function WhatIf() {
   const [whatIfExplanation, setwhatIfExplanation] = useState(null)
   const [instanceAttributes, setInstanceAttributes] = useState(null)
   const [recomputeLoading, setRecomputeLoading] = useState(false)
+  const [oldInstanceAttributes, setOldInstanceAttributes] = useState(null)
+  const [oldWhatIfExplanation, setOldWhatIfExplanation] = useState(null)
 
   useEffect(() => {
     async function fetchData() {
@@ -21,10 +25,22 @@ function WhatIf() {
       const json = await res.json()
       setwhatIfExplanation(json.explanation)
       setInstanceAttributes(json.attributes)
+      setOldWhatIfExplanation(json.explanation)
+      setOldInstanceAttributes(json.attributes)
     }
 
     fetchData()
   }, [])
+
+  function handleRecompute2(e) {
+    async function fetchData() {
+
+      setwhatIfExplanation(oldWhatIfExplanation)
+      setInstanceAttributes(oldInstanceAttributes)
+    }
+
+    fetchData()
+  }
 
   function handleRecompute(e) {
     async function fetchData() {
@@ -62,10 +78,13 @@ function WhatIf() {
   return (
     <Container>
       <Row className="mt-3 d-flex align-items-center">
-        <h2 className="p-2">What If analysis</h2>
-        {
+      <Col xs={7}>
+        <h2 className="p-2">What If analysis</h2> </Col>
+        <Col>
+        
+{
           (recomputeLoading) ?
-            (<Button className="ml-auto p-2" variant="primary" disabled>
+            (<Button  variant="dark" disabled>
               <Spinner
                 as="span"
                 size="sm"
@@ -76,10 +95,17 @@ function WhatIf() {
               <span className={"ml-2"}>Recomputing...</span>
               <span className="sr-only">Loading...</span>
             </Button>) :
-            (<Button className="ml-auto p-2"
-                     onClick={handleRecompute}>Recompute</Button>)
-        }
+            (<ButtonGroup>
+              <Button variant="outline-dark" className="ml-auto p-2" href="/analyses_new"> <Octicon icon={Graph}/> New analyses  </Button>     
+              <Button variant="secondary" className="ml-auto p-2"
+                     onClick={handleRecompute2}>  Restore  </Button>
+              <Button variant="dark" className="ml-auto p-2"
+                     onClick={handleRecompute}>  <Octicon icon={Sync}/>  Recompute explanation </Button>
+              </ButtonGroup>
+              )
+        }        </Col>
       </Row>
+
       <Row className="mb-3">
         <Col>
           <Table size="sm">
@@ -94,7 +120,7 @@ function WhatIf() {
               <tr key={name}>
                 <td>{name}</td>
                 <td>
-                  <Dropdown onSelect={newValue => {
+                  <Dropdown  variant="dark" onSelect={newValue => {
                     const newInstanceAttributes = {
                       ...instanceAttributes
                     }
@@ -105,7 +131,7 @@ function WhatIf() {
 
                     setInstanceAttributes(newInstanceAttributes)
                   }}>
-                    <Dropdown.Toggle id={name}>
+                    <Dropdown.Toggle  variant="dark" id={name}>
                       {value}
                     </Dropdown.Toggle>
                     <Dropdown.Menu>
@@ -121,7 +147,9 @@ function WhatIf() {
           </Table>
         </Col>
         <Col>
-          <ExplanationPlot trace={trace}/>
+          <ExplanationPlot trace={trace}
+          title={ "Dataset: " + whatIfExplanation.explainer_info.dataset_name + "  model="+whatIfExplanation.explainer_info.classifier_name+"<br>p(y="+whatIfExplanation.target_class+"|"+whatIfExplanation.explainer_info.meta+")="+whatIfExplanation.prob.toFixed(3)  }
+          xaxistitle={"Δ - target class = " + whatIfExplanation.target_class}/>
           <p>
             The instance <code>{whatIfExplanation.instance_id}</code> belongs to the
             class <b>{whatIfExplanation.target_class}</b> with probability{" "}

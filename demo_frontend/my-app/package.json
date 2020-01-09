@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
+    "@material-ui/core": "^4.0.0-rc.0",
     "@primer/octicons-react": "^9.3.1",
+    "@trendmicro/react-sidenav": "^0.4.5",
     "bootstrap": "^4.4.1",
     "node-sass": "^4.13.0",
     "plotly.js": "^1.51.2",
@@ -13,6 +15,7 @@
     "react-plotly.js": "^2.4.0",
     "react-router-dom": "^5.1.2",
     "react-scripts": "3.2.0",
+    "react-sidebar": "^3.0.2",
     "react-table": "^7.0.0-rc.9",
     "whatwg-fetch": "^3.0.0"
   },

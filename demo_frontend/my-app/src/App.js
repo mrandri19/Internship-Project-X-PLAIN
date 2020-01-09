@@ -21,6 +21,24 @@ import Analyses from "./Analyses"
 import Explanation from "./Explanation"
 import WhatIf from "./WhatIf"
 
+import MispredInstances from "./MispredInstances"
+import InstancesExplClassCompare from "./InstancesExplClassCompare"
+
+import UserRules from "./UserRules"
+import ExplanationComparison from "./ExplanationComparison"
+
+import GlobalExplanation from "./GlobalExplanation"
+
+import ShowInstances from "./ShowInstances"
+import Classifiers2 from "./Classifiers2"
+import AnalysesNew from "./AnalysesNew"
+
+import ExplanationClassComparison from "./ExplanationClassComparison"
+
+import ClassCompare from "./ClassCompare"
+
+
+
 function RouteNotFound() {
   return <h1>Route not found</h1>
 }
@@ -47,9 +65,9 @@ function App() {
                   <Octicon icon={Telescope}/> Classifiers
                 </Nav.Link>
               </NavItem>
-              <NavItem href="/instances">
-                <Nav.Link as={Link} eventKey="/instances" to="/instances">
-                  <Octicon icon={Italic}/> Instances
+              <NavItem href="/show_instances">
+                <Nav.Link as={Link} eventKey="/show_instances" to="/show_instances">
+                  <Octicon icon={Italic}/> Show Instances
                 </Nav.Link>
               </NavItem>
               <NavItem href="/analyses">
@@ -70,8 +88,16 @@ function App() {
             <Classifiers/>
           </Route>
 
+          <Route path="/instances_class_comparison">
+            <InstancesExplClassCompare/>
+          </Route>
+
           <Route path="/instances">
             <Instances/>
+          </Route>
+
+          <Route path="/mispred_instances">
+            <MispredInstances/>
           </Route>
 
           <Route path="/analyses">
@@ -86,9 +112,45 @@ function App() {
             <Explanation/>
           </Route>
 
+
+          <Route path="/show_instances">
+            <ShowInstances/>
+          </Route>
+
+          <Route path="/explanation_comparison">
+            <ExplanationComparison/>
+          </Route>
+
+          <Route path="/explanation_class_comparison">
+            <ExplanationClassComparison/>
+          </Route>
+          <Route path="/class_comparison">
+            <ClassCompare/>
+          </Route>
+          
+          
+          <Route path="/global_explanation">
+            <GlobalExplanation/>
+          </Route>
+
+
+          <Route path="/user_rules">
+            <UserRules/>
+          </Route>
+
           <Route exact path="/">
             <Redirect to="/datasets"/>
           </Route>
+
+          <Route path="/classifiers_2">
+            <Classifiers2/>
+          </Route>
+
+          <Route path="/analyses_new">
+            <AnalysesNew/>
+          </Route>
+
+
           <Route component={RouteNotFound}/>
         </Switch>
       </main>

@@ -7,7 +7,8 @@ import ListGroup from "react-bootstrap/ListGroup"
 
 function Classifiers() {
   const [classifiers, setClassifiers] = useState([])
-  const [toInstances, setToInstances] = useState(false)
+  //const [toInstances, setToInstances] = useState(false)
+  const [toAnalyses, setToAnalyses] = useState(false)
 
   useEffect(() => {
     async function fetchData() {
@@ -24,22 +25,22 @@ function Classifiers() {
       await fetch(`http://127.0.0.1:5000/classifier/${datasetName}`, {
         method: "POST"
       })
-      setToInstances(true)
+      setToAnalyses(true)
     }
   }
 
-  if (toInstances) {
-    return <Redirect to="/instances"/>
+  if (toAnalyses) {
+    return <Redirect to="/show_instances"/>
   }
   return (
     <Container>
-      <Row className="mt-3">
+      <Row className="justify-content-md-center">
         <Col>
           <h2>Select a classifier</h2>
         </Col>
       </Row>
-      <Row>
-        <Col lg={3} className="mt-3">
+      <Row className="justify-content-md-center">
+        <Col lg={3} >
           <ListGroup>
             {classifiers.map(classifier => (
               <ListGroup.Item
