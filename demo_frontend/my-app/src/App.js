@@ -2,7 +2,7 @@ import "./style.scss"
 
 import "whatwg-fetch"
 
-import React from "react"
+import React, { useState } from "react"
 
 import { Link, Redirect, Route, Switch, useLocation } from "react-router-dom"
 
@@ -42,6 +42,7 @@ function RouteNotFound() {
 
 function App() {
   const location = useLocation()
+  const [instance, setInstance] = useState(null)
 
   return (
     <Route path="/">
@@ -51,7 +52,11 @@ function App() {
             LACE
           </Navbar.Brand>
           <Navbar.Collapse>
-            <Nav activeKey={location.pathname} navbar={true}>
+            <Nav
+              activeKey={location.pathname}
+              navbar={true}
+              className="mr-auto"
+            >
               <NavItem href="/datasets">
                 <Nav.Link as={Link} eventKey="/datasets" to="/datasets">
                   <Octicon icon={Book} /> Datasets
@@ -77,6 +82,11 @@ function App() {
                 </Nav.Link>
               </NavItem>
             </Nav>
+            {instance !== null ? (
+              <Navbar.Text className="mr-sm-2">
+                Current instance: <strong>{instance}</strong>
+              </Navbar.Text>
+            ) : null}
           </Navbar.Collapse>
         </Navbar>
 
@@ -94,7 +104,7 @@ function App() {
           </Route>
 
           <Route path="/instances">
-            <Instances />
+            <Instances setInstance={setInstance} />
           </Route>
 
           <Route path="/mispred_instances">

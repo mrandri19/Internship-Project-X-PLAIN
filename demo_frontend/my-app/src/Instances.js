@@ -12,7 +12,7 @@ import {
   makeInstances
 } from "./MyTableFunctions"
 
-function Instances() {
+function Instances({ setInstance }) {
   const [response, setResponse] = useState({})
   const [analysis_type, setAnalysis_type] = useState(null)
   const [toAnalyses, setToAnalyses] = useState(false)
@@ -52,6 +52,7 @@ function Instances() {
   }
 
   function postInstance(instanceId, class_) {
+    setInstance(instanceId)
     return async () => {
       await fetch(`http://127.0.0.1:5000/instance/${instanceId}`, {
         method: "POST",

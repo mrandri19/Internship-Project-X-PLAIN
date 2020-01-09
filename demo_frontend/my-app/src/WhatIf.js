@@ -37,7 +37,7 @@ function WhatIf() {
     fetchData()
   }, [])
 
-  function handleRecompute2(e) {
+  function handleRestore(e) {
     async function fetchData() {
       setwhatIfExplanation(oldWhatIfExplanation)
       setInstanceAttributes(oldInstanceAttributes)
@@ -111,7 +111,7 @@ function WhatIf() {
               <Button
                 variant="secondary"
                 className="ml-auto p-2"
-                onClick={handleRecompute2}
+                onClick={handleRestore}
               >
                 {" "}
                 Restore{" "}
