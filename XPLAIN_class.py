@@ -335,8 +335,9 @@ class XPLAIN_explainer:
             # Consider only rules with more than 1 attribute since we compute the differences
             # for single attribute changes already in compute_prediction_difference_single
             if len(rule_body_indices) == 1:
-                #Update Eliana - To output also rule of one element
-                difference_map[str(rule_body_indices[0])] = single_attribute_differences[rule_body_indices[0]-1]
+                # Update Eliana - To output also rule of one element
+                difference_map[str(rule_body_indices[0])] = single_attribute_differences[
+                    rule_body_indices[0] - 1]
                 continue
             if len(rule_body_indices) < 1:
                 continue
@@ -843,13 +844,10 @@ class XPLAIN_explainer:
         h = HBox([btnTargetC, btnNewSel])
         display(h)
 
-
-
-    #NEW_UPDATE
-    # ************************************************************************************************ #
+    # NEW_UPDATE
     def update_explain_instance(self, instance_explanation, rule_body_indices):
-        target_class=instance_explanation.target_class
-        instance=instance_explanation.instance
+        target_class = instance_explanation.target_class
+        instance = instance_explanation.instance
         c = self.classifier(instance, False)
         target_class_index = instance_explanation.instance_class_index
         pred = self.classifier(instance, True)[0][target_class_index]
@@ -859,9 +857,9 @@ class XPLAIN_explainer:
         # Because across iterations only rules change we can cache both whole rules and instance
         # classifications
         instance_predictions_cache = {}
-        single_attribute_differences=instance_explanation.diff_single
+        single_attribute_differences = instance_explanation.diff_single
 
-        #Rule 1 element or already existing: no update needed
+        # Rule 1 element or already existing: no update needed
         if len(rule_body_indices) <= 1 or ','.join(map(str, rule_body_indices)) in difference_map:
             return instance_explanation
 
@@ -870,8 +868,6 @@ class XPLAIN_explainer:
             instance_predictions_cache,
             target_class, target_class_index, pred,
             single_attribute_differences, difference_map)
-
-
 
         instance_explanation = XPLAIN_explanation(self,
                                                   target_class,
@@ -882,18 +878,19 @@ class XPLAIN_explainer:
                                                   difference_map)
 
         return instance_explanation
-    # ************************************************************************************************ #
+
     def compute_prediction_difference_user_rule(self, rule_body_indices, instance,
-                          instance_predictions_cache, target_class,
-                          target_class_index, pred, single_attribute_differences, difference_map):
+                                                instance_predictions_cache, target_class,
+                                                target_class_index, pred,
+                                                single_attribute_differences, difference_map):
         # Consider only rules with more than 1 attribute since we compute the differences
         # for single attribute changes already in compute_prediction_difference_single
         difference_map_key = ",".join(map(str, rule_body_indices))
         difference_map[difference_map_key] = compute_prediction_difference_subset(
-                self.training_dataset, instance, rule_body_indices,
-                self.classifier, target_class_index, instance_predictions_cache)
+            self.training_dataset, instance, rule_body_indices,
+            self.classifier, target_class_index, instance_predictions_cache)
 
-        impo_rules_complete=[list(map(int,e.split(","))) for e in list(difference_map.keys())]
+        impo_rules_complete = [list(map(int, e.split(","))) for e in list(difference_map.keys())]
         error_single, error, PI_rel2 = compute_error_approximation(self.mappa_class,
                                                                    pred,
                                                                    single_attribute_differences,
@@ -901,22 +898,12 @@ class XPLAIN_explainer:
                                                                    target_class,
                                                                    difference_map)
 
-
         return PI_rel2, difference_map, error, [impo_rules_complete]
-    # ************************************************************************************************ #
+
     def getGlobalExplanationRules(self):
-        import copy    
-        global_expl=Global_Explanation(self)
-        global_expl=global_expl.getGlobalExplanation()
+        global_expl = Global_Explanation(self)
+        global_expl = global_expl.getGlobalExplanation()
         return global_expl
-
-    
-
-    # ************************************************************************************************ #
-
-    
-
-
 
 
 def get_KNN_threshold_max(KneighborsUser, len_dataset, thresholdError,
