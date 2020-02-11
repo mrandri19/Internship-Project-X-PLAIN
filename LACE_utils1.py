@@ -356,6 +356,8 @@ def getClassifier_v2(training_dataset, classif, classifierparameter, exit):
         classifier = learnerrf(training_dataset)
     elif classif == "svm":
         import random
+        continuizer = Orange.preprocess.Continuize()
+        continuizer.multinomial_treatment = continuizer.Indicators
         learnerrf = Orange.classification.SVMLearner(preprocessors=continuizer)
         classifier = learnerrf(training_dataset)
     elif classif == "knn":

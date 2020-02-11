@@ -15,14 +15,14 @@ import sklearn.neighbors
 # noinspection PyUnresolvedReferences
 from XPLAIN_explanation_class import XPLAIN_explanation
 # noinspection PyUnresolvedReferences
-from XPLAIN_utils.LACE_utils1 import gen_neighbors_info, \
+from LACE_utils1 import gen_neighbors_info, \
     get_relevant_subset_from_local_rules, getClassifier_v2, import_datasets, import_dataset, \
     useExistingModel_v2, compute_prediction_difference_subset, \
     compute_prediction_difference_single, getStartKValueSimplified, \
     computeMappaClass_b, compute_error_approximation, createDir
 # noinspection PyUnresolvedReferences
-from XPLAIN_utils.XPLAIN_utils import convertOTable2Pandas
-from XPLAIN_utils.global_explanation import *
+from XPLAIN_utils import convertOTable2Pandas
+from global_explanation import *
 
 ERROR_DIFFERENCE_THRESHOLD = 0.01
 TEMPORARY_FOLDER_NAME = "tmp"
