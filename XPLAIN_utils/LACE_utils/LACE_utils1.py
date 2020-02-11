@@ -7,14 +7,6 @@ import Orange
 MAX_SAMPLE_COUNT = 100
 
 
-def import_dataset_N_evaluations(dataname, n_insts, randomic,
-                                 datasetExplain=False):
-    if datasetExplain:
-        return import_datasets(dataname, n_insts, randomic)
-    else:
-        return import_dataset(dataname, n_insts, randomic)
-
-
 def import_dataset(dataset_name, explain_indices, random_explain_dataset):
     if dataset_name[-4:] == "arff":
         print(dataset_name)
@@ -285,123 +277,6 @@ def get_features_names(classifier):
 
     return features_names
 
-
-def getClassifier(training_dataset, args, exit):
-    classif = args["classifier"]
-    classifier = None
-    reason = args
-    if classif == "tree":
-        if (args["classifierparameter"] == None):
-            measure = "gini"
-        else:
-            measure = args["classifierparameter"].split("-")[0]
-        if (measure) != "gini" and (measure) != "entropy":
-            measure = "entropy"
-        continuizer = Orange.preprocess.Continuize()
-        continuizer.multinomial_treatment = continuizer.Indicators
-        learnertree = Orange.classification.SklTreeLearner(
-            preprocessors=continuizer, max_depth=7, min_samples_split=5,
-            min_samples_leaf=3, random_state=1)
-        # learnertree=Orange.classification.SklTreeLearner(preprocessors=continuizer, random_state=1)
-
-        classifier = learnertree(training_dataset)
-
-        printTree(classifier, training_dataset.name)
-
-
-
-    elif classif == "nb":
-        learnernb = Orange.classification.NaiveBayesLearner()
-        classifier = learnernb(training_dataset)
-
-    elif classif == "nn":
-        continuizer = Orange.preprocess.Continuize()
-        continuizer.multinomial_treatment = continuizer.Indicators
-        learnernet = Orange.classification.NNClassificationLearner(
-            preprocessors=continuizer, random_state=42,
-            max_iter=100)
-        print(learnernet)
-
-        classifier = learnernet(training_dataset)
-
-
-    elif classif == "rf":
-        import random
-        continuizer = Orange.preprocess.Continuize()
-        continuizer.multinomial_treatment = continuizer.Indicators
-        learnerrf = Orange.classification.RandomForestLearner(
-            preprocessors=continuizer, random_state=42)
-        classifier = learnerrf(training_dataset)
-
-    elif classif == "svm":
-        import random
-        learnerrf = Orange.classification.SVMLearner(preprocessors=continuizer)
-        classifier = learnerrf(training_dataset)
-
-    elif classif == "knn":
-        if args["classifierparameter"] == None:
-            exit = 1
-            reason = "k - missing the K parameter"
-        elif (len(args["classifierparameter"].split("-")) == 1):
-            KofKNN = int(args["classifierparameter"].split("-")[0])
-            distance = ""
-        else:
-            KofKNN = int(args["classifierparameter"].split("-")[0])
-            distance = args["classifierparameter"].split("-")[1]
-        if exit != 1:
-            if distance == "eu":
-                metricKNN = 'euclidean'
-            elif distance == "ham":
-                metricKNN = 'hamming'
-            elif distance == "man":
-                metricKNN = 'manhattan'
-            elif distance == "max":
-                metricKNN = 'maximal'
-            else:
-                metricKNN = 'euclidean'
-            continuizer = Orange.preprocess.Continuize()
-            continuizer.multinomial_treatment = continuizer.Indicators
-            knnLearner = Orange.classification.KNNLearner(
-                preprocessors=continuizer, n_neighbors=KofKNN,
-                metric=metricKNN, weights='uniform', algorithm='auto',
-                metric_params=None)
-            classifier = knnLearner(training_dataset)
-    else:
-        reason = "Classification model not available"
-        exit = 1
-
-    return classifier, exit, reason
-
-
-def useExistingModel(args):
-    import os
-    if os.path.exists("./models") == False:
-        os.makedirs("./models")
-    m = ""
-    if args["classifierparameter"] != None:
-        m = "-" + args["classifierparameter"]
-    file_path = "./models/" + args["dataset"] + "-" + args["classifier"] + m
-    if (os.path.exists(file_path) == True):
-        with open(file_path, "rb") as f:
-            model = pickle.load(f)
-        modelname = ""
-        if args["classifier"] == "tree":
-            modelname = "<class 'Orange.classification.tree.SklTreeClassifier'>"
-        elif args["classifier"] == "nb":
-            modelname = "<class 'Orange.classification.naive_bayes.NaiveBayesModel'>"
-        elif args["classifier"] == "nn":
-            modelname = "<class 'Orange.classification.base_classification.SklModelClassification'>"
-        elif args["classifier"] == "knn":
-            modelname = "<class 'Orange.classification.base_classification.SklModelClassification'>"
-        elif args["classifier"] == "rf":
-            modelname = "<class 'Orange.classification.random_forest.RandomForestClassifier'>"
-        else:
-            return False
-
-        if str(type(model)) == modelname:
-            return model
-
-    return False
 
 
 def useExistingModel_v2(classif, classifierparameter, dataname):

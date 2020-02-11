@@ -1,15 +1,19 @@
 # noinspection PyUnresolvedReferences
 import os
 # noinspection PyUnresolvedReferences
+import pickle
 import subprocess
 
 # noinspection PyUnresolvedReferences
 from copy import deepcopy
 
+import Orange
 import sklearn.neighbors
 
 # noinspection PyUnresolvedReferences
 from XPLAIN_explanation_class import XPLAIN_explanation
+# noinspection PyUnresolvedReferences
+from XPLAIN_utils.LACE_utils.LACE_utils1 import createDir
 # noinspection PyUnresolvedReferences
 from XPLAIN_utils.LACE_utils.LACE_utils2 import getStartKValueSimplified, \
     computeMappaClass_b, compute_error_approximation
@@ -17,7 +21,11 @@ from XPLAIN_utils.LACE_utils.LACE_utils2 import getStartKValueSimplified, \
 from XPLAIN_utils.LACE_utils.LACE_utils3 import gen_neighbors_info, \
     get_relevant_subset_from_local_rules, getClassifier_v2, import_datasets, import_dataset, \
     useExistingModel_v2
-from XPLAIN_utils.LACE_utils.LACE_utils4 import *
+# noinspection PyUnresolvedReferences
+from XPLAIN_utils.LACE_utils.LACE_utils5 import compute_prediction_difference_subset, \
+    compute_prediction_difference_single
+# noinspection PyUnresolvedReferences
+from XPLAIN_utils.XPLAIN_utils import convertOTable2Pandas
 from XPLAIN_utils.global_explanation import *
 
 ERROR_DIFFERENCE_THRESHOLD = 0.01

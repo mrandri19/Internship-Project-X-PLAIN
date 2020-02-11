@@ -45,34 +45,6 @@ def gen_neighbors_info(training_dataset, NearestNeighborsAll, instance, k,
     return out_data, out_data1
 
 
-def genNeighborsInfoTraining(training_dataset, NearestNeighborsAll, instanceI,
-                             iID, NofKNN, unique_filename, classifier):
-    nearest_neighbors = NearestNeighborsAll.kneighbors([instanceI], NofKNN,
-                                                       return_distance=False)
-
-    nearest_neighbors_out_data1 = NearestNeighborsAll.kneighbors([instanceI], 1,
-                                                                 return_distance=False)
-
-    table = Orange.data.Table
-    out_data = Orange.data.Table(training_dataset.domain)
-    lendataset_nearest_neighbors = len(nearest_neighbors[0])
-    for i in range(0, lendataset_nearest_neighbors):
-        #    c=classifier(training_dataset[nearest_neighbors[0][i]])
-        instanceK = Orange.data.Instance(training_dataset.domain,
-                                         training_dataset[
-                                             nearest_neighbors[0][i]])
-        #    instanceK.set_class(c[0])
-        out_data.append(instanceK)
-    c = classifier(training_dataset[nearest_neighbors[0][0]])
-    out_data1 = Orange.data.Table(training_dataset.domain)
-    instance0 = Orange.data.Instance(training_dataset.domain,
-                                     training_dataset[nearest_neighbors[0][0]])
-    instance0.set_class(c[0])
-    out_data1.append(instance0)
-
-    return out_data, out_data1
-
-
 def get_relevant_subset_from_local_rules(impo_rules, oldinputAr):
     inputAr = []
     iA = []
