@@ -1,5 +1,3 @@
-from copy import deepcopy
-
 from XPLAIN_class import *
 
 
