@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import Dict, Any, Union
 
 from flask import Flask, jsonify, abort, request
 from flask_cors import CORS
@@ -45,7 +46,7 @@ global_analyses = {"explain": {"display_name": "Explain the prediction of a new 
                    }
 # The application's global state.
 # Initialized with default values to speed up development
-state = {
+state: Dict[str, Union[str, Any]] = {
     'dataset': 'zoo',
     'classifier': 'nb',
     'class': None,

@@ -2,7 +2,7 @@ def compute_error_approximation(mappa_class, pred, out_data, impo_rules_complete
                                 map_difference):
     PI = pred - mappa_class[classname]
     Sum_Deltas = sum(out_data)
-    #UPDATED_EP
+    # UPDATED_EP
     impo_rules_completeC = ", ".join(map(str, list(max(impo_rules_complete, key=len))))
 
     approx_single_d = abs(PI - Sum_Deltas)
@@ -58,4 +58,3 @@ def computeMappaClass_b(data):
         mappa_class2[key] = mappa_class2[key] / h
 
     return mappa_class2
-

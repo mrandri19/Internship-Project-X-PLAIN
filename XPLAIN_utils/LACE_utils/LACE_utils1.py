@@ -12,14 +12,14 @@ def import_dataset(dataset_name, explain_indices, random_explain_dataset):
         print(dataset_name)
         dataset = loadARFF(dataset_name)
     else:
-        dataset = Orange.data.Table(dataset_name)        
-        #TODO Eliana TMP 
+        dataset = Orange.data.Table(dataset_name)
+        # TODO Eliana TMP
         if False in [i.is_discrete for i in dataset[0].domain.attributes]:
             disc = Orange.preprocess.Discretize()
             disc.method = Orange.preprocess.discretize.EqualFreq(3)
             dataset = disc(dataset)
-            toARFF(dataset_name.split(".")[0]+".arff", dataset)
-            dataset = loadARFF(dataset_name.split(".")[0]+".arff")
+            toARFF(dataset_name.split(".")[0] + ".arff", dataset)
+            dataset = loadARFF(dataset_name.split(".")[0] + ".arff")
 
     dataset_len = len(dataset)
     training_indices = list(range(dataset_len))
@@ -276,7 +276,6 @@ def get_features_names(classifier):
             features_names.append(classifier.domain.attributes[i].name)
 
     return features_names
-
 
 
 def useExistingModel_v2(classif, classifierparameter, dataname):
