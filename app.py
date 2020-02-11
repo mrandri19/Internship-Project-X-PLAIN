@@ -143,7 +143,7 @@ def get_instances():
     d = xp.explain_dataset
 
     return jsonify({
-        'domain': [(attr.name, attr.values) for attr in d.domain],
+        'domain': [(attr.name, attr.values) for attr in d.domain.variables],
         'instances': [(list(instance.x) + list(instance.y), ix) for instance, ix in
                       zip(d, xp.explain_indices)],
         'classes': [*d.domain.class_var.values],
@@ -366,7 +366,7 @@ def get_MispredicedInstances():
     mispredicted_instances_df = xp.showMispredictedTabularForm()
 
     d = xp.explain_dataset
-    attr_domain = [(attr.name, attr.values) for attr in d.domain]
+    attr_domain = [(attr.name, attr.values) for attr in d.domain.variables]
     attr_domain.append(("pred", d.domain.class_var.values))
 
     mispred_instances = []
@@ -505,7 +505,7 @@ def show_instances():
     d = xp.explain_dataset
 
     return jsonify({
-        'domain': [(attr.name, attr.values) for attr in d.domain],
+        'domain': [(attr.name, attr.values) for attr in d.domain.variables],
         'instances': [(list(instance.x) + list(instance.y), ix) for instance, ix in
                       zip(d, xp.explain_indices)],
         "dataset_name": xp.dataset_name
