@@ -1,7 +1,7 @@
-from XPLAIN_class import *
+from XPLAIN_explainer import *
 
 
-class Global_Explanation:
+class GlobalExplanation:
     def __init__(self, xplain_obj):
         self.XPLAIN_obj = xplain_obj
         self.attr_list = getAttrList(self.XPLAIN_obj.explain_dataset[0])

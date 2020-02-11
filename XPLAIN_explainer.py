@@ -13,16 +13,16 @@ import Orange
 import sklearn.neighbors
 
 # noinspection PyUnresolvedReferences
-from XPLAIN_explanation_class import XPLAIN_explanation
+from XPLAIN_explanation import XPLAIN_explanation
 # noinspection PyUnresolvedReferences
-from LACE_utils1 import gen_neighbors_info, \
+from utils import gen_neighbors_info, \
     get_relevant_subset_from_local_rules, getClassifier_v2, import_datasets, import_dataset, \
     useExistingModel_v2, compute_prediction_difference_subset, \
     compute_prediction_difference_single, getStartKValueSimplified, \
-    computeMappaClass_b, compute_error_approximation, createDir
+    computeMappaClass_b, compute_error_approximation, createDir, convertOTable2Pandas, \
+    get_KNN_threshold_max
 # noinspection PyUnresolvedReferences
-from XPLAIN_utils import convertOTable2Pandas
-from global_explanation import *
+from globalexplanation import *
 
 ERROR_DIFFERENCE_THRESHOLD = 0.01
 TEMPORARY_FOLDER_NAME = "tmp"
@@ -336,27 +336,8 @@ class XPLAIN_explainer:
         return PI_rel2, difference_map, error, [impo_rules_complete]
 
     def getGlobalExplanationRules(self):
-        global_expl = Global_Explanation(self)
+        global_expl = GlobalExplanation(self)
         global_expl = global_expl.getGlobalExplanation()
         return global_expl
 
 
-def get_KNN_threshold_max(KneighborsUser, len_dataset, thresholdError,
-                          maxKNNUser):
-    if KneighborsUser:
-        k = int(KneighborsUser)
-    else:
-        import math
-        k = int(round(math.sqrt(len_dataset)))
-
-    if thresholdError:
-        threshold = float(thresholdError)
-    else:
-        threshold = 0.10
-
-    if maxKNNUser:
-        max_n = int(maxKNNUser)
-    else:
-        max_n = getStartKValueSimplified(len_dataset)
-
-    return k, threshold, max_n

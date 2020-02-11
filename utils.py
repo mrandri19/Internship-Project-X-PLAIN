@@ -1,5 +1,8 @@
 # noinspection PyUnresolvedReferences
 import os
+
+# noinspection PyUnresolvedReferences
+from os import path
 # noinspection PyUnresolvedReferences
 import pickle
 # noinspection PyUnresolvedReferences
@@ -626,3 +629,64 @@ def computeMappaClass_b(data):
         mappa_class2[key] = mappa_class2[key] / h
 
     return mappa_class2
+
+
+def convertOTable2Pandas(orangeTable, ids=None, sel="all", cl=None, mapName=None):
+    import pandas as pd
+
+    if sel == "all":
+        dataK = [orangeTable[k].list for k in range(0, len(orangeTable))]
+    else:
+        dataK = [orangeTable[k].list for k in sel]
+
+    columnsA = [i.name for i in orangeTable.domain.variables]
+
+    if orangeTable.domain.metas != ():
+        for i in range(0, len(orangeTable.domain.metas)):
+            columnsA.append(orangeTable.domain.metas[i].name)
+    data = pd.DataFrame(data=dataK, columns=columnsA)
+
+    if cl != None and sel != "all" and mapName != None:
+        y_pred = [mapName[cl(orangeTable[k], False)[0]] for k in sel]
+        data["pred"] = y_pred
+
+    if ids != None:
+        data["instance_id"] = ids
+        data = data.set_index('instance_id')
+
+    return data
+
+
+def savePickle(model, dirO, name):
+    createDir(dirO)
+    with open(dirO + "/" + name + '.pickle', 'wb') as handle:
+        pickle.dump(model, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+def openPickle(dirO, name):
+    if path.exists(dirO + "/" + name + '.pickle'):
+        with open(dirO + "/" + name + '.pickle', 'rb') as handle:
+            return pickle.load(handle)
+    else:
+        return False
+
+
+def get_KNN_threshold_max(KneighborsUser, len_dataset, thresholdError,
+                          maxKNNUser):
+    if KneighborsUser:
+        k = int(KneighborsUser)
+    else:
+        import math
+        k = int(round(math.sqrt(len_dataset)))
+
+    if thresholdError:
+        threshold = float(thresholdError)
+    else:
+        threshold = 0.10
+
+    if maxKNNUser:
+        max_n = int(maxKNNUser)
+    else:
+        max_n = getStartKValueSimplified(len_dataset)
+
+    return k, threshold, max_n

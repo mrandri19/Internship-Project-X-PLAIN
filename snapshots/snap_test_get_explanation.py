@@ -8,7 +8,7 @@ from snapshottest import GenericRepr, Snapshot
 snapshots = Snapshot()
 
 snapshots['TestGet_explanation::test_get_explanation_adult_naive_bayes 1'] = (
-    GenericRepr('<XPLAIN_class.XPLAIN_explainer object at 0x100000000>'),
+    GenericRepr('<XPLAIN_explainer.XPLAIN_explainer object at 0x100000000>'),
     [
         0.001845467396144107,
         0.0002994653864815122,
@@ -39,7 +39,7 @@ snapshots['TestGet_explanation::test_get_explanation_adult_naive_bayes 1'] = (
 )
 
 snapshots['TestGet_explanation::test_get_explanation_zoo_naive_bayes 1'] = (
-    GenericRepr('<XPLAIN_class.XPLAIN_explainer object at 0x100000000>'),
+    GenericRepr('<XPLAIN_explainer.XPLAIN_explainer object at 0x100000000>'),
     [
         0.01990259243098258,
         -0.0044584473263546975,
@@ -70,7 +70,7 @@ snapshots['TestGet_explanation::test_get_explanation_zoo_naive_bayes 1'] = (
 )
 
 snapshots['TestGet_explanation::test_get_explanation_zoo_random_forest 1'] = (
-    GenericRepr('<XPLAIN_class.XPLAIN_explainer object at 0x100000000>'),
+    GenericRepr('<XPLAIN_explainer.XPLAIN_explainer object at 0x100000000>'),
     [
         0.11604938271604937,
         0.020987654320987703,

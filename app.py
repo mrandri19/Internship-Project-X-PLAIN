@@ -4,8 +4,8 @@ from typing import Dict, Any, Union
 from flask import Flask, jsonify, abort, request
 from flask_cors import CORS
 
-from XPLAIN_class import XPLAIN_explainer
-from XPLAIN_utils import openPickle, savePickle
+from XPLAIN_explainer import XPLAIN_explainer
+from utils import openPickle, savePickle
 from user_explanation import UserExplanation
 
 app = Flask(__name__)
