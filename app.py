@@ -4,9 +4,8 @@ from flask import Flask, jsonify, abort, request
 from flask_cors import CORS
 
 from XPLAIN_class import XPLAIN_explainer
-from XPLAIN_explanation_class import XPLAIN_explanation
-from user_explanation import UserExplanation
 from XPLAIN_utils.XPLAIN_utils import openPickle, savePickle
+from user_explanation import UserExplanation
 
 app = Flask(__name__)
 CORS(app)
@@ -229,8 +228,8 @@ def post_analyses(name):
 
 # ************************************************************************************************ #
 
-def explanation_to_dict(xp: XPLAIN_explanation):
-    e: XPLAIN_explainer = xp.XPLAIN_explainer_o
+def explanation_to_dict(xp):
+    e = xp.XPLAIN_explainer_o
     return {
         'instance': {attr.name: {'value': attr.values[int(value_ix)], 'options': attr.values} for
                      (attr, value_ix) in
@@ -238,7 +237,6 @@ def explanation_to_dict(xp: XPLAIN_explanation):
         'domain': [(attr.name, attr.values) for attr in e.training_dataset.domain.attributes],
         'diff_single': xp.diff_single,
         'map_difference': xp.map_difference,
-        # {k: v for k, v in xp.map_difference.items() if len(k)>1} #
         'k': xp.k,
         'error': xp.error,
         'target_class': xp.target_class,
@@ -249,7 +247,6 @@ def explanation_to_dict(xp: XPLAIN_explanation):
                                                v["name"] == e.classifier_name][0],
                            "meta": "x=" + xp.instance.metas[0] if xp.instance.metas else "x"},
         'true_class': xp.instance.get_class().value
-        # 'single_rules':{k: v for k, v in xp.map_difference.items() if len(k)==1}
     }
 
 
@@ -347,7 +344,6 @@ def get_user_rules_explanation():
     return jsonify(
         {'explanation': explanation_to_dict(state['user_explanation'].instance_explanation),
          'attributes': attributes_names,
-         # [a.name+"="+instance[a].value for (a,i) in zip(instance.domain.attributes, instance.x)]
          'id_user_rules': state['user_explanation'].id_user_rules
          })
 
