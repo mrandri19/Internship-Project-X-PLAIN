@@ -53,7 +53,7 @@ def import_dataset(dataset_name, explain_indices, random_explain_dataset):
     explain_dataset = Orange.data.Table.from_table_rows(dataset, explain_indices)
 
     return training_dataset, explain_dataset, len(training_dataset), \
-           [str(i) for i in explain_indices]
+        [str(i) for i in explain_indices]
 
 
 def import_datasets(dataname, n_insts, randomic):
@@ -237,7 +237,7 @@ def loadARFF_Weka(filename):
         return table
 
 
-def loadARFF(filename, **kwargs):
+def loadARFF(filename):
     """Return class:`Orange.data.Table` containing data from file in Weka ARFF format
        if there exists no .xml file with the same name. If it does, a multi-label
        dataset is read and returned.
@@ -646,11 +646,11 @@ def convertOTable2Pandas(orangeTable, ids=None, sel="all", cl=None, mapName=None
             columnsA.append(orangeTable.domain.metas[i].name)
     data = pd.DataFrame(data=dataK, columns=columnsA)
 
-    if cl != None and sel != "all" and mapName != None:
+    if cl is not None and sel != "all" and mapName is not None:
         y_pred = [mapName[cl(orangeTable[k], False)[0]] for k in sel]
         data["pred"] = y_pred
 
-    if ids != None:
+    if ids is not None:
         data["instance_id"] = ids
         data = data.set_index('instance_id')
 

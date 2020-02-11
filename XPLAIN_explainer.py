@@ -339,5 +339,3 @@ class XPLAIN_explainer:
         global_expl = GlobalExplanation(self)
         global_expl = global_expl.getGlobalExplanation()
         return global_expl
-
-
