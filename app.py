@@ -1,10 +1,12 @@
+from copy import deepcopy
+
 from flask import Flask, jsonify, abort, request
 from flask_cors import CORS
 
 from XPLAIN_class import XPLAIN_explainer
 from XPLAIN_explanation_class import XPLAIN_explanation
-from XPLAIN_user_explanation_class import User_Explanation
-from XPLAIN_utils.XPLAIN_utils import *
+from XPLAIN_user_explanation_class import UserExplanation
+from XPLAIN_utils.XPLAIN_utils import openPickle, savePickle
 
 app = Flask(__name__)
 CORS(app)
@@ -330,18 +332,18 @@ def get_user_rules_explanation():
         rule_body_indices = [attributes_names.index(s_a) + 1 for s_a in
                              request.get_json(force=True)]
         if state['user_explanation'] is None:
-            state['user_explanation'] = User_Explanation(state["last_explanation"]) if state[
-                "proceed"] else User_Explanation(xp.explain_instance(instance, target_class=class_))
+            state['user_explanation'] = UserExplanation(state["last_explanation"]) if state[
+                "proceed"] else UserExplanation(xp.explain_instance(instance, target_class=class_))
         e = xp.update_explain_instance(state['user_explanation'].instance_explanation,
                                        rule_body_indices)
-        state['user_explanation'].updateUserRules(e, rule_body_indices)
+        state['user_explanation'].update_user_rules(e, rule_body_indices)
     else:
         if state["proceed"]:
             e = state["last_explanation"]
         else:
             e = xp.explain_instance(instance, target_class=class_)
             state["last_explanation"] = deepcopy(e)
-        state['user_explanation'] = User_Explanation(e)
+        state['user_explanation'] = UserExplanation(e)
     return jsonify(
         {'explanation': explanation_to_dict(state['user_explanation'].instance_explanation),
          'attributes': attributes_names,
