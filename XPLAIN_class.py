@@ -46,19 +46,11 @@ class XPLAIN_explainer:
         explain_dataset_indices = []
         if dataset_name == "datasets/adult_d.arff" \
                 or dataset_name == "datasets/compas-scores-two-years_d.arff":
-            self.training_dataset, \
-            self.explain_dataset, \
-            self.training_dataset_len, \
-            self.explain_indices = \
-                import_datasets(
-                    dataset_name, explain_dataset_indices, random_explain_dataset)
+            self.training_dataset, self.explain_dataset, self.training_dataset_len, self.explain_indices = import_datasets(
+                dataset_name, explain_dataset_indices, random_explain_dataset)
         else:
-            self.training_dataset, \
-            self.explain_dataset, \
-            self.training_dataset_len, \
-            self.explain_indices = \
-                import_dataset(
-                    dataset_name, explain_dataset_indices, random_explain_dataset)
+            self.training_dataset, self.explain_dataset, self.training_dataset_len, self.explain_indices = import_dataset(
+                dataset_name, explain_dataset_indices, random_explain_dataset)
 
         self.K, _, self.max_K = get_KNN_threshold_max(KneighborsUser,
                                                       self.training_dataset_len,
@@ -76,7 +68,7 @@ class XPLAIN_explainer:
                 self.present = True
                 # The model exists, we'll use it
             # The model does not exist, we'll train it")
-        if use_existing_model is None or self.present == False:
+        if use_existing_model is None or not self.present:
             self.classifier, should_exit, reason = getClassifier_v2(
                 self.training_dataset, classifier_name, classifier_parameter,
                 should_exit)
@@ -137,66 +129,13 @@ class XPLAIN_explainer:
                                              self.explain_dataset[count_inst])
             c = self.classifier(instanceI, False)
             if instanceI.get_class() != self.map_names_class[c[0]]:
-                if mispred_class != False:
+                if mispred_class is not False:
                     if instanceI.get_class() == mispred_class:
                         self.mispredictedInstances.append(n_ist)
                 else:
                     self.mispredictedInstances.append(n_ist)
             count_inst = count_inst + 1
         return self.mispredictedInstances
-
-    def getExplanationComparison(self, Sn_inst, targetClass1,
-                                 targetClass2=None):
-
-        if targetClass1 == targetClass2:
-            print("Same target class")
-            return self.explain_instance(Sn_inst, targetClass1), None
-
-        if targetClass1 == "predicted" and targetClass2 == None:
-            print("Predicted class")
-            return self.explain_instance(Sn_inst), None
-
-        predicted, true = self.getPredictedandTrueClassById(Sn_inst)
-
-        if targetClass1 == None:
-            targetClass1 = "predicted"
-        if targetClass2 == None:
-            targetClass2 = "predicted"
-
-        if targetClass1 == "predicted" or targetClass2 == "predicted":
-            if predicted == targetClass1 or predicted == targetClass2:
-                print("Predicted class = user target class ")
-                return self.explain_instance(Sn_inst), None
-            if targetClass1 == "trueLabel" or targetClass2 == "trueLabel":
-                if true == predicted:
-                    print("True class = predicted class ")
-                    return self.explain_instance(Sn_inst), None
-        if targetClass1 == "trueLabel" or targetClass2 == "trueLabel":
-            if true == targetClass1 or true == targetClass2:
-                print("True class = user target class ")
-                return self.explain_instance(Sn_inst), None
-
-        fig2 = plt.figure(figsize=plt.figaspect(0.5))
-        ax1 = fig2.add_subplot(1, 2, 1)
-        explanation_1, ax1 = self.getExplanation_i_axis(ax1, Sn_inst,
-                                                        targetClass1)
-        ax2 = fig2.add_subplot(1, 2, 2)
-        explanation_2, ax2 = self.getExplanation_i_axis(ax2, Sn_inst,
-                                                        targetClass2)
-        plt.tight_layout()
-        plt.show()
-        return explanation_1, explanation_2
-
-    def getInstanceById(self, Sn_inst):
-        count_inst = self.explain_indices.index(Sn_inst)
-        instTmp2 = Orange.data.Instance(self.explain_dataset.domain,
-                                        self.explain_dataset[count_inst])
-        return instTmp2
-
-    def getPredictedandTrueClassById(self, Sn_inst):
-        i = self.getInstanceById(Sn_inst)
-        c = self.classifier(i, False)
-        return self.map_names_class[c[0]], str(i.get_class())
 
     def explain_instance(self, instance, target_class):
 
@@ -338,7 +277,6 @@ class XPLAIN_explainer:
     def update_explain_instance(self, instance_explanation, rule_body_indices):
         target_class = instance_explanation.target_class
         instance = instance_explanation.instance
-        c = self.classifier(instance, False)
         target_class_index = instance_explanation.instance_class_index
         pred = self.classifier(instance, True)[0][target_class_index]
 
