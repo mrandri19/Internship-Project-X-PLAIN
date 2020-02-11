@@ -298,7 +298,6 @@ def useExistingModel_v2(classif, classifierparameter, dataname):
     if (os.path.exists(file_path) == True):
         with open(file_path, "rb") as f:
             model = pickle.load(f)
-        modelname = ""
         if classif == "tree":
             modelname = "<class 'Orange.classification.tree.SklTreeClassifier'>"
         elif classif == "nb":

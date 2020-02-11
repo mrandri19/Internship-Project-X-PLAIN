@@ -1,7 +1,12 @@
 from snapshottest import TestCase
 
-from api import get_explanation
+from src.XPLAIN_explainer import XPLAIN_explainer
 
+
+def get_explanation(dataset, classifier):
+    explainer = XPLAIN_explainer(dataset, classifier, random_explain_dataset=True)
+    instance = explainer.explain_dataset[0]
+    return explainer.explain_instance(instance, target_class=instance.get_class().value)
 
 class TestGet_explanation(TestCase):
     def test_get_explanation_zoo_random_forest(self):

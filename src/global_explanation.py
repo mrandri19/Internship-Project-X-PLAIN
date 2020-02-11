@@ -1,4 +1,4 @@
-from XPLAIN_explainer import *
+from src.XPLAIN_explainer import *
 
 
 class GlobalExplanation:

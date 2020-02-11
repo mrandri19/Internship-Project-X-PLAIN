@@ -13,16 +13,16 @@ import Orange
 import sklearn.neighbors
 
 # noinspection PyUnresolvedReferences
-from XPLAIN_explanation import XPLAIN_explanation
+from src.XPLAIN_explanation import XPLAIN_explanation
 # noinspection PyUnresolvedReferences
-from utils import gen_neighbors_info, \
+from src.utils import gen_neighbors_info, \
     get_relevant_subset_from_local_rules, getClassifier_v2, import_datasets, import_dataset, \
     useExistingModel_v2, compute_prediction_difference_subset, \
     compute_prediction_difference_single, getStartKValueSimplified, \
     computeMappaClass_b, compute_error_approximation, createDir, convertOTable2Pandas, \
     get_KNN_threshold_max
 # noinspection PyUnresolvedReferences
-from global_explanation import *
+from src.global_explanation import *
 
 ERROR_DIFFERENCE_THRESHOLD = 0.01
 TEMPORARY_FOLDER_NAME = "tmp"
