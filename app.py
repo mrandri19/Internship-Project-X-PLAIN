@@ -5,7 +5,7 @@ from flask_cors import CORS
 
 from XPLAIN_class import XPLAIN_explainer
 from XPLAIN_explanation_class import XPLAIN_explanation
-from XPLAIN_user_explanation_class import UserExplanation
+from user_explanation import UserExplanation
 from XPLAIN_utils.XPLAIN_utils import openPickle, savePickle
 
 app = Flask(__name__)
