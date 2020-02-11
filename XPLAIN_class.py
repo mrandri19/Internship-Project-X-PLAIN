@@ -2,28 +2,24 @@
 import os
 # noinspection PyUnresolvedReferences
 import pickle
+# noinspection PyUnresolvedReferences
 import subprocess
-
 # noinspection PyUnresolvedReferences
 from copy import deepcopy
 
+# noinspection PyUnresolvedReferences
 import Orange
+# noinspection PyUnresolvedReferences
 import sklearn.neighbors
 
 # noinspection PyUnresolvedReferences
 from XPLAIN_explanation_class import XPLAIN_explanation
 # noinspection PyUnresolvedReferences
-from XPLAIN_utils.LACE_utils.LACE_utils1 import createDir
-# noinspection PyUnresolvedReferences
-from XPLAIN_utils.LACE_utils.LACE_utils2 import getStartKValueSimplified, \
-    computeMappaClass_b, compute_error_approximation
-# noinspection PyUnresolvedReferences
-from XPLAIN_utils.LACE_utils.LACE_utils3 import gen_neighbors_info, \
+from XPLAIN_utils.LACE_utils1 import gen_neighbors_info, \
     get_relevant_subset_from_local_rules, getClassifier_v2, import_datasets, import_dataset, \
-    useExistingModel_v2
-# noinspection PyUnresolvedReferences
-from XPLAIN_utils.LACE_utils.LACE_utils5 import compute_prediction_difference_subset, \
-    compute_prediction_difference_single
+    useExistingModel_v2, compute_prediction_difference_subset, \
+    compute_prediction_difference_single, getStartKValueSimplified, \
+    computeMappaClass_b, compute_error_approximation, createDir
 # noinspection PyUnresolvedReferences
 from XPLAIN_utils.XPLAIN_utils import convertOTable2Pandas
 from XPLAIN_utils.global_explanation import *

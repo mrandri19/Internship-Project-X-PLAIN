@@ -1,7 +1,13 @@
+# noinspection PyUnresolvedReferences
 import os
+# noinspection PyUnresolvedReferences
 import pickle
+# noinspection PyUnresolvedReferences
+from collections import Counter
+# noinspection PyUnresolvedReferences
 from copy import deepcopy
 
+# noinspection PyUnresolvedReferences
 import Orange
 
 MAX_SAMPLE_COUNT = 100
@@ -392,3 +398,229 @@ def createDir(outdir):
         os.makedirs(outdir)
     except:
         pass
+
+
+def gen_neighbors_info(training_dataset, NearestNeighborsAll, instance, k,
+                       unique_filename, classifier, save=True):
+    instance_features = instance.x
+    nearest_neighbors = NearestNeighborsAll.kneighbors([instance_features], k,
+                                                       return_distance=False)
+
+    out_data_raw = []
+    lendataset_nearest_neighbors = len(nearest_neighbors[0])
+    for i in range(0, lendataset_nearest_neighbors):
+        c = classifier(training_dataset[nearest_neighbors[0][i]])
+        instanceK = Orange.data.Instance(training_dataset.domain,
+                                         training_dataset[
+                                             nearest_neighbors[0][i]])
+        instanceK.set_class(c[0])
+        if i == 0:
+            instanceK_i = Orange.data.Instance(training_dataset.domain,
+                                               instance)
+            c = classifier(instanceK_i)
+            instanceTmp = deepcopy(instanceK_i)
+            instanceTmp.set_class(c[0])
+            out_data_raw.append(instanceTmp)
+        out_data_raw.append(instanceK)
+
+    out_data = Orange.data.Table(training_dataset.domain, out_data_raw)
+
+    c = classifier(training_dataset[nearest_neighbors[0][0]])
+    instance0 = Orange.data.Instance(training_dataset.domain,
+                                     training_dataset[nearest_neighbors[0][0]])
+    instance0.set_class(c[0])
+    out_data1 = Orange.data.Table(training_dataset.domain, [instance0])
+
+    if save:
+        import os
+        path = "./" + unique_filename
+        if not os.path.exists(path):
+            os.makedirs(path)
+        toARFF(path + "/Knnres.arff", out_data)
+        toARFF(path + "/Filetest.arff", out_data1)
+        toARFF(path + "/gen-k0.arff", out_data1)
+
+    return out_data, out_data1
+
+
+def get_relevant_subset_from_local_rules(impo_rules, oldinputAr):
+    inputAr = []
+    iA = []
+    nInputAr = []
+
+    for i2 in range(0, len(impo_rules)):
+        intInputAr = []
+        val = impo_rules[i2].split(",")
+        for i3 in range(0, len(val)):
+            intInputAr.append(int(val[i3]))
+            iA.append(int(val[i3]))
+        nInputAr.append(intInputAr)
+    iA2 = list(sorted(set(iA)))
+    inputAr.append(iA2)
+    if inputAr[0] not in nInputAr:
+        nInputAr.append(inputAr[0])
+    inputAr = deepcopy(nInputAr)
+    oldAr_set = set(map(tuple, oldinputAr))
+    # In order to not recompute the prior probability of a Subset again
+    newInputAr = [x for x in inputAr if tuple(x) not in oldAr_set]
+    oldAr_set = set(map(tuple, oldinputAr))
+
+    return inputAr, nInputAr, newInputAr, oldAr_set
+
+
+def compute_prediction_difference_subset(training_dataset,
+                                         instance,
+                                         rule_body_indices,
+                                         classifier,
+                                         instance_class_index,
+                                         instance_predictions_cache):
+    """
+    Compute the prediction difference for an instance in a training_dataset, w.r.t. some
+    rules and a class, given a classifier
+    """
+    rule_attributes = [
+        training_dataset.domain.attributes[rule_body_index - 1] for
+        rule_body_index in rule_body_indices]
+
+    # Take only the considered attributes from the dataset
+    rule_domain = Orange.data.Domain(rule_attributes)
+    filtered_dataset = Orange.data.Table().from_table(rule_domain, training_dataset)
+
+    # Count how many times a set of attribute values appears in the dataset
+    attribute_sets_occurrences = dict(
+        Counter(map(tuple, filtered_dataset.X)).items())
+
+    # For each set of attributes
+    differences = [compute_perturbed_difference(item, classifier, instance, instance_class_index,
+                                                rule_attributes, rule_domain, training_dataset) for
+                   item in
+                   attribute_sets_occurrences.items()]
+
+    prediction_difference = sum(differences)
+
+    # p(y=c|x) i.e. Probability that instance x belongs to class c
+    p = classifier(instance, True)[0][instance_class_index]
+    prediction_differences = p - prediction_difference
+
+    return prediction_differences
+
+
+def compute_perturbed_difference(item, classifier, instance, instance_class_index,
+                                 rule_attributes, rule_domain, training_dataset):
+    (attribute_set, occurrences) = item
+    perturbed_instance = Orange.data.Instance(training_dataset.domain, instance.list)
+    for i in range(len(rule_attributes)):
+        perturbed_instance[rule_domain[i]] = attribute_set[i]
+    # cache_key = tuple(perturbed_instance.x)
+    # if cache_key not in instance_predictions_cache:
+    #     instance_predictions_cache[cache_key] = classifier(perturbed_instance, True)[0][
+    #         instance_class_index]
+    # prob = instance_predictions_cache[cache_key]
+    prob = classifier(perturbed_instance, True)[0][instance_class_index]
+
+    # Compute the prediction difference using the weighted average of the
+    # probability over the frequency of this attribute set in the
+    # dataset
+    difference = prob * occurrences / len(training_dataset)
+    return difference
+
+
+# Single explanation. Change 1 value at the time e compute the difference
+def compute_prediction_difference_single(instT, classifier, indexI, dataset):
+    from copy import deepcopy
+    i = deepcopy(instT)
+    listaoutput = []
+
+    c1 = classifier(i, True)[0]
+    prob = c1[indexI]
+
+    for _ in i.domain.attributes[:]:
+        listaoutput.append(0.0)
+
+    t = -1
+    for k in dataset.domain.attributes[:]:
+        d = Orange.data.Table()
+        t = t + 1
+        k_a_i = Orange.data.Domain([k])
+        filtered_i = d.from_table(k_a_i, dataset)
+        c = Counter(map(tuple, filtered_i.X))
+        freq = dict(c.items())
+
+        for k_ex in freq:
+            inst1 = deepcopy(instT)
+            inst1[k] = k_ex[0]
+            c1 = classifier(inst1, True)[0]
+
+            prob = c1[indexI]
+            test = freq[k_ex] / len(dataset)
+            # newvalue=prob*freq[k_ex]/len(dataset)
+            newvalue = prob * test
+            listaoutput[t] = listaoutput[t] + newvalue
+
+    l = len(listaoutput)
+
+    for i in range(0, l):
+        listaoutput[i] = prob - listaoutput[i]
+    return listaoutput
+
+
+def compute_error_approximation(mappa_class, pred, out_data, impo_rules_complete, classname,
+                                map_difference):
+    PI = pred - mappa_class[classname]
+    Sum_Deltas = sum(out_data)
+    # UPDATED_EP
+    impo_rules_completeC = ", ".join(map(str, list(max(impo_rules_complete, key=len))))
+
+    approx_single_d = abs(PI - Sum_Deltas)
+    approx_single_rel = approx_single_d / abs(PI)
+
+    if impo_rules_completeC != "":
+        if len(impo_rules_completeC.replace(" ", "").split(",")) > 1:
+            Delta_impo_rules_completeC = map_difference[impo_rules_completeC.replace(" ", "")]
+            PI_approx2 = Delta_impo_rules_completeC
+            Sum_Deltas_not_in = 0.0
+            # Sum of delta_i for each attribute not included
+            for i_out_data in range(0, len(out_data)):
+                if str(i_out_data + 1) not in impo_rules_completeC.replace(" ", "").split(","):
+                    Sum_Deltas_not_in = Sum_Deltas_not_in + out_data[i_out_data]
+        else:
+            index = int(impo_rules_completeC.replace(" ", "").split(",")[0]) - 1
+            PI_approx2 = out_data[index]
+        approx2 = abs(PI - PI_approx2)
+        approx_rel2 = approx2 / abs(PI)
+    else:
+        PI_approx2 = 0.0
+        approx_rel2 = 1
+
+    approx2 = abs(PI - PI_approx2)
+
+    return approx_single_rel, approx2, approx_rel2
+
+
+def getStartKValueSimplified(len_dataset):
+    if len_dataset < 150:
+        maxN = len_dataset
+    elif len_dataset < 1000:
+        maxN = int(len_dataset / 2)
+    elif len_dataset < 10000:
+        maxN = int(len_dataset / 10)
+    else:
+        maxN = int(len_dataset * 5 / 100)
+    return maxN
+
+
+def computeMappaClass_b(data):
+    mappa_class2 = {}
+    h = len(data)
+    dim_d = len(data[0])
+    for d in data[:]:
+        c_tmp = d[dim_d - 1].value
+        if c_tmp in mappa_class2:
+            mappa_class2[c_tmp] = mappa_class2[c_tmp] + 1.0
+        else:
+            mappa_class2[c_tmp] = 1.0
+
+    for key in mappa_class2.keys():
+        mappa_class2[key] = mappa_class2[key] / h
+
+    return mappa_class2

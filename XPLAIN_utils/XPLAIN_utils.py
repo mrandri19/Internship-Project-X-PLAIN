@@ -2,7 +2,7 @@ import pickle
 
 from os import path
 
-from XPLAIN_utils.LACE_utils.LACE_utils1 import createDir
+from XPLAIN_utils.LACE_utils1 import createDir
 
 
 def convertOTable2Pandas(orangeTable, ids=None, sel="all", cl=None, mapName=None):
