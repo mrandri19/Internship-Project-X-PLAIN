@@ -4,6 +4,7 @@ from typing import Dict, Any, Union
 from flask import Flask, jsonify, abort, request
 from flask_cors import CORS
 
+from src import DEFAULT_DIR
 from src.XPLAIN_explainer import XPLAIN_explainer
 from src.utils import openPickle, savePickle
 from src.user_explanation import UserExplanation
@@ -81,7 +82,7 @@ def post_dataset(name):
     if name in datasets:
         state['dataset'] = datasets[name]['file']
     elif len(name.split(".")) > 1 and name.split(".")[1] in ["csv", "arff", "tab"]:
-        state["dataset"] = "./datasets/" + name
+        state["dataset"] = DEFAULT_DIR + "datasets/" + name
     else:
         state["dataset"] = name
     print(name.split(".")[0])
@@ -455,11 +456,11 @@ def get_global_explanation():
         state['explainer'] = xp = XPLAIN_explainer(state['dataset'], state['classifier'],
                                                    random_explain_dataset=True)
 
-    global_e = openPickle("./global_explanations",
+    global_e = openPickle(DEFAULT_DIR + "global_explanations",
                           'global_expl_{0}_{1}'.format(xp.dataset_name, xp.classifier_name))
     if not global_e:
         global_e = xp.getGlobalExplanationRules()
-        savePickle(global_e, "./global_explanations",
+        savePickle(global_e, DEFAULT_DIR + "global_explanations",
                    'global_expl_{0}_{1}'.format(xp.dataset_name, xp.classifier_name))
     global_e_to_send = computeToSend(global_e, xp)
     return jsonify(global_e_to_send)

@@ -20,7 +20,7 @@ from src.utils import gen_neighbors_info, \
     useExistingModel_v2, compute_prediction_difference_subset, \
     compute_prediction_difference_single, getStartKValueSimplified, \
     computeMappaClass_b, compute_error_approximation, createDir, convertOTable2Pandas, \
-    get_KNN_threshold_max
+    get_KNN_threshold_max, DEFAULT_DIR
 # noinspection PyUnresolvedReferences
 from src.global_explanation import *
 
@@ -43,7 +43,7 @@ class XPLAIN_explainer:
         import uuid
         self.unique_filename = os.path.join(TEMPORARY_FOLDER_NAME,
                                             str(uuid.uuid4()))
-        self.datanamepred = "./" + self.unique_filename + "/gen-k0.arff"
+        self.datanamepred = DEFAULT_DIR + self.unique_filename + "/gen-k0.arff"
         should_exit = 0
 
         # The adult and compas dataset are already splitted in training and explain set.
@@ -89,8 +89,8 @@ class XPLAIN_explainer:
             m = ""
             if classifier_parameter is not None:
                 m = "-" + classifier_parameter
-            createDir("./models")
-            with open("./models/" + dataset_name + "-" + classifier_name + m,
+            createDir(DEFAULT_DIR + "models")
+            with open(DEFAULT_DIR + "models/" + dataset_name + "-" + classifier_name + m,
                       "wb") as f:
                 pickle.dump(self.classifier, f)
 
@@ -208,8 +208,8 @@ class XPLAIN_explainer:
                                                   difference_map)
         # Remove the temporary folder and dir
         import shutil
-        if os.path.exists("./" + self.unique_filename):
-            shutil.rmtree("./" + self.unique_filename)
+        if os.path.exists(DEFAULT_DIR + self.unique_filename):
+            shutil.rmtree(DEFAULT_DIR + self.unique_filename)
 
         return instance_explanation
 
@@ -220,13 +220,13 @@ class XPLAIN_explainer:
 
         gen_neighbors_info(self.training_dataset, self.NearestNeighborsAll, instance, k,
                            self.unique_filename, self.classifier)
-        subprocess.call(['java', '-jar', 'AL3.jar', '-no-cv', '-t',
-                         ('./' + self.unique_filename + '/Knnres.arff'), '-T',
-                         ('./' + self.unique_filename + '/Filetest.arff'),
+        subprocess.call(['java', '-jar', DEFAULT_DIR + 'AL3.jar', '-no-cv', '-t',
+                         (DEFAULT_DIR + self.unique_filename + '/Knnres.arff'), '-T',
+                         (DEFAULT_DIR + self.unique_filename + '/Filetest.arff'),
                          '-S', '1.0', '-C', '50.0', '-PN',
-                         ("./" + self.unique_filename), '-SP', '10', '-NRUL',
+                         (DEFAULT_DIR + self.unique_filename), '-SP', '10', '-NRUL',
                          '1'], stdout=subprocess.DEVNULL)
-        with open("./" + self.unique_filename + "/impo_rules.txt",
+        with open(DEFAULT_DIR + self.unique_filename + "/impo_rules.txt",
                   "r") as myfile:
             importance_rules_lines = myfile.read().splitlines()
             # Remove rules which contain all attributes: we are not interested in a rule composed of

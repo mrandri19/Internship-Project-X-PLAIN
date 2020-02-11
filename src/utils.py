@@ -13,7 +13,10 @@ from copy import deepcopy
 # noinspection PyUnresolvedReferences
 import Orange
 
+from src import DEFAULT_DIR
+
 MAX_SAMPLE_COUNT = 100
+
 
 
 def import_dataset(dataset_name, explain_indices, random_explain_dataset):
@@ -289,12 +292,12 @@ def get_features_names(classifier):
 
 def useExistingModel_v2(classif, classifierparameter, dataname):
     import os
-    if os.path.exists("./models") == False:
-        os.makedirs("./models")
+    if os.path.exists(DEFAULT_DIR + "models") == False:
+        os.makedirs(DEFAULT_DIR + "models")
     m = ""
     if classifierparameter != None:
         m = "-" + classifierparameter
-    file_path = "./models/" + dataname + "-" + classifierparameter + m
+    file_path = DEFAULT_DIR + "models/" + dataname + "-" + classifierparameter + m
     if (os.path.exists(file_path) == True):
         with open(file_path, "rb") as f:
             model = pickle.load(f)
@@ -437,7 +440,7 @@ def gen_neighbors_info(training_dataset, NearestNeighborsAll, instance, k,
 
     if save:
         import os
-        path = "./" + unique_filename
+        path = DEFAULT_DIR + unique_filename
         if not os.path.exists(path):
             os.makedirs(path)
         toARFF(path + "/Knnres.arff", out_data)
