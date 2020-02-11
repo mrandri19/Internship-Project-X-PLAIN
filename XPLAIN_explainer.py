@@ -22,7 +22,7 @@ from utils import gen_neighbors_info, \
     computeMappaClass_b, compute_error_approximation, createDir, convertOTable2Pandas, \
     get_KNN_threshold_max
 # noinspection PyUnresolvedReferences
-from globalexplanation import *
+from global_explanation import *
 
 ERROR_DIFFERENCE_THRESHOLD = 0.01
 TEMPORARY_FOLDER_NAME = "tmp"
