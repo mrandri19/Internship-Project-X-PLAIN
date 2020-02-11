@@ -1,46 +1,7 @@
-from XPLAIN_utils.LACE_utils.LACE_utils1 import *
+import pickle
+
 from XPLAIN_class import *
-from XPLAIN_class import *
-
-
-def getPerc(input_per):
-    result_mean_instance = {}
-    for k in input_per.keys():
-        if list(input_per[k].keys())[0] != "":
-            result_mean_instance[k] = sum([input_per[k][k2] for k2 in input_per[k]]) / len(
-                ([input_per[k][k2] for k2 in input_per[k]]))
-    mean_per = sum(result_mean_instance[k] for k in result_mean_instance) / len(
-        result_mean_instance)
-    result_mean_instanceA = {}
-    for k in input_per.keys():
-        result_mean_instanceA[k] = sum([input_per[k][k2] for k2 in input_per[k]]) / len(
-            ([input_per[k][k2] for k2 in input_per[k]]))
-    mean_per_A = sum(result_mean_instanceA[k] for k in result_mean_instanceA) / len(
-        result_mean_instanceA)
-    return mean_per, mean_per_A
-
-
-def getmap_instance_NofKNNIterationInfo(map_instance_NofKNN):
-    sum = 0
-    for k in map_instance_NofKNN.keys():
-        sum = sum + map_instance_NofKNN[k]
-
-    avg = float(sum) / float(len(map_instance_NofKNN))
-    minv = min([map_instance_NofKNN[k] for k in map_instance_NofKNN])
-    maxv = max([map_instance_NofKNN[k] for k in map_instance_NofKNN])
-    return avg, minv, maxv
-
-
-def getInfoError(rel, rel1, d, t):
-    avg, minv, maxv = getmap_instance_NofKNNIterationInfo(rel)
-    avg1, minv1, maxv1 = getmap_instance_NofKNNIterationInfo(rel1)
-    diff = avg1 - avg
-    print("Approximation Gain:", diff)
-
-
-def printImpoRuleInfoOLD(instT, NofKNN, out_data, map_difference, impo_rules_complete, impo_rules):
-    print(instT, ":  K=", NofKNN, "Rules", impo_rules)
-    print("PredDifference", map_difference, out_data, "\n")
+from XPLAIN_utils.LACE_utils.LACE_utils1 import createDir
 
 
 def convertOTable2Pandas(orangeTable, ids=None, sel="all", cl=None, mapName=None):
@@ -67,39 +28,6 @@ def convertOTable2Pandas(orangeTable, ids=None, sel="all", cl=None, mapName=None
         data = data.set_index('instance_id')
 
     return data
-
-
-def getExtractedRulesPrintFriendly(instT, impo_rules_complete):
-    rulesPrint = []
-    unionRulePrint = []
-    for r in impo_rules_complete:
-        rule = "{"
-        for k in r:
-            rule = rule + instT[k - 1].variable.name + "=" + instT[k - 1].value + ", "
-        rule = rule[:-2] + "}"
-        if r == list(max(impo_rules_complete, key=len)) and len(impo_rules_complete) > 1:
-            unionRulePrint = rule
-        else:
-            rulesPrint.append(rule)
-    return rulesPrint, unionRulePrint
-
-
-def printImpoRuleInfo(instID, instT, NofKNN, out_data, map_difference, impo_rules_c, impo_rules):
-    # print("ID: ", instID,"  K=", NofKNN)#, "Rules", impo_rules)
-    # print("PredDifference", single_attribute_differences, difference_map, "\n")
-    """
-    rulesPrint, unionRulePrint=getExtractedRulesMapping(instT, impo_rules, list(difference_map.keys()), sep=", ")
-    rulesPrint=list(rulesPrint.values())
-    unionRulePrint=list(unionRulePrint.values())
-    if rulesPrint!=[]:
-        print("\nLocal rules:")
-        for r in rulesPrint:
-            print(r)
-    if unionRulePrint!=[]:
-        print("Union of rule bodies",unionRulePrint[0])
-    """
-    a = 1
-
 
 # input: imporules complete, impo_rules, separatore
 def getExtractedRulesMapping(instT, impo_rules, impo_rules_c, sep=", "):
@@ -149,17 +77,6 @@ def getExtractedRulesMapping_old(instT, impo_rules, impo_rules_c, sep=", "):
     return rulesPrint, unionRulePrint
 
 
-def printMapping(instT, impo_rules, impo_rules_c, sep=", "):
-    rulesPrint, unionRulePrint = getExtractedRulesMapping(instT, impo_rules, impo_rules_c, sep)
-    if rulesPrint != {}:
-        print("\nLocal rules:")
-        for r in sorted(rulesPrint, key=len):
-            print(r, " -> ", rulesPrint[r])
-    if unionRulePrint != {}:
-        print("Union of rule bodies")
-        for r in unionRulePrint:
-            print(r, " -> ", unionRulePrint[r])
-
 
 def printMapping_v5(instT, impo_rules, impo_rules_c, y_label_mapping, sep=", "):
     rulesPrint, unionRulePrint = getExtractedRulesMapping(instT, impo_rules, impo_rules_c, sep)
@@ -171,89 +88,6 @@ def printMapping_v5(instT, impo_rules, impo_rules_c, y_label_mapping, sep=", "):
         print("Union of rule bodies:")
         for r in unionRulePrint:
             print(y_label_mapping[r], " -> ", unionRulePrint[r])
-
-
-def interactiveModelComparison(le1, le2, instID):
-    from ipywidgets import Button, HBox, VBox
-    from IPython.display import display
-    import ipywidgets as widgets
-    from IPython.display import clear_output
-
-    classes1 = ["predicted", "trueLabel"] + le1.classes[:]
-    wcl1 = widgets.Dropdown(options=classes1, description='1º', value="predicted", disabled=False)
-    classes2 = ["predicted", "trueLabel"] + le2.classes[:]
-    wcl2 = widgets.Dropdown(options=classes2, description='2º', value="predicted", disabled=False)
-    hClasses = VBox([wcl1, wcl2])
-    l = widgets.Label(value='Select models and target classes:')
-    display(l)
-    display(hClasses)
-
-    def clearAndShow(btNewObj):
-        clear_output()
-        display(l)
-        display(hClasses)
-        display(h)
-
-    def getExplainInteractiveButton(btn_object):
-        getModelExplanationComparison(instID, le1, le2, wcl1.value, wcl2.value)
-
-    btnTargetC = widgets.Button(description='Compute')
-    btnTargetC.on_click(getExplainInteractiveButton)
-    btnNewSel = widgets.Button(description='Clear')
-    btnNewSel.on_click(clearAndShow)
-    h = HBox([btnTargetC, btnNewSel])
-    display(h)
-
-
-def getModelExplanationComparison(Sn_inst, le1, le2, targetClass1, targetClass2):
-    fig2 = plt.figure(figsize=plt.figaspect(0.5))
-    ax1 = fig2.add_subplot(1, 2, 1)
-    explanation_1, ax1 = le1.getExplanation_i_axis(ax1, Sn_inst, targetClass1)
-    ax2 = fig2.add_subplot(1, 2, 2)
-    explanation_2, ax2 = le2.getExplanation_i_axis(ax2, Sn_inst, targetClass2)
-    plt.tight_layout()
-    plt.show()
-    # return explanation_1, explanation_2
-
-
-def interactiveModelComparisonInstance(le1, le2):
-    from ipywidgets import Button, HBox, VBox
-    from IPython.display import display
-    import ipywidgets as widgets
-    from IPython.display import clear_output
-
-    classes1 = ["predicted", "trueLabel"] + le1.classes[:]
-    wcl1 = widgets.Dropdown(options=classes1, description='Class 1º', value="predicted",
-                            disabled=False)
-    classes2 = ["predicted", "trueLabel"] + le2.classes[:]
-    wcl2 = widgets.Dropdown(options=classes2, description='Class 2º', value="predicted",
-                            disabled=False)
-
-    w_ID = widgets.Dropdown(
-        options=le1.n_insts,
-        description="ID",
-        disabled=False
-    )
-    hClasses = VBox([w_ID, wcl1, wcl2])
-    l = widgets.Label(value='Select instance and target classes:')
-    display(l)
-    display(hClasses)
-
-    def clearAndShow(btNewObj):
-        clear_output()
-        display(l)
-        display(hClasses)
-        display(h)
-
-    def getExplainInteractiveButton(btn_object):
-        getModelExplanationComparison(w_ID.value, le1, le2, wcl1.value, wcl2.value)
-
-    btnTargetC = widgets.Button(description='Compute')
-    btnTargetC.on_click(getExplainInteractiveButton)
-    btnNewSel = widgets.Button(description='Clear')
-    btnNewSel.on_click(clearAndShow)
-    h = HBox([btnTargetC, btnNewSel])
-    display(h)
 
 
 def savePickle(model, dirO, name):

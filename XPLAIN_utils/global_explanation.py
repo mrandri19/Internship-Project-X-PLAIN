@@ -121,27 +121,13 @@ class Global_Explanation:
         self.map_global_info["global"] = self.global_expl_info
         return self.map_global_info
 
-    def getGlobalExplanation_map(self):
-        return self.map_global_info
-
-    def getGlobalAttributeContribution(self, target_class="global"):
-        return self.map_global_info[target_class]["map_a"]
-
     def getGlobalAttributeContributionAbs(self, target_class="global"):
         return self.map_global_info[target_class]["map_aM"]
-
-    def getGlobalAttributeValueContribution(self, k=False, target_class="global"):
-        if k:
-            return getKMap(self.map_global_info[target_class]["map_av"], k)
-        return self.map_global_info[target_class]["map_av"]
 
     def getGlobalAttributeValueContributionAbs(self, k=False, target_class="global"):
         if k:
             return getKMap(self.map_global_info[target_class]["map_avM"], k)
         return self.map_global_info[target_class]["map_avM"]
-
-    def getGlobalRuleContribution(self, target_class="global"):
-        return self.map_global_info[target_class]["map_rules"]
 
     def getGlobalRuleContributionAbs(self, target_class="global"):
         return self.map_global_info[target_class]["map_rules_abs"]

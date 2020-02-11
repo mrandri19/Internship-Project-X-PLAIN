@@ -4,6 +4,8 @@ import os
 import subprocess
 
 # noinspection PyUnresolvedReferences
+from copy import deepcopy
+
 import sklearn.neighbors
 
 # noinspection PyUnresolvedReferences
@@ -13,7 +15,8 @@ from XPLAIN_utils.LACE_utils.LACE_utils2 import getStartKValueSimplified, \
     computeMappaClass_b, compute_error_approximation
 # noinspection PyUnresolvedReferences
 from XPLAIN_utils.LACE_utils.LACE_utils3 import gen_neighbors_info, \
-    get_relevant_subset_from_local_rules, getClassifier_v2
+    get_relevant_subset_from_local_rules, getClassifier_v2, import_datasets, import_dataset, \
+    useExistingModel_v2
 from XPLAIN_utils.LACE_utils.LACE_utils4 import *
 from XPLAIN_utils.global_explanation import *
 
