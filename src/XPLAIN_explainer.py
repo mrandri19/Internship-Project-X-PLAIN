@@ -6,6 +6,8 @@ import pickle
 import subprocess
 # noinspection PyUnresolvedReferences
 from copy import deepcopy
+# noinspection PyUnresolvedReferences
+from os.path import join
 
 # noinspection PyUnresolvedReferences
 import Orange
@@ -15,14 +17,14 @@ import sklearn.neighbors
 # noinspection PyUnresolvedReferences
 from src.XPLAIN_explanation import XPLAIN_explanation
 # noinspection PyUnresolvedReferences
+from src.global_explanation import *
+# noinspection PyUnresolvedReferences
 from src.utils import gen_neighbors_info, \
     get_relevant_subset_from_local_rules, getClassifier_v2, import_datasets, import_dataset, \
     useExistingModel_v2, compute_prediction_difference_subset, \
     compute_prediction_difference_single, getStartKValueSimplified, \
     computeMappaClass_b, compute_error_approximation, createDir, convertOTable2Pandas, \
     get_KNN_threshold_max, DEFAULT_DIR
-# noinspection PyUnresolvedReferences
-from src.global_explanation import *
 
 ERROR_DIFFERENCE_THRESHOLD = 0.01
 TEMPORARY_FOLDER_NAME = "tmp"
@@ -30,7 +32,13 @@ ERROR_THRESHOLD = 0.02
 
 
 class XPLAIN_explainer:
-    def __init__(self, dataset_name, classifier_name, classifier_parameter=None,
+    datanamepred: str
+    unique_filename: str
+    present: bool
+    classifier_name: str
+    dataset_name: str
+
+    def __init__(self, dataset_name: str, classifier_name: str, classifier_parameter=None,
                  KneighborsUser=None, maxKNNUser=None, threshold_error=None,
                  use_existing_model=False, save_model=False,
                  random_explain_dataset=False):
@@ -51,8 +59,8 @@ class XPLAIN_explainer:
         self.explain_indices = []
 
         explain_dataset_indices = []
-        if dataset_name == "datasets/adult_d.arff" \
-                or dataset_name == "datasets/compas-scores-two-years_d.arff":
+        if dataset_name in [join(DEFAULT_DIR, "datasets/adult_d.arff"),
+                            join(DEFAULT_DIR, "datasets/compas-scores-two-years_d.arff")]:
             self.training_dataset, self.explain_dataset, self.training_dataset_len, self.explain_indices = import_datasets(
                 dataset_name, explain_dataset_indices, random_explain_dataset)
         else:

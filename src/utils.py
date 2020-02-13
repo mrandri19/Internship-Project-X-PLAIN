@@ -1,25 +1,28 @@
 # noinspection PyUnresolvedReferences
 import os
-
-# noinspection PyUnresolvedReferences
-from os import path
 # noinspection PyUnresolvedReferences
 import pickle
 # noinspection PyUnresolvedReferences
 from collections import Counter
 # noinspection PyUnresolvedReferences
 from copy import deepcopy
+# noinspection PyUnresolvedReferences
+from os import path
 
 # noinspection PyUnresolvedReferences
+from typing import Tuple
+
 import Orange
 
 from src import DEFAULT_DIR
 
+from scipy.io.arff import loadarff
+import pandas as pd
+
 MAX_SAMPLE_COUNT = 100
 
 
-
-def import_dataset(dataset_name, explain_indices, random_explain_dataset):
+def import_dataset(dataset_name: str, explain_indices, random_explain_dataset):
     if dataset_name[-4:] == "arff":
         print(dataset_name)
         dataset = loadARFF(dataset_name)
@@ -56,21 +59,21 @@ def import_dataset(dataset_name, explain_indices, random_explain_dataset):
     explain_dataset = Orange.data.Table.from_table_rows(dataset, explain_indices)
 
     return training_dataset, explain_dataset, len(training_dataset), \
-        [str(i) for i in explain_indices]
+           [str(i) for i in explain_indices]
 
 
 def import_datasets(dataname, n_insts, randomic):
     if dataname[-4:] == "arff":
-        dataset = loadARFF(dataname)
+        dataset, pd_dataset = loadARFF(dataname)
         dataname_to_explain = dataname[:-5] + "_explain.arff"
-        dataset_to_explain = loadARFF(dataname_to_explain)
+        orange_dataset_to_explain, pd_dataset_to_explain = loadARFF(dataname_to_explain)
     else:
         dataset = Orange.data.Table(dataname)
         dataname_to_explain = dataname[:-5] + "_explain"
-        dataset_to_explain = Orange.data.Table(dataname_to_explain)
+        orange_dataset_to_explain = Orange.data.Table(dataname_to_explain)
     len_dataset = len(dataset)
 
-    len_dataset_to_explain = len(dataset_to_explain)
+    len_dataset_to_explain = len(orange_dataset_to_explain)
 
     if randomic:
         import random
@@ -81,7 +84,7 @@ def import_datasets(dataname, n_insts, randomic):
 
     n_insts_int = list(map(int, n_insts))
 
-    explain_dataset = Orange.data.Table.from_table_rows(dataset_to_explain,
+    explain_dataset = Orange.data.Table.from_table_rows(orange_dataset_to_explain,
                                                         n_insts_int)
 
     training_dataset = deepcopy(dataset)
@@ -143,8 +146,12 @@ def toARFF(filename, table, try_numericize=0):
         f.write('%s\n' % x[-1])
     f.close()
 
+class Dataset:
+    def __init__(self, data, meta):
+        self.df = pd.DataFrame(data)
+        self.meta = meta
 
-def loadARFF_Weka(filename):
+def loadARFF_Weka(filename: str) -> Tuple[Orange.data.Table, Dataset]:
     if not os.path.exists(filename) and os.path.exists(filename + ".arff"):
         filename = filename + ".arff"
     with open(filename, 'r') as f:
@@ -237,16 +244,26 @@ def loadARFF_Weka(filename):
         table = Orange.data.Table.from_list(domain, instances)
         table.name = name
 
-        return table
+        f.seek(0)
+        data, meta = loadarff(f)
+        dataset = Dataset(data, meta)
 
 
-def loadARFF(filename):
+        assert len(table) == len(dataset.df)
+        for (o_i, p_i) in zip(table, dataset.df.itertuples()):
+            assert (o_i.get_class().value == p_i._12.decode())
+
+        return (table, dataset)
+
+
+def loadARFF(filename: str) -> Tuple[Orange.data.Table, Dataset]:
     """Return class:`Orange.data.Table` containing data from file in Weka ARFF format
        if there exists no .xml file with the same name. If it does, a multi-label
        dataset is read and returned.
     """
     if filename[-5:] == ".arff":
         filename = filename[:-5]
+
     if os.path.exists(filename + ".xml") and os.path.exists(filename + ".arff"):
         xml_name = filename + ".xml"
         arff_name = filename + ".arff"

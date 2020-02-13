@@ -1,16 +1,16 @@
 @relation class
-@attribute sex { Female,Male }
-@attribute workclass { Federal-gov,Local-gov,Private,Self-emp-inc,Self-emp-not-inc,State-gov,Without-pay }
-@attribute education { Associates,Bachelors,Doctorate,Dropout,High-School-grad,Masters,Prof-school }
-@attribute race { Amer-Indian-Eskimo,Asian-Pac-Islander,Black,Other,White }
-@attribute marital-status { Married,Never-married,Separated,Widowed }
-@attribute occupation { Admin,Blue-Collar,Military,Other,Professional,Sales,Service,White-Collar }
-@attribute relationship { Husband,Not-in-family,Other-relative,Own-child,Unmarried,Wife }
-@attribute capital-gain { high,low,medium-high,medium-low }
-@attribute capital-loss { high,low,medium-high,medium-low }
-@attribute hours-per-week { 39.5-40.5,40.5-50.5,<39.5,>=50.5 }
-@attribute age { 26-33,34-41,42-50,<25,>=51 }
-@attribute class { <=50K,>50K }
+@attribute sex {Female,Male}
+@attribute workclass {Federal-gov,Local-gov,Private,Self-emp-inc,Self-emp-not-inc,State-gov,Without-pay}
+@attribute education {Associates,Bachelors,Doctorate,Dropout,High-School-grad,Masters,Prof-school}
+@attribute race {Amer-Indian-Eskimo,Asian-Pac-Islander,Black,Other,White}
+@attribute marital-status {Married,Never-married,Separated,Widowed}
+@attribute occupation {Admin,Blue-Collar,Military,Other,Professional,Sales,Service,White-Collar}
+@attribute relationship {Husband,Not-in-family,Other-relative,Own-child,Unmarried,Wife}
+@attribute capital-gain {high,low,medium-high,medium-low}
+@attribute capital-loss {high,low,medium-high,medium-low}
+@attribute hours-per-week {39.5-40.5,40.5-50.5,<39.5,>=50.5}
+@attribute age {26-33,34-41,42-50,<25,>=51}
+@attribute class {<=50K,>50K}
 @data
 Female,Private,Dropout,Black,Widowed,Blue-Collar,Unmarried,low,low,39.5-40.5,>=51,<=50K
 Male,Private,High-School-grad,White,Separated,Blue-Collar,Not-in-family,low,low,>=50.5,26-33,<=50K
