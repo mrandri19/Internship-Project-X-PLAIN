@@ -63,7 +63,7 @@ snapshots['TestGet_explanation::test_get_explanation_zoo_naive_bayes 1'] = (
     },
     33,
     0.0013287519043954088,
-    GenericRepr('[1, 0, 0, 1, 0, ... | mammal] {deer}'),
+    GenericRepr('[1, 0, 0, 1, 0, ... | mammal]'),
     'mammal',
     5,
     0.9990739323302471
@@ -94,7 +94,7 @@ snapshots['TestGet_explanation::test_get_explanation_zoo_random_forest 1'] = (
     },
     33,
     0.0024691358024691024,
-    GenericRepr('[1, 0, 0, 1, 0, ... | mammal] {deer}'),
+    GenericRepr('[1, 0, 0, 1, 0, ... | mammal]'),
     'mammal',
     5,
     1.0
