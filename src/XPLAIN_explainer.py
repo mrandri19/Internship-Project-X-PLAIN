@@ -20,7 +20,7 @@ from src.XPLAIN_explanation import XPLAIN_explanation
 from src.global_explanation import *
 # noinspection PyUnresolvedReferences
 from src.utils import gen_neighbors_info, \
-    get_relevant_subset_from_local_rules, getClassifier_v2, import_datasets, import_dataset, \
+    get_relevant_subset_from_local_rules, get_classifier, import_datasets, import_dataset, \
     useExistingModel_v2, compute_prediction_difference_subset, \
     compute_prediction_difference_single, getStartKValueSimplified, \
     computeMappaClass_b, compute_error_approximation, createDir, convertOTable2Pandas, \
@@ -52,7 +52,6 @@ class XPLAIN_explainer:
         self.unique_filename = os.path.join(TEMPORARY_FOLDER_NAME,
                                             str(uuid.uuid4()))
         self.datanamepred = DEFAULT_DIR + self.unique_filename + "/gen-k0.arff"
-        should_exit = 0
 
         # The adult and compas dataset are already splitted in training and explain set.
         # The training set is balanced.
@@ -61,10 +60,12 @@ class XPLAIN_explainer:
         explain_dataset_indices = []
         if dataset_name in [join(DEFAULT_DIR, "datasets/adult_d.arff"),
                             join(DEFAULT_DIR, "datasets/compas-scores-two-years_d.arff")]:
-            self.training_dataset, self.explain_dataset, self.training_dataset_len, self.explain_indices = import_datasets(
+            (self.training_dataset, self.pd_training_dataset), (self.explain_dataset,
+                                                                self.pd_explain_dataset), self.training_dataset_len, self.explain_indices = import_datasets(
                 dataset_name, explain_dataset_indices, random_explain_dataset)
         else:
-            self.training_dataset, self.explain_dataset, self.training_dataset_len, self.explain_indices = import_dataset(
+            (self.training_dataset, self.pd_training_dataset), (self.explain_dataset,
+                                                                self.pd_explain_dataset), self.training_dataset_len, self.explain_indices = import_dataset(
                 dataset_name, explain_dataset_indices, random_explain_dataset)
 
         self.K, _, self.max_K = get_KNN_threshold_max(KneighborsUser,
@@ -84,12 +85,13 @@ class XPLAIN_explainer:
                 # The model exists, we'll use it
             # The model does not exist, we'll train it")
         if use_existing_model is None or not self.present:
-            self.classifier, should_exit, reason = getClassifier_v2(
-                self.training_dataset, classifier_name, classifier_parameter,
-                should_exit)
-
-        if should_exit == 1:
-            exit(-1)
+            self.classifier, should_exit, exit_reason = get_classifier(
+                (self.training_dataset, self.pd_training_dataset), classifier_name,
+                classifier_parameter,
+                False)
+            if should_exit:
+                print(exit_reason)
+                exit(-1)
 
         # Save the model only if required and it is not already saved.
         if save_model:

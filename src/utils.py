@@ -2,47 +2,64 @@
 import os
 # noinspection PyUnresolvedReferences
 import pickle
+import random
 # noinspection PyUnresolvedReferences
 from collections import Counter
 # noinspection PyUnresolvedReferences
 from copy import deepcopy
 # noinspection PyUnresolvedReferences
 from os import path
-
 # noinspection PyUnresolvedReferences
-from typing import Tuple
+from os.path import join
+from typing import Tuple, List
 
 import Orange
+import pandas as pd
+from scipy.io.arff import loadarff
 
 from src import DEFAULT_DIR
-
-from scipy.io.arff import loadarff
-import pandas as pd
 
 MAX_SAMPLE_COUNT = 100
 
 
-def import_dataset(dataset_name: str, explain_indices, random_explain_dataset):
+class Dataset:
+    def __init__(self, data, meta):
+        self.df = pd.DataFrame(data)
+        self.meta = meta
+
+
+def assert_orange_pd_equal(table: Orange.data.Table, dataset: Dataset):
+    # TODO(Andrea): Remove when Orange is completely out
+    assert len(table) == len(dataset.df)
+    for (o_i, p_i) in zip(table, dataset.df.itertuples()):
+        assert (o_i.get_class().value == p_i[-1].decode())
+
+
+def import_dataset(dataset_name: str, explain_indices: List[int], random_explain_dataset: bool) -> \
+        Tuple[Tuple[Orange.data.Table, Dataset], Tuple[Orange.data.Table, Dataset], int, List[str]]:
     if dataset_name[-4:] == "arff":
-        print(dataset_name)
-        dataset = loadARFF(dataset_name)
+        orange_dataset, pd_dataset = loadARFF(dataset_name)
     else:
-        dataset = Orange.data.Table(dataset_name)
-        # TODO Eliana TMP
-        if False in [i.is_discrete for i in dataset[0].domain.attributes]:
+        orange_dataset = Orange.data.Table(dataset_name)
+
+        if False in [i.is_discrete for i in orange_dataset[0].domain.attributes]:
             disc = Orange.preprocess.Discretize()
             disc.method = Orange.preprocess.discretize.EqualFreq(3)
-            dataset = disc(dataset)
-            toARFF(dataset_name.split(".")[0] + ".arff", dataset)
-            dataset = loadARFF(dataset_name.split(".")[0] + ".arff")
+            orange_dataset = disc(orange_dataset)
 
-    dataset_len = len(dataset)
+        dataset_file_name = join(DEFAULT_DIR, "datasets", dataset_name.split(".")[0]) + ".arff"
+        toARFF(dataset_file_name, orange_dataset)
+
+        orange_dataset, pd_dataset = loadARFF(dataset_file_name)
+        assert_orange_pd_equal(orange_dataset, pd_dataset)
+
+    assert_orange_pd_equal(orange_dataset, pd_dataset)
+
+    dataset_len = len(orange_dataset)
     training_indices = list(range(dataset_len))
 
     if random_explain_dataset:
-        import random
         random.seed(1)
-
         # small dataset
         if dataset_len < (2 * MAX_SAMPLE_COUNT):
             samples = int(0.2 * dataset_len)
@@ -55,40 +72,53 @@ def import_dataset(dataset_name: str, explain_indices, random_explain_dataset):
     for i in explain_indices:
         training_indices.remove(i)
 
-    training_dataset = Orange.data.Table.from_table_rows(dataset, training_indices)
-    explain_dataset = Orange.data.Table.from_table_rows(dataset, explain_indices)
+    orange_training_dataset = Orange.data.Table.from_table_rows(orange_dataset, training_indices)
+    pd_training_dataset = Dataset(pd_dataset.df.iloc[training_indices], pd_dataset.meta)
+    assert_orange_pd_equal(orange_training_dataset, pd_training_dataset)
 
-    return training_dataset, explain_dataset, len(training_dataset), \
+    orange_explain_dataset = Orange.data.Table.from_table_rows(orange_dataset, explain_indices)
+    pd_explain_dataset = Dataset(pd_dataset.df.iloc[explain_indices], pd_dataset.meta)
+    assert_orange_pd_equal(orange_explain_dataset, pd_explain_dataset)
+
+    return (orange_training_dataset, pd_training_dataset), (
+        orange_explain_dataset, pd_explain_dataset), len(
+        orange_training_dataset), \
            [str(i) for i in explain_indices]
 
 
-def import_datasets(dataname, n_insts, randomic):
-    if dataname[-4:] == "arff":
-        dataset, pd_dataset = loadARFF(dataname)
-        dataname_to_explain = dataname[:-5] + "_explain.arff"
-        orange_dataset_to_explain, pd_dataset_to_explain = loadARFF(dataname_to_explain)
-    else:
-        dataset = Orange.data.Table(dataname)
-        dataname_to_explain = dataname[:-5] + "_explain"
-        orange_dataset_to_explain = Orange.data.Table(dataname_to_explain)
-    len_dataset = len(dataset)
+def import_datasets(dataset_name: str, explain_indices: List[int],
+                    random_explain_dataset: bool) -> Tuple[
+    Tuple[Orange.data.Table, Dataset], Tuple[Orange.data.Table, Dataset], int, List[str]]:
+    """
+    :param dataset_name: path of the dataset file
+    :param explain_indices: indices of the instances to be added in the explain dataset
+    :param random_explain_dataset: create the explain dataset randomly, will make `explain_idnices`
+    futile
+    :return:
+    """
+    assert (dataset_name[-4:] == "arff")
 
-    len_dataset_to_explain = len(orange_dataset_to_explain)
+    explain_dataset_name = dataset_name[:-5] + "_explain.arff"
 
-    if randomic:
-        import random
-        # 7
+    orange_training_dataset, pd_training_dataset = loadARFF(dataset_name)
+    orange_explain_dataset, pd_explain_dataset = loadARFF(explain_dataset_name)
+    assert_orange_pd_equal(orange_training_dataset, pd_training_dataset)
+
+    len_dataset = len(orange_training_dataset)
+    len_explain_dataset = len(orange_explain_dataset)
+
+    if random_explain_dataset:
         random.seed(7)
-        n_insts = list(random.sample(range(len_dataset_to_explain), 300))
-        n_insts = [str(i) for i in n_insts]
+        explain_indices = list(random.sample(range(len_explain_dataset), 300))
 
-    n_insts_int = list(map(int, n_insts))
+    orange_explain_dataset = Orange.data.Table.from_table_rows(orange_explain_dataset,
+                                                               explain_indices)
+    pd_explain_dataset = Dataset(pd_explain_dataset.df.iloc[explain_indices],
+                                 pd_explain_dataset.meta)
+    assert_orange_pd_equal(orange_explain_dataset, pd_explain_dataset)
 
-    explain_dataset = Orange.data.Table.from_table_rows(orange_dataset_to_explain,
-                                                        n_insts_int)
-
-    training_dataset = deepcopy(dataset)
-    return training_dataset, explain_dataset, len_dataset, n_insts
+    return (orange_training_dataset, pd_training_dataset), (
+        orange_explain_dataset, pd_explain_dataset), len_dataset, [str(i) for i in explain_indices]
 
 
 def toARFF(filename, table, try_numericize=0):
@@ -121,7 +151,7 @@ def toARFF(filename, table, try_numericize=0):
         if real == 1:
             f.write('@attribute %s real\n' % iname)
         else:
-            f.write('@attribute %s { ' % iname)
+            f.write('@attribute %s {' % iname)
             x = []
             for j in i.values:
                 s = str(j)
@@ -131,7 +161,7 @@ def toARFF(filename, table, try_numericize=0):
                     x.append("'%s'" % s)
             for j in x[:-1]:
                 f.write('%s,' % j)
-            f.write('%s }\n' % x[-1])
+            f.write('%s}\n' % x[-1])
     f.write('@data\n')
     for j in t:
         x = []
@@ -146,14 +176,8 @@ def toARFF(filename, table, try_numericize=0):
         f.write('%s\n' % x[-1])
     f.close()
 
-class Dataset:
-    def __init__(self, data, meta):
-        self.df = pd.DataFrame(data)
-        self.meta = meta
 
 def loadARFF_Weka(filename: str) -> Tuple[Orange.data.Table, Dataset]:
-    if not os.path.exists(filename) and os.path.exists(filename + ".arff"):
-        filename = filename + ".arff"
     with open(filename, 'r') as f:
 
         attributes = []
@@ -178,6 +202,7 @@ def loadARFF_Weka(filename: str) -> Tuple[Orange.data.Table, Dataset]:
                         y = xs.split(" ")
                         if len(y) != 2:
                             raise ValueError("the format of the data is error")
+                        # noinspection PyTypeChecker
                         r[int(y[0])] = y[1]
                     rows.append(r)
                 else:  # normal data format, split by ','
@@ -248,47 +273,13 @@ def loadARFF_Weka(filename: str) -> Tuple[Orange.data.Table, Dataset]:
         data, meta = loadarff(f)
         dataset = Dataset(data, meta)
 
-
-        assert len(table) == len(dataset.df)
-        for (o_i, p_i) in zip(table, dataset.df.itertuples()):
-            assert (o_i.get_class().value == p_i._12.decode())
+        assert_orange_pd_equal(table, dataset)
 
         return (table, dataset)
 
 
 def loadARFF(filename: str) -> Tuple[Orange.data.Table, Dataset]:
-    """Return class:`Orange.data.Table` containing data from file in Weka ARFF format
-       if there exists no .xml file with the same name. If it does, a multi-label
-       dataset is read and returned.
-    """
-    if filename[-5:] == ".arff":
-        filename = filename[:-5]
-
-    if os.path.exists(filename + ".xml") and os.path.exists(filename + ".arff"):
-        xml_name = filename + ".xml"
-        arff_name = filename + ".arff"
-        return Orange.multilabel.mulan.trans_mulan_data(xml_name, arff_name)
-    else:
-        return loadARFF_Weka(filename)
-
-
-def printTree(classifier, name):
-    features_names = get_features_names(classifier)
-    from io import StringIO
-    import pydotplus
-    dot_data = StringIO()
-    from sklearn import tree
-    if features_names != None:
-        tree.export_graphviz(classifier.skl_model, out_file=dot_data,
-                             feature_names=features_names, filled=True,
-                             rounded=True, special_characters=True)
-    else:
-        tree.export_graphviz(classifier.skl_model, out_file=dot_data,
-                             filled=True, rounded=True,
-                             special_characters=True)
-
-    graph = pydotplus.graph_from_dot_data(dot_data.getvalue())
-    graph.write_pdf(name + "_tree.pdf")
+    return loadARFF_Weka(filename)
 
 
 def get_features_names(classifier):
@@ -337,62 +328,63 @@ def useExistingModel_v2(classif, classifierparameter, dataname):
     return False
 
 
-def getClassifier_v2(training_dataset, classif, classifierparameter, exit):
-    classif = classif
+# noinspection PyUnresolvedReferences
+def get_classifier(training_datasets: Tuple[Orange.data.Table, Dataset], classifier_name: str,
+                   classifier_parameter: str, should_exit) -> Tuple[
+    Orange.classification.Learner, bool, str]:
+    # TODO(Andrea): FINISH continue threading through the pandas dataset
+    classifier_name = classifier_name
     classifier = None
-    reason = ""
-    if classif == "tree":
-        if (classifierparameter == None):
-            measure = "gini"
-        else:
-            measure = classifierparameter.split("-")[0]
-        if (measure) != "gini" and (measure) != "entropy":
-            measure = "entropy"
+    exit_reason = ""
+
+    training_dataset, pd_training_dataset = training_datasets
+
+    assert_orange_pd_equal(training_dataset, pd_training_dataset)
+
+    if classifier_name == "tree":
         continuizer = Orange.preprocess.Continuize()
         continuizer.multinomial_treatment = continuizer.Indicators
         learnertree = Orange.classification.SklTreeLearner(
             preprocessors=continuizer, max_depth=7, min_samples_split=5,
             min_samples_leaf=3, random_state=1)
-        # learnertree=Orange.classification.SklTreeLearner(preprocessors=continuizer, random_state=1)
-
         classifier = learnertree(training_dataset)
 
-        printTree(classifier, training_dataset.name)
-    elif classif == "nb":
+    elif classifier_name == "nb":
         learnernb = Orange.classification.NaiveBayesLearner()
         classifier = learnernb(training_dataset)
-    elif classif == "nn":
+
+    elif classifier_name == "nn":
         continuizer = Orange.preprocess.Continuize()
         continuizer.multinomial_treatment = continuizer.Indicators
         learnernet = Orange.classification.NNClassificationLearner(
             preprocessors=continuizer, random_state=42,
             max_iter=1000)
-
         classifier = learnernet(training_dataset)
-    elif classif == "rf":
-        import random
+
+    elif classifier_name == "rf":
         continuizer = Orange.preprocess.Continuize()
         continuizer.multinomial_treatment = continuizer.Indicators
         learnerrf = Orange.classification.RandomForestLearner(
             preprocessors=continuizer, random_state=42)
         classifier = learnerrf(training_dataset)
-    elif classif == "svm":
-        import random
+
+    elif classifier_name == "svm":
         continuizer = Orange.preprocess.Continuize()
         continuizer.multinomial_treatment = continuizer.Indicators
         learnerrf = Orange.classification.SVMLearner(preprocessors=continuizer)
         classifier = learnerrf(training_dataset)
-    elif classif == "knn":
-        if classifierparameter == None:
-            exit = 1
-            reason = "k - missing the K parameter"
-        elif (len(classifierparameter.split("-")) == 1):
-            KofKNN = int(classifierparameter.split("-")[0])
+
+    elif classifier_name == "knn":
+        if classifier_parameter is None:
+            should_exit = True
+            exit_reason = "k - missing the K parameter"
+        elif len(classifier_parameter.split("-")) == 1:
+            KofKNN = int(classifier_parameter.split("-")[0])
             distance = ""
         else:
-            KofKNN = int(classifierparameter.split("-")[0])
-            distance = classifierparameter.split("-")[1]
-        if exit != 1:
+            KofKNN = int(classifier_parameter.split("-")[0])
+            distance = classifier_parameter.split("-")[1]
+        if not should_exit:
             if distance == "eu":
                 metricKNN = 'euclidean'
             elif distance == "ham":
@@ -410,11 +402,12 @@ def getClassifier_v2(training_dataset, classif, classifierparameter, exit):
                 metric=metricKNN, weights='uniform', algorithm='auto',
                 metric_params=None)
             classifier = knnLearner(training_dataset)
-    else:
-        reason = "Classification model not available"
-        exit = 1
 
-    return classifier, exit, reason
+    else:
+        exit_reason = "Classification model not available"
+        should_exit = True
+
+    return classifier, should_exit, exit_reason
 
 
 def createDir(outdir):
@@ -651,8 +644,6 @@ def computeMappaClass_b(data):
 
 
 def convertOTable2Pandas(orangeTable, ids=None, sel="all", cl=None, mapName=None):
-    import pandas as pd
-
     if sel == "all":
         dataK = [orangeTable[k].list for k in range(0, len(orangeTable))]
     else:
