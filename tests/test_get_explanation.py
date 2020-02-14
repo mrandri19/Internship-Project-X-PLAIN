@@ -9,7 +9,7 @@ from src.XPLAIN_explanation import XPLAIN_explanation
 
 def get_explanation(dataset_name: str, classifier_name: str) -> XPLAIN_explanation:
     explainer = XPLAIN_explainer(dataset_name, classifier_name, random_explain_dataset=True)
-    instance = explainer.explain_dataset[0]
+    instance = explainer.orange_explain_dataset[0]
     return explainer.explain_instance(instance, target_class=instance.get_class().value)
 
 
