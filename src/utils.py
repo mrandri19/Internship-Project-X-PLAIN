@@ -84,8 +84,10 @@ def import_dataset(dataset_name: str, explain_indices: List[int], random_explain
             disc.method = Orange.preprocess.discretize.EqualFreq(3)
             orange_dataset = disc(orange_dataset)
 
-        dataset_file_name = join(DEFAULT_DIR, "datasets", dataset_name.split(".")[0]) + ".arff"
-        toARFF(dataset_file_name, orange_dataset)
+        dataset_file_name = join(DEFAULT_DIR, "datasets", dataset_name) + ".arff"
+
+        with open(dataset_file_name, "w") as f:
+            arff.dump(table_to_arff(orange_dataset), f)
 
         orange_dataset, pd_dataset = loadARFF(dataset_file_name)
         assert_orange_pd_equal(orange_dataset, pd_dataset)
@@ -158,65 +160,8 @@ def import_datasets(dataset_name: str, explain_indices: List[int],
         orange_explain_dataset, pd_explain_dataset), len_dataset, [str(i) for i in explain_indices]
 
 
-def toARFF(filename, table, try_numericize=0):
-    """Save class:`Orange.data.Table` to file in Weka's ARFF format"""
-    t = table
-    if filename[-5:] == ".arff":
-        filename = filename[:-5]
-    # print( filename
-    f = open(filename + '.arff', 'w')
-    f.write('@relation %s\n' % t.domain.class_var.name)
-    # attributes
-    ats = [i for i in t.domain.attributes]
-    ats.append(t.domain.class_var)
-    for i in ats:
-        real = 1
-        if i.is_discrete == 1:
-            if try_numericize:
-                # try if all values numeric
-                for j in i.values:
-                    try:
-                        x = float(j)
-                    except:
-                        real = 0  # failed
-                        break
-            else:
-                real = 0
-        iname = str(i.name)
-        if iname.find(" ") != -1:
-            iname = "'%s'" % iname
-        if real == 1:
-            f.write('@attribute %s real\n' % iname)
-        else:
-            f.write('@attribute %s {' % iname)
-            x = []
-            for j in i.values:
-                s = str(j)
-                if s.find(" ") == -1:
-                    x.append("%s" % s)
-                else:
-                    x.append("'%s'" % s)
-            for j in x[:-1]:
-                f.write('%s,' % j)
-            f.write('%s}\n' % x[-1])
-    f.write('@data\n')
-    for j in t:
-        x = []
-        for i in range(len(ats)):
-            s = str(j[i])
-            if s.find(" ") == -1:
-                x.append("%s" % s)
-            else:
-                x.append("'%s'" % s)
-        for i in x[:-1]:
-            f.write('%s,' % i)
-        f.write('%s\n' % x[-1])
-    f.close()
-
-
-def loadARFF_Weka(filename: str) -> Tuple[Orange.data.Table, Dataset]:
+def loadARFF(filename: str) -> Tuple[Orange.data.Table, Dataset]:
     with open(filename, 'r') as f:
-
         attributes = []
         name = ''
         in_header = False  # header
@@ -313,10 +258,6 @@ def loadARFF_Weka(filename: str) -> Tuple[Orange.data.Table, Dataset]:
         assert_orange_pd_equal(table, dataset)
 
         return table, dataset
-
-
-def loadARFF(filename: str) -> Tuple[Orange.data.Table, Dataset]:
-    return loadARFF_Weka(filename)
 
 
 def get_features_names(classifier):
@@ -424,6 +365,14 @@ def createDir(outdir):
         pass
 
 
+def table_to_arff(t):
+    obj = {}
+    obj['relation'] = t.domain.class_var.name
+    obj['attributes'] = [(v.name, v.values) for v in t.domain.variables]
+    obj['data'] = [list(r.values()) for r in t]
+    return obj
+
+
 def gen_neighbors_info(training_dataset_, nbrs, instance, k,
                        unique_filename, classifier):
     training_dataset = training_dataset_[OT]
@@ -453,8 +402,11 @@ def gen_neighbors_info(training_dataset_, nbrs, instance, k,
     p = DEFAULT_DIR + unique_filename
     if not os.path.exists(p):
         os.makedirs(p)
-    toARFF(p + "/Knnres.arff", classified_instances_table)
-    toARFF(p + "/Filetest.arff", closest_instance_table)
+
+    with open(join(p, "Knnres.arff"), "w") as f:
+        arff.dump(table_to_arff(classified_instances_table), f)
+    with open(join(p, "Filetest.arff"), "w") as f:
+        arff.dump(table_to_arff(closest_instance_table), f)
 
 
 def get_relevant_subset_from_local_rules(impo_rules, oldinputAr):
