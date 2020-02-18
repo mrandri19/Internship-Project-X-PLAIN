@@ -21,6 +21,7 @@ from src import DEFAULT_DIR
 
 MAX_SAMPLE_COUNT = 100
 OT = 0
+MT = 1
 
 
 class Dataset:
@@ -498,7 +499,7 @@ def compute_prediction_difference_subset(training_dataset_,
     rules and a class, given a classifier
     """
     training_dataset = training_dataset_[OT]
-   
+
     rule_attributes = [
         training_dataset.domain.attributes[rule_body_index - 1] for
         rule_body_index in rule_body_indices]

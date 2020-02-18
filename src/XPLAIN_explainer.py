@@ -24,7 +24,7 @@ from src.utils import gen_neighbors_info, \
     useExistingModel_v2, compute_prediction_difference_subset, \
     compute_prediction_difference_single, getStartKValueSimplified, \
     computeMappaClass_b, compute_error_approximation, createDir, convertOTable2Pandas, \
-    get_KNN_threshold_max, DEFAULT_DIR, OT
+    get_KNN_threshold_max, DEFAULT_DIR, OT, MT
 
 ERROR_DIFFERENCE_THRESHOLD = 0.01
 TEMPORARY_FOLDER_NAME = "tmp"
@@ -78,31 +78,19 @@ class XPLAIN_explainer:
             exit(-1)
 
         self.map_names_class = {}
-        num_i = 0
-        for i in self.training_dataset[OT].domain.class_var.values:
-            self.map_names_class[num_i] = i
-            num_i += 1
-        self.labels = list(self.map_names_class.keys())
+        for (i, class_) in enumerate(self.training_dataset[OT].domain.class_var.values):
+            self.map_names_class[i] = class_
 
         self.dataset_name = dataset_name.split("/")[-1]
 
-        self.NofClass = len(self.training_dataset[OT].domain.class_var.values[:])
-
-        # Compute the neighbors of the instanceId
-        metric_knna = 'euclidean'
         self.NearestNeighborsAll = sklearn.neighbors.NearestNeighbors(
-            n_neighbors=len(self.training_dataset[OT]), metric=metric_knna,
+            n_neighbors=len(self.training_dataset[OT]), metric='euclidean',
             algorithm='auto', metric_params=None).fit(self.training_dataset[OT].X)
-        self.mappa_single = {}
-
-        self.firstInstance = 1
 
         self.starting_K = self.K
 
         self.mappa_class = computeMappaClass_b(self.training_dataset)
-        self.count_inst = -1
         self.mispredictedInstances = None
-        self.classes = list(self.map_names_class.values())
 
     def get_class_index(self, class_name):
         class_index = -1
