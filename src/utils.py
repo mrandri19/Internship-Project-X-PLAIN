@@ -335,36 +335,6 @@ def get_features_names(classifier):
     return features_names
 
 
-def useExistingModel_v2(classif, classifierparameter, dataname):
-    import os
-    if os.path.exists(DEFAULT_DIR + "models") == False:
-        os.makedirs(DEFAULT_DIR + "models")
-    m = ""
-    if classifierparameter != None:
-        m = "-" + classifierparameter
-    file_path = DEFAULT_DIR + "models/" + dataname + "-" + classifierparameter + m
-    if (os.path.exists(file_path) == True):
-        with open(file_path, "rb") as f:
-            model = pickle.load(f)
-        if classif == "tree":
-            modelname = "<class 'Orange.classification.tree.SklTreeClassifier'>"
-        elif classif == "nb":
-            modelname = "<class 'Orange.classification.naive_bayes.NaiveBayesModel'>"
-        elif classif == "nn":
-            modelname = "<class 'Orange.classification.base_classification.SklModelClassification'>"
-        elif classif == "knn":
-            modelname = "<class 'Orange.classification.base_classification.SklModelClassification'>"
-        elif classif == "rf":
-            modelname = "<class 'Orange.classification.random_forest.RandomForestClassifier'>"
-        else:
-            return False
-
-        if str(type(model)) == modelname:
-            return model
-
-    return False
-
-
 # noinspection PyUnresolvedReferences
 def get_classifier(training_datasets: Tuple[Orange.data.Table, Dataset], classifier_name: str,
                    classifier_parameter: str, should_exit) -> Tuple[
@@ -454,48 +424,37 @@ def createDir(outdir):
         pass
 
 
-def gen_neighbors_info(training_dataset_, NearestNeighborsAll, instance, k,
-                       unique_filename, classifier, save=True):
+def gen_neighbors_info(training_dataset_, nbrs, instance, k,
+                       unique_filename, classifier):
     training_dataset = training_dataset_[OT]
-    instance_features = instance.x
-    nearest_neighbors = NearestNeighborsAll.kneighbors([instance_features], k,
-                                                       return_distance=False)
+    domain = training_dataset.domain
+    nearest_neighbors_ixs = nbrs.kneighbors([instance.x], k,
+                                            return_distance=False)[0]
+    closest_instance = training_dataset[nearest_neighbors_ixs[0]]
 
-    out_data_raw = []
-    lendataset_nearest_neighbors = len(nearest_neighbors[0])
-    for i in range(0, lendataset_nearest_neighbors):
-        c = classifier(training_dataset[nearest_neighbors[0][i]])
-        instanceK = Orange.data.Instance(training_dataset.domain,
-                                         training_dataset[
-                                             nearest_neighbors[0][i]])
-        instanceK.set_class(c[0])
-        if i == 0:
-            instanceK_i = Orange.data.Instance(training_dataset.domain,
-                                               instance)
-            c = classifier(instanceK_i)
-            instanceTmp = deepcopy(instanceK_i)
-            instanceTmp.set_class(c[0])
-            out_data_raw.append(instanceTmp)
-        out_data_raw.append(instanceK)
+    classified_instance = deepcopy(instance)
+    classified_instance.set_class(classifier(instance)[0])
+    classified_instances = [classified_instance]
 
-    out_data = Orange.data.Table(training_dataset.domain, out_data_raw)
+    for neigh_ix in nearest_neighbors_ixs:
+        neigh = training_dataset[neigh_ix]
+        classified_neigh = deepcopy(neigh)
+        classified_neigh.set_class(classifier(neigh)[0])
 
-    c = classifier(training_dataset[nearest_neighbors[0][0]])
-    instance0 = Orange.data.Instance(training_dataset.domain,
-                                     training_dataset[nearest_neighbors[0][0]])
-    instance0.set_class(c[0])
-    out_data1 = Orange.data.Table(training_dataset.domain, [instance0])
+        classified_instances.append(classified_neigh)
 
-    if save:
-        import os
-        path = DEFAULT_DIR + unique_filename
-        if not os.path.exists(path):
-            os.makedirs(path)
-        toARFF(path + "/Knnres.arff", out_data)
-        toARFF(path + "/Filetest.arff", out_data1)
-        toARFF(path + "/gen-k0.arff", out_data1)
+    classified_instances_table = Orange.data.Table(domain, classified_instances)
 
-    return out_data, out_data1
+    closest_instance_classified = deepcopy(closest_instance)
+    closest_instance_classified.set_class(classifier(closest_instance)[0])
+    closest_instance_table = Orange.data.Table(domain, [closest_instance_classified])
+
+    import os
+    p = DEFAULT_DIR + unique_filename
+    if not os.path.exists(p):
+        os.makedirs(p)
+    toARFF(p + "/Knnres.arff", classified_instances_table)
+    toARFF(p + "/Filetest.arff", closest_instance_table)
 
 
 def get_relevant_subset_from_local_rules(impo_rules, oldinputAr):
@@ -684,8 +643,6 @@ def compute_class_frequency(data_):
 
     for key in class_frequency.keys():
         class_frequency[key] = class_frequency[key] / h
-
-    print(class_frequency)
 
     return class_frequency
 

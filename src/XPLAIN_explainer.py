@@ -26,7 +26,7 @@ from src.global_explanation import *
 # noinspection PyUnresolvedReferences
 from src.utils import gen_neighbors_info, \
     get_relevant_subset_from_local_rules, get_classifier, import_datasets, import_dataset, \
-    useExistingModel_v2, compute_prediction_difference_subset, \
+    compute_prediction_difference_subset, \
     compute_prediction_difference_single, getStartKValueSimplified, \
     compute_class_frequency, compute_error_approximation, createDir, convertOTable2Pandas, \
     get_KNN_threshold_max, DEFAULT_DIR, OT, MT, Dataset
@@ -88,7 +88,7 @@ class XPLAIN_explainer:
 
         self.dataset_name = dataset_name.split("/")[-1]
 
-        self.NearestNeighborsAll = sklearn.neighbors.NearestNeighbors(
+        self.nbrs = sklearn.neighbors.NearestNeighbors(
             n_neighbors=len(self.training_dataset[MT]), metric='euclidean',
             algorithm='auto', metric_params=None).fit(
             self.training_dataset[MT].X())
@@ -195,7 +195,7 @@ class XPLAIN_explainer:
                           target_class_index, pred, single_attribute_differences):
         print(f"compute_lace_step k={k}")
 
-        gen_neighbors_info(self.training_dataset, self.NearestNeighborsAll, instance, k,
+        gen_neighbors_info(self.training_dataset, self.nbrs, instance, k,
                            self.unique_filename, self.classifier)
         subprocess.call(['java', '-jar', DEFAULT_DIR + 'AL3.jar', '-no-cv', '-t',
                          (DEFAULT_DIR + self.unique_filename + '/Knnres.arff'), '-T',
