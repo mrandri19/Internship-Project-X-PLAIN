@@ -20,6 +20,7 @@ from scipy.io.arff import loadarff
 from src import DEFAULT_DIR
 
 MAX_SAMPLE_COUNT = 100
+OT = 0
 
 
 class Dataset:
@@ -417,8 +418,9 @@ def createDir(outdir):
         pass
 
 
-def gen_neighbors_info(training_dataset, NearestNeighborsAll, instance, k,
+def gen_neighbors_info(training_dataset_, NearestNeighborsAll, instance, k,
                        unique_filename, classifier, save=True):
+    training_dataset = training_dataset_[OT]
     instance_features = instance.x
     nearest_neighbors = NearestNeighborsAll.kneighbors([instance_features], k,
                                                        return_distance=False)
@@ -485,7 +487,7 @@ def get_relevant_subset_from_local_rules(impo_rules, oldinputAr):
     return inputAr, nInputAr, newInputAr, oldAr_set
 
 
-def compute_prediction_difference_subset(training_dataset,
+def compute_prediction_difference_subset(training_dataset_,
                                          instance,
                                          rule_body_indices,
                                          classifier,
@@ -495,6 +497,8 @@ def compute_prediction_difference_subset(training_dataset,
     Compute the prediction difference for an instance in a training_dataset, w.r.t. some
     rules and a class, given a classifier
     """
+    training_dataset = training_dataset_[OT]
+   
     rule_attributes = [
         training_dataset.domain.attributes[rule_body_index - 1] for
         rule_body_index in rule_body_indices]
@@ -543,7 +547,8 @@ def compute_perturbed_difference(item, classifier, instance, instance_class_inde
 
 
 # Single explanation. Change 1 value at the time e compute the difference
-def compute_prediction_difference_single(instT, classifier, indexI, dataset):
+def compute_prediction_difference_single(instT, classifier, indexI, dataset_):
+    dataset = dataset_[OT]
     from copy import deepcopy
     i = deepcopy(instT)
     listaoutput = []
@@ -626,7 +631,8 @@ def getStartKValueSimplified(len_dataset):
     return maxN
 
 
-def computeMappaClass_b(data):
+def computeMappaClass_b(data_):
+    data = data_[OT]
     mappa_class2 = {}
     h = len(data)
     dim_d = len(data[0])

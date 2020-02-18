@@ -24,7 +24,7 @@ from src.utils import gen_neighbors_info, \
     useExistingModel_v2, compute_prediction_difference_subset, \
     compute_prediction_difference_single, getStartKValueSimplified, \
     computeMappaClass_b, compute_error_approximation, createDir, convertOTable2Pandas, \
-    get_KNN_threshold_max, DEFAULT_DIR
+    get_KNN_threshold_max, DEFAULT_DIR, OT
 
 ERROR_DIFFERENCE_THRESHOLD = 0.01
 TEMPORARY_FOLDER_NAME = "tmp"
@@ -60,12 +60,12 @@ class XPLAIN_explainer:
         explain_dataset_indices = []
         if dataset_name in [join(DEFAULT_DIR, "datasets/adult_d.arff"),
                             join(DEFAULT_DIR, "datasets/compas-scores-two-years_d.arff")]:
-            (self.orange_training_dataset, self.pd_training_dataset), (self.orange_explain_dataset,
-                                                                       self.pd_explain_dataset), self.training_dataset_len, self.explain_indices = import_datasets(
+            self.training_dataset, (self.orange_explain_dataset,
+                                    self.pd_explain_dataset), self.training_dataset_len, self.explain_indices = import_datasets(
                 dataset_name, explain_dataset_indices, random_explain_dataset)
         else:
-            (self.orange_training_dataset, self.pd_training_dataset), (self.orange_explain_dataset,
-                                                                       self.pd_explain_dataset), self.training_dataset_len, self.explain_indices = import_dataset(
+            self.training_dataset, (self.orange_explain_dataset,
+                                    self.pd_explain_dataset), self.training_dataset_len, self.explain_indices = import_dataset(
                 dataset_name, explain_dataset_indices, random_explain_dataset)
 
         self.K, _, self.max_K = get_KNN_threshold_max(KneighborsUser,
@@ -86,7 +86,7 @@ class XPLAIN_explainer:
             # The model does not exist, we'll train it")
         if use_existing_model is None or not self.present:
             self.classifier, should_exit, exit_reason = get_classifier(
-                (self.orange_training_dataset, self.pd_training_dataset), classifier_name,
+                self.training_dataset, classifier_name,
                 classifier_parameter,
                 False)
             if should_exit:
@@ -106,34 +106,34 @@ class XPLAIN_explainer:
 
         self.map_names_class = {}
         num_i = 0
-        for i in self.orange_training_dataset.domain.class_var.values:
+        for i in self.training_dataset[OT].domain.class_var.values:
             self.map_names_class[num_i] = i
             num_i += 1
         self.labels = list(self.map_names_class.keys())
 
         self.dataset_name = dataset_name.split("/")[-1]
 
-        self.NofClass = len(self.orange_training_dataset.domain.class_var.values[:])
+        self.NofClass = len(self.training_dataset[OT].domain.class_var.values[:])
 
         # Compute the neighbors of the instanceId
         metric_knna = 'euclidean'
         self.NearestNeighborsAll = sklearn.neighbors.NearestNeighbors(
-            n_neighbors=len(self.orange_training_dataset), metric=metric_knna,
-            algorithm='auto', metric_params=None).fit(self.orange_training_dataset.X)
+            n_neighbors=len(self.training_dataset[OT]), metric=metric_knna,
+            algorithm='auto', metric_params=None).fit(self.training_dataset[OT].X)
         self.mappa_single = {}
 
         self.firstInstance = 1
 
         self.starting_K = self.K
 
-        self.mappa_class = computeMappaClass_b(self.orange_training_dataset)
+        self.mappa_class = computeMappaClass_b(self.training_dataset)
         self.count_inst = -1
         self.mispredictedInstances = None
         self.classes = list(self.map_names_class.values())
 
     def get_class_index(self, class_name):
         class_index = -1
-        for i in self.orange_training_dataset.domain.class_var.values:
+        for i in self.training_dataset[OT].domain.class_var.values:
             class_index += 1
             if i == class_name:
                 return class_index
@@ -194,7 +194,7 @@ class XPLAIN_explainer:
                 single_attribute_differences = compute_prediction_difference_single(instance,
                                                                                     self.classifier,
                                                                                     target_class_index,
-                                                                                    self.orange_training_dataset)
+                                                                                    self.training_dataset)
 
             PI_rel2, difference_map, error, impo_rules_complete, importance_rules_lines, single_attribute_differences = self.compute_lace_step(
                 cached_subset_differences, instance,
@@ -228,7 +228,7 @@ class XPLAIN_explainer:
                           target_class_index, pred, single_attribute_differences):
         print(f"compute_lace_step k={k}")
 
-        gen_neighbors_info(self.orange_training_dataset, self.NearestNeighborsAll, instance, k,
+        gen_neighbors_info(self.training_dataset, self.NearestNeighborsAll, instance, k,
                            self.unique_filename, self.classifier)
         subprocess.call(['java', '-jar', DEFAULT_DIR + 'AL3.jar', '-no-cv', '-t',
                          (DEFAULT_DIR + self.unique_filename + '/Knnres.arff'), '-T',
@@ -266,7 +266,7 @@ class XPLAIN_explainer:
             if subset_difference_cache_key not in cached_subset_differences:
                 cached_subset_differences[
                     subset_difference_cache_key] = compute_prediction_difference_subset(
-                    self.orange_training_dataset, instance, rule_body_indices,
+                    self.training_dataset, instance, rule_body_indices,
                     self.classifier, target_class_index, instance_predictions_cache)
 
             difference_map_key = ",".join(map(str, rule_body_indices))
@@ -332,7 +332,7 @@ class XPLAIN_explainer:
         # for single attribute changes already in compute_prediction_difference_single
         difference_map_key = ",".join(map(str, rule_body_indices))
         difference_map[difference_map_key] = compute_prediction_difference_subset(
-            self.orange_training_dataset, instance, rule_body_indices,
+            self.training_dataset, instance, rule_body_indices,
             self.classifier, target_class_index, instance_predictions_cache)
 
         impo_rules_complete = [list(map(int, e.split(","))) for e in list(difference_map.keys())]
