@@ -40,12 +40,10 @@ class XPLAIN_explainer:
 
     def __init__(self, dataset_name: str, classifier_name: str, classifier_parameter=None,
                  KneighborsUser=None, maxKNNUser=None, threshold_error=None,
-                 use_existing_model=False, save_model=False,
                  random_explain_dataset=False):
 
         self.dataset_name = dataset_name
         self.classifier_name = classifier_name
-        self.present = False
 
         # Temporary folder
         import uuid
@@ -60,12 +58,10 @@ class XPLAIN_explainer:
         explain_dataset_indices = []
         if dataset_name in [join(DEFAULT_DIR, "datasets/adult_d.arff"),
                             join(DEFAULT_DIR, "datasets/compas-scores-two-years_d.arff")]:
-            self.training_dataset, (self.orange_explain_dataset,
-                                    self.pd_explain_dataset), self.training_dataset_len, self.explain_indices = import_datasets(
+            self.training_dataset, self.explain_dataset, self.training_dataset_len, self.explain_indices = import_datasets(
                 dataset_name, explain_dataset_indices, random_explain_dataset)
         else:
-            self.training_dataset, (self.orange_explain_dataset,
-                                    self.pd_explain_dataset), self.training_dataset_len, self.explain_indices = import_dataset(
+            self.training_dataset, self.explain_dataset, self.training_dataset_len, self.explain_indices = import_dataset(
                 dataset_name, explain_dataset_indices, random_explain_dataset)
 
         self.K, _, self.max_K = get_KNN_threshold_max(KneighborsUser,
@@ -73,36 +69,13 @@ class XPLAIN_explainer:
                                                       threshold_error,
                                                       maxKNNUser)
 
-        # If the user specifies to use an existing model, the model is used (if available).
-        # Otherwise it is trained.
-        if use_existing_model:
-            # "Check if the model exist...
-            self.classifier = useExistingModel_v2(classifier_name,
-                                                  classifier_parameter,
-                                                  dataset_name)
-            if self.classifier:
-                self.present = True
-                # The model exists, we'll use it
-            # The model does not exist, we'll train it")
-        if use_existing_model is None or not self.present:
-            self.classifier, should_exit, exit_reason = get_classifier(
-                self.training_dataset, classifier_name,
-                classifier_parameter,
-                False)
-            if should_exit:
-                print(exit_reason)
-                exit(-1)
-
-        # Save the model only if required and it is not already saved.
-        if save_model:
-            # "Saving the model..."
-            m = ""
-            if classifier_parameter is not None:
-                m = "-" + classifier_parameter
-            createDir(DEFAULT_DIR + "models")
-            with open(DEFAULT_DIR + "models/" + dataset_name + "-" + classifier_name + m,
-                      "wb") as f:
-                pickle.dump(self.classifier, f)
+        self.classifier, should_exit, exit_reason = get_classifier(
+            self.training_dataset, classifier_name,
+            classifier_parameter,
+            False)
+        if should_exit:
+            print(exit_reason)
+            exit(-1)
 
         self.map_names_class = {}
         num_i = 0
@@ -142,8 +115,8 @@ class XPLAIN_explainer:
         self.mispredictedInstances = []
         count_inst = 0
         for n_ist in self.explain_indices:
-            instanceI = Orange.data.Instance(self.orange_explain_dataset.domain,
-                                             self.orange_explain_dataset[count_inst])
+            instanceI = Orange.data.Instance(self.explain_dataset[OT].domain,
+                                             self.explain_dataset[OT][count_inst])
             c = self.classifier(instanceI, False)
             if instanceI.get_class() != self.map_names_class[c[0]]:
                 if mispred_class is not False:
@@ -286,7 +259,7 @@ class XPLAIN_explainer:
     def showMispredictedTabularForm(self, mispred_class=False):
         sel = self.getMispredicted(mispred_class=mispred_class)
         sel_index = [self.explain_indices.index(i) for i in sel]
-        return convertOTable2Pandas(self.orange_explain_dataset, list(map(int, sel)),
+        return convertOTable2Pandas(self.explain_dataset, list(map(int, sel)),
                                     sel_index, self.classifier,
                                     self.map_names_class)
 
