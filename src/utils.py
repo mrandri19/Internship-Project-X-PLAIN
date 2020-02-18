@@ -14,8 +14,10 @@ from os.path import join
 from typing import Tuple, List
 
 import Orange
+import arff
+import numpy as np
 import pandas as pd
-from scipy.io.arff import loadarff
+from sklearn.preprocessing import LabelEncoder
 
 from src import DEFAULT_DIR
 
@@ -23,18 +25,51 @@ MAX_SAMPLE_COUNT = 100
 OT = 0
 MT = 1
 
+from collections import defaultdict
+
 
 class Dataset:
-    def __init__(self, data, meta):
-        self.df = pd.DataFrame(data)
-        self.meta = meta
+    _df: pd.DataFrame
+
+    def __init__(self, data, attributes):
+        self._df = pd.DataFrame(data)
+        self.attributes = attributes
+
+        # Rename columns from 0,1,... to the attributes[0,1,...][0]
+        columns_mapper = {i: a for (i, a) in enumerate([a for (a, _) in attributes])}
+        self._df = self._df.rename(columns=columns_mapper)
+
+        # Encode categorical columns with value between 0 and n_classes-1
+        # Keep the columns encoders used to perform the inverse transformation
+        # https://stackoverflow.com/a/31939145
+        self._column_encoders = defaultdict(LabelEncoder)
+        self._encoded_df = self._df.apply(lambda x: self._column_encoders[x.name].fit_transform(x))
+
+    def class_values(self):
+        """All possible classes in the dataset"""
+        return self.attributes[-1][1]
+
+    def X(self):
+        """The dataset's attributes as a numpy float64 array."""
+        return self._encoded_df.iloc[:, :-1].to_numpy().astype(np.float64)
+
+    def row_inverse_transform_value(self, attr, column_index):
+        return self._column_encoders[column_index].inverse_transform(attr)
+
+    def class_column_name(self):
+        """"The column name of the class attribute"""
+        return self.attributes[-1][0]
+
+    def __len__(self):
+        return len(self._df)
+
+    def __getitem__(self, item):
+        return self._encoded_df.iloc[item]
 
 
 def assert_orange_pd_equal(table: Orange.data.Table, dataset: Dataset):
     # TODO(Andrea): Remove when Orange is completely out
-    assert len(table) == len(dataset.df)
-    for (o_i, p_i) in zip(table, dataset.df.itertuples()):
-        assert (o_i.get_class().value == p_i[-1].decode())
+    assert len(table) == len(dataset._df)
 
 
 def import_dataset(dataset_name: str, explain_indices: List[int], random_explain_dataset: bool) -> \
@@ -75,11 +110,11 @@ def import_dataset(dataset_name: str, explain_indices: List[int], random_explain
         training_indices.remove(i)
 
     orange_training_dataset = Orange.data.Table.from_table_rows(orange_dataset, training_indices)
-    pd_training_dataset = Dataset(pd_dataset.df.iloc[training_indices], pd_dataset.meta)
+    pd_training_dataset = Dataset(pd_dataset._df.iloc[training_indices], pd_dataset.attributes)
     assert_orange_pd_equal(orange_training_dataset, pd_training_dataset)
 
     orange_explain_dataset = Orange.data.Table.from_table_rows(orange_dataset, explain_indices)
-    pd_explain_dataset = Dataset(pd_dataset.df.iloc[explain_indices], pd_dataset.meta)
+    pd_explain_dataset = Dataset(pd_dataset._df.iloc[explain_indices], pd_dataset.attributes)
     assert_orange_pd_equal(orange_explain_dataset, pd_explain_dataset)
 
     return (orange_training_dataset, pd_training_dataset), (
@@ -115,8 +150,8 @@ def import_datasets(dataset_name: str, explain_indices: List[int],
 
     orange_explain_dataset = Orange.data.Table.from_table_rows(orange_explain_dataset,
                                                                explain_indices)
-    pd_explain_dataset = Dataset(pd_explain_dataset.df.iloc[explain_indices],
-                                 pd_explain_dataset.meta)
+    pd_explain_dataset = Dataset(pd_explain_dataset._df.iloc[explain_indices],
+                                 pd_explain_dataset.attributes)
     assert_orange_pd_equal(orange_explain_dataset, pd_explain_dataset)
 
     return (orange_training_dataset, pd_training_dataset), (
@@ -272,12 +307,12 @@ def loadARFF_Weka(filename: str) -> Tuple[Orange.data.Table, Dataset]:
         table.name = name
 
         f.seek(0)
-        data, meta = loadarff(f)
-        dataset = Dataset(data, meta)
+        a = arff.load(f)
+        dataset = Dataset(a['data'], a['attributes'])
 
         assert_orange_pd_equal(table, dataset)
 
-        return (table, dataset)
+        return table, dataset
 
 
 def loadARFF(filename: str) -> Tuple[Orange.data.Table, Dataset]:
@@ -632,22 +667,27 @@ def getStartKValueSimplified(len_dataset):
     return maxN
 
 
-def computeMappaClass_b(data_):
-    data = data_[OT]
-    mappa_class2 = {}
-    h = len(data)
-    dim_d = len(data[0])
-    for d in data[:]:
-        c_tmp = d[dim_d - 1].value
-        if c_tmp in mappa_class2:
-            mappa_class2[c_tmp] = mappa_class2[c_tmp] + 1.0
+def compute_class_frequency(data_):
+    pd_data = data_[MT]
+
+    class_frequency = {}
+    h = len(pd_data)
+
+    for i in range(h):
+        row = pd_data[i]
+        cc = pd_data.class_column_name()
+        row_class = pd_data.row_inverse_transform_value(row[cc], cc)
+        if row_class in class_frequency:
+            class_frequency[row_class] = class_frequency[row_class] + 1.0
         else:
-            mappa_class2[c_tmp] = 1.0
+            class_frequency[row_class] = 1.0
 
-    for key in mappa_class2.keys():
-        mappa_class2[key] = mappa_class2[key] / h
+    for key in class_frequency.keys():
+        class_frequency[key] = class_frequency[key] / h
 
-    return mappa_class2
+    print(class_frequency)
+
+    return class_frequency
 
 
 def convertOTable2Pandas(orangeTable, ids=None, sel="all", cl=None, mapName=None):

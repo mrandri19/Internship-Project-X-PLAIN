@@ -8,23 +8,28 @@ import subprocess
 from copy import deepcopy
 # noinspection PyUnresolvedReferences
 from os.path import join
+# noinspection PyUnresolvedReferences
+from typing import Tuple
 
 # noinspection PyUnresolvedReferences
 import Orange
 # noinspection PyUnresolvedReferences
+import numpy as np
+# noinspection PyUnresolvedReferences
 import sklearn.neighbors
+# noinspection PyUnresolvedReferences
+from Orange.data import Table
 
 # noinspection PyUnresolvedReferences
 from src.XPLAIN_explanation import XPLAIN_explanation
-# noinspection PyUnresolvedReferences
 from src.global_explanation import *
 # noinspection PyUnresolvedReferences
 from src.utils import gen_neighbors_info, \
     get_relevant_subset_from_local_rules, get_classifier, import_datasets, import_dataset, \
     useExistingModel_v2, compute_prediction_difference_subset, \
     compute_prediction_difference_single, getStartKValueSimplified, \
-    computeMappaClass_b, compute_error_approximation, createDir, convertOTable2Pandas, \
-    get_KNN_threshold_max, DEFAULT_DIR, OT, MT
+    compute_class_frequency, compute_error_approximation, createDir, convertOTable2Pandas, \
+    get_KNN_threshold_max, DEFAULT_DIR, OT, MT, Dataset
 
 ERROR_DIFFERENCE_THRESHOLD = 0.01
 TEMPORARY_FOLDER_NAME = "tmp"
@@ -32,6 +37,7 @@ ERROR_THRESHOLD = 0.02
 
 
 class XPLAIN_explainer:
+    training_dataset: Tuple[Table, Dataset]
     datanamepred: str
     unique_filename: str
     present: bool
@@ -77,24 +83,24 @@ class XPLAIN_explainer:
             print(exit_reason)
             exit(-1)
 
-        self.map_names_class = {}
-        for (i, class_) in enumerate(self.training_dataset[OT].domain.class_var.values):
-            self.map_names_class[i] = class_
+        self.ix_to_class = {i: class_ for (i, class_) in
+                            enumerate(self.training_dataset[MT].class_values())}
 
         self.dataset_name = dataset_name.split("/")[-1]
 
         self.NearestNeighborsAll = sklearn.neighbors.NearestNeighbors(
-            n_neighbors=len(self.training_dataset[OT]), metric='euclidean',
-            algorithm='auto', metric_params=None).fit(self.training_dataset[OT].X)
+            n_neighbors=len(self.training_dataset[MT]), metric='euclidean',
+            algorithm='auto', metric_params=None).fit(
+            self.training_dataset[MT].X())
 
         self.starting_K = self.K
 
-        self.mappa_class = computeMappaClass_b(self.training_dataset)
+        self.mappa_class = compute_class_frequency(self.training_dataset)
         self.mispredictedInstances = None
 
     def get_class_index(self, class_name):
         class_index = -1
-        for i in self.training_dataset[OT].domain.class_var.values:
+        for i in self.training_dataset[MT].class_values():
             class_index += 1
             if i == class_name:
                 return class_index
@@ -106,7 +112,7 @@ class XPLAIN_explainer:
             instanceI = Orange.data.Instance(self.explain_dataset[OT].domain,
                                              self.explain_dataset[OT][count_inst])
             c = self.classifier(instanceI, False)
-            if instanceI.get_class() != self.map_names_class[c[0]]:
+            if instanceI.get_class() != self.ix_to_class[c[0]]:
                 if mispred_class is not False:
                     if instanceI.get_class() == mispred_class:
                         self.mispredictedInstances.append(n_ist)
@@ -126,7 +132,7 @@ class XPLAIN_explainer:
         # Risks: examples too similar, only 1 class. Starting k: proportional to the class frequence
         small_dataset_len = 150
         if self.training_dataset_len < small_dataset_len:
-            self.starting_K = max(int(self.mappa_class[self.map_names_class[
+            self.starting_K = max(int(self.mappa_class[self.ix_to_class[
                 c[0]]] * self.training_dataset_len), self.starting_K)
 
         # Initialize k and error to be defined in case the for loop is not entered
@@ -249,7 +255,7 @@ class XPLAIN_explainer:
         sel_index = [self.explain_indices.index(i) for i in sel]
         return convertOTable2Pandas(self.explain_dataset, list(map(int, sel)),
                                     sel_index, self.classifier,
-                                    self.map_names_class)
+                                    self.ix_to_class)
 
     # NEW_UPDATE
     def update_explain_instance(self, instance_explanation, rule_body_indices):
