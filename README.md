@@ -13,7 +13,7 @@ python3 -m venv ~/venv-environments/lace
 source ~/venv-environments/lace/bin/activate
 
 # Install deps
-pip install flask numpy pandas scipy snapshottest scikit-learn matplotlib seaborn 
+pip install flask flask-cors numpy pandas snapshottest scikit-learn matplotlib liac-arff
 pip install --no-binary orange3 orange3==3.15.0
 ```
 
