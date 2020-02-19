@@ -3,9 +3,8 @@ from os.path import join
 from snapshottest import TestCase
 
 from src import DEFAULT_DIR
-from src.XPLAIN_explainer import XPLAIN_explainer
+from src.XPLAIN_explainer import XPLAIN_explainer, OT
 from src.XPLAIN_explanation import XPLAIN_explanation
-from src.utils import OT
 
 
 def get_explanation(dataset_name: str, classifier_name: str) -> XPLAIN_explanation:

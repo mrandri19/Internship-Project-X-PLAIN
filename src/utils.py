@@ -5,6 +5,7 @@ import pickle
 import random
 # noinspection PyUnresolvedReferences
 from collections import Counter
+from collections import defaultdict
 # noinspection PyUnresolvedReferences
 from copy import deepcopy
 # noinspection PyUnresolvedReferences
@@ -22,10 +23,7 @@ from sklearn.preprocessing import LabelEncoder
 from src import DEFAULT_DIR
 
 MAX_SAMPLE_COUNT = 100
-OT = 0
 MT = 1
-
-from collections import defaultdict
 
 
 class Dataset:
@@ -33,7 +31,7 @@ class Dataset:
 
     def __init__(self, data, attributes):
         self._df = pd.DataFrame(data)
-        self.attributes = attributes
+        self.columns = attributes
 
         # Rename columns from 0,1,... to the attributes[0,1,...][0]
         columns_mapper = {i: a for (i, a) in enumerate([a for (a, _) in attributes])}
@@ -47,18 +45,34 @@ class Dataset:
 
     def class_values(self):
         """All possible classes in the dataset"""
-        return self.attributes[-1][1]
+        return self.columns[-1][1]
 
     def X(self):
-        """The dataset's attributes as a numpy float64 array."""
+        """All rows' attributes as a pandas DataFrame."""
+        return self._encoded_df.iloc[:, :-1]
+
+    def Y(self):
+        """All rows' classes as a pandas Series."""
+        return self._encoded_df.iloc[:, -1]
+
+    def X_numpy(self):
+        """All rows' attributes as a numpy float64 array."""
         return self._encoded_df.iloc[:, :-1].to_numpy().astype(np.float64)
 
-    def row_inverse_transform_value(self, attr, column_index):
-        return self._column_encoders[column_index].inverse_transform(attr)
+    def Y_numpy(self):
+        """All rows' classes as a numpy float64 array."""
+        return self._encoded_df.iloc[:, -1].to_numpy().astype(np.float64)
+
+    def attributes(self):
+        return self.columns[:-1]
+
+    def row_inverse_transform_value(self, value, column):
+        """"Given a value (one column of a row) and that column's name, return itsdecoded value"""
+        return self._column_encoders[column].inverse_transform(value)
 
     def class_column_name(self):
         """"The column name of the class attribute"""
-        return self.attributes[-1][0]
+        return self.columns[-1][0]
 
     def __len__(self):
         return len(self._df)
@@ -66,23 +80,36 @@ class Dataset:
     def __getitem__(self, item):
         return self._encoded_df.iloc[item]
 
-    def Y(self):
-        return self._encoded_df.iloc[:, -1].to_numpy().astype(np.float64)
-
     def orange_domain(self):
-        vars = [Orange.data.DiscreteVariable.make(name, vals) for (name, vals) in
-                self.attributes]
-        return Orange.data.Domain(attributes=vars[:-1], class_vars=vars[-1])
+        """"Return a Orange.data.Domain built using the dataset's attributes"""
+        orange_vars = [Orange.data.DiscreteVariable.make(name, vals) for (name, vals) in
+                       self.columns]
+        return Orange.data.Domain(attributes=orange_vars[:-1], class_vars=orange_vars[-1])
+
+    def to_arff_obj(self):
+        obj = {'relation': self.class_column_name(),
+               'attributes': self.columns,
+               'data': self._df.values.tolist()}
+        return obj
 
 
-# TODO(Andrea): Remove when Orange is completely out
+def make_orange_instance(dataset, index):
+    return Orange.data.Instance(dataset.orange_domain(), dataset[index])
+
+
+def table_to_arff(t):
+    obj = {'relation': t.domain.class_var.name,
+           'attributes': [(v.name, v.values) for v in t.domain.variables],
+           'data': [list(r.values()) for r in t]}
+    return obj
 
 
 def assert_orange_pd_equal(table: Orange.data.Table, dataset: Dataset):
     # TODO(Andrea): Remove when Orange is completely out
-    assert len(table) == len(dataset._df)
+    assert len(table) == len(dataset)
 
 
+# noinspection PyUnresolvedReferences
 def import_dataset(dataset_name: str, explain_indices: List[int], random_explain_dataset: bool) -> \
         Tuple[Tuple[Orange.data.Table, Dataset], Tuple[Orange.data.Table, Dataset], int, List[str]]:
     if dataset_name[-4:] == "arff":
@@ -123,11 +150,11 @@ def import_dataset(dataset_name: str, explain_indices: List[int], random_explain
         training_indices.remove(i)
 
     orange_training_dataset = Orange.data.Table.from_table_rows(orange_dataset, training_indices)
-    pd_training_dataset = Dataset(pd_dataset._df.iloc[training_indices], pd_dataset.attributes)
+    pd_training_dataset = Dataset(pd_dataset._df.iloc[training_indices], pd_dataset.columns)
     assert_orange_pd_equal(orange_training_dataset, pd_training_dataset)
 
     orange_explain_dataset = Orange.data.Table.from_table_rows(orange_dataset, explain_indices)
-    pd_explain_dataset = Dataset(pd_dataset._df.iloc[explain_indices], pd_dataset.attributes)
+    pd_explain_dataset = Dataset(pd_dataset._df.iloc[explain_indices], pd_dataset.columns)
     assert_orange_pd_equal(orange_explain_dataset, pd_explain_dataset)
 
     return (orange_training_dataset, pd_training_dataset), (
@@ -164,7 +191,7 @@ def import_datasets(dataset_name: str, explain_indices: List[int],
     orange_explain_dataset = Orange.data.Table.from_table_rows(orange_explain_dataset,
                                                                explain_indices)
     pd_explain_dataset = Dataset(pd_explain_dataset._df.iloc[explain_indices],
-                                 pd_explain_dataset.attributes)
+                                 pd_explain_dataset.columns)
     assert_orange_pd_equal(orange_explain_dataset, pd_explain_dataset)
 
     return (orange_training_dataset, pd_training_dataset), (
@@ -176,7 +203,8 @@ def loadARFF(filename: str) -> Tuple[Orange.data.Table, Dataset]:
         a = arff.load(f)
         dataset = Dataset(a['data'], a['attributes'])
 
-        table = Orange.data.Table.from_numpy(dataset.orange_domain(), dataset.X(), dataset.Y())
+        table = Orange.data.Table.from_numpy(dataset.orange_domain(), dataset.X_numpy(),
+                                             dataset.Y_numpy())
         table.name = a['relation']
 
         assert_orange_pd_equal(table, dataset)
@@ -202,12 +230,10 @@ def get_features_names(classifier):
 
 # noinspection PyUnresolvedReferences
 def get_classifier(training_datasets: Tuple[Orange.data.Table, Dataset], classifier_name: str,
-                   classifier_parameter: str, should_exit) -> Tuple[
-    Orange.classification.Learner, bool, str]:
+                   classifier_parameter: str, should_exit) -> Orange.classification.Learner:
     # TODO(Andrea): FINISH continue threading through the pandas dataset
     classifier_name = classifier_name
     classifier = None
-    exit_reason = ""
 
     training_dataset, pd_training_dataset = training_datasets
 
@@ -248,8 +274,7 @@ def get_classifier(training_datasets: Tuple[Orange.data.Table, Dataset], classif
 
     elif classifier_name == "knn":
         if classifier_parameter is None:
-            should_exit = True
-            exit_reason = "k - missing the K parameter"
+            raise ValueError("k - missing the K parameter")
         elif len(classifier_parameter.split("-")) == 1:
             KofKNN = int(classifier_parameter.split("-")[0])
             distance = ""
@@ -274,68 +299,48 @@ def get_classifier(training_datasets: Tuple[Orange.data.Table, Dataset], classif
                 metric=metricKNN, weights='uniform', algorithm='auto',
                 metric_params=None)
             classifier = knnLearner(training_dataset)
-
     else:
-        exit_reason = "Classification model not available"
-        should_exit = True
+        raise ValueError("Classifier not available")
 
-    return classifier, should_exit, exit_reason
-
-
-def createDir(outdir):
-    try:
-        os.makedirs(outdir)
-    except:
-        pass
+    return classifier
 
 
-def table_to_arff(t):
-    obj = {}
-    obj['relation'] = t.domain.class_var.name
-    obj['attributes'] = [(v.name, v.values) for v in t.domain.variables]
-    obj['data'] = [list(r.values()) for r in t]
-    return obj
-
-
-def gen_neighbors_info(training_dataset_: Tuple[Orange.data.Table, Dataset], nbrs,
+def gen_neighbors_info(training_dataset: Dataset, nbrs,
                        instance: Orange.data.Instance, k: int,
                        unique_filename: str, classifier):
-    # TODO(Andrea): Finish. Maybe make Dataset -> Pandas Instance conversion function
-    #               Maybe make a classmethod on Dataset, something like `from_indices`
-    orange_training_dataset, pd_training_dataset = training_dataset_
-    domain = orange_training_dataset.domain
     nearest_neighbors_ixs = nbrs.kneighbors([instance.x], k,
                                             return_distance=False)[0]
-    orange_closest_instance = orange_training_dataset[nearest_neighbors_ixs[0]]
-    pd_closest_instance = pd_training_dataset[nearest_neighbors_ixs[0]]
-
-    # print(pd_closest_instance.to_numpy(np.float64)[:-1])
+    orange_closest_instance = make_orange_instance(training_dataset, nearest_neighbors_ixs[0])
 
     classified_instance = deepcopy(instance)
     classified_instance.set_class(classifier(instance)[0])
     classified_instances = [classified_instance]
 
     for neigh_ix in nearest_neighbors_ixs:
-        neigh = orange_training_dataset[neigh_ix]
-        classified_neigh = deepcopy(neigh)
-        classified_neigh.set_class(classifier(neigh)[0])
+        orange_neigh = make_orange_instance(training_dataset, neigh_ix)
+        classified_neigh = deepcopy(orange_neigh)
+        classified_neigh.set_class(classifier(orange_neigh)[0])
 
         classified_instances.append(classified_neigh)
 
-    classified_instances_table = Orange.data.Table(domain, classified_instances)
+    pd_classified_instances_dataset = Dataset(
+        [c.list for c in classified_instances],
+        training_dataset.columns)
 
     closest_instance_classified = deepcopy(orange_closest_instance)
     closest_instance_classified.set_class(classifier(orange_closest_instance)[0])
-    closest_instance_table = Orange.data.Table(domain, [closest_instance_classified])
+    pd_closest_instance_dataset = Dataset(
+        [c.list for c in [closest_instance_classified]],
+        training_dataset.columns)
 
     p = DEFAULT_DIR + unique_filename
     if not os.path.exists(p):
         os.makedirs(p)
 
     with open(join(p, "Knnres.arff"), "w") as f:
-        arff.dump(table_to_arff(classified_instances_table), f)
+        arff.dump(pd_classified_instances_dataset.to_arff_obj(), f)
     with open(join(p, "Filetest.arff"), "w") as f:
-        arff.dump(table_to_arff(closest_instance_table), f)
+        arff.dump(pd_closest_instance_dataset.to_arff_obj(), f)
 
 
 def get_relevant_subset_from_local_rules(impo_rules, oldinputAr):
@@ -373,23 +378,22 @@ def compute_prediction_difference_subset(training_dataset_,
     Compute the prediction difference for an instance in a training_dataset, w.r.t. some
     rules and a class, given a classifier
     """
-    training_dataset = training_dataset_[OT]
+    training_dataset: Dataset = training_dataset_[MT]
 
     rule_attributes = [
-        training_dataset.domain.attributes[rule_body_index - 1] for
+        list(training_dataset.attributes())[rule_body_index - 1][0] for
         rule_body_index in rule_body_indices]
 
     # Take only the considered attributes from the dataset
-    rule_domain = Orange.data.Domain(rule_attributes)
-    filtered_dataset = Orange.data.Table().from_table(rule_domain, training_dataset)
+    filtered_dataset = training_dataset.X()[rule_attributes]
 
     # Count how many times a set of attribute values appears in the dataset
     attribute_sets_occurrences = dict(
-        Counter(map(tuple, filtered_dataset.X)).items())
+        Counter(map(tuple, filtered_dataset.values.tolist())).items())
 
     # For each set of attributes
     differences = [compute_perturbed_difference(item, classifier, instance, instance_class_index,
-                                                rule_attributes, rule_domain, training_dataset) for
+                                                rule_attributes, training_dataset_) for
                    item in
                    attribute_sets_occurrences.items()]
 
@@ -403,11 +407,11 @@ def compute_prediction_difference_subset(training_dataset_,
 
 
 def compute_perturbed_difference(item, classifier, instance, instance_class_index,
-                                 rule_attributes, rule_domain, training_dataset):
+                                 rule_attributes, training_dataset_):
     (attribute_set, occurrences) = item
-    perturbed_instance = Orange.data.Instance(training_dataset.domain, instance.list)
+    perturbed_instance = deepcopy(instance)
     for i in range(len(rule_attributes)):
-        perturbed_instance[rule_domain[i]] = attribute_set[i]
+        perturbed_instance[rule_attributes[i]] = attribute_set[i]
     # cache_key = tuple(perturbed_instance.x)
     # if cache_key not in instance_predictions_cache:
     #     instance_predictions_cache[cache_key] = classifier(perturbed_instance, True)[0][
@@ -418,48 +422,47 @@ def compute_perturbed_difference(item, classifier, instance, instance_class_inde
     # Compute the prediction difference using the weighted average of the
     # probability over the frequency of this attribute set in the
     # dataset
-    difference = prob * occurrences / len(training_dataset)
+    difference = prob * occurrences / len(training_dataset_[MT])
     return difference
 
 
 # Single explanation. Change 1 value at the time e compute the difference
-def compute_prediction_difference_single(instT, classifier, indexI, dataset_):
-    dataset = dataset_[OT]
-    from copy import deepcopy
-    i = deepcopy(instT)
-    listaoutput = []
+def compute_prediction_difference_single(instance, classifier, target_class_index,
+                                         training_dataset_):
+    training_dataset = training_dataset_[MT]
+    dataset_len = len(training_dataset)
 
-    c1 = classifier(i, True)[0]
-    prob = c1[indexI]
+    attribute_pred_difference = [0] * len(training_dataset.attributes())
 
-    for _ in i.domain.attributes[:]:
-        listaoutput.append(0.0)
+    # The probability of `instance` belonging to class `target_class_index`
+    prob = classifier(instance, True)[0][target_class_index]
 
-    t = -1
-    for k in dataset.domain.attributes[:]:
-        d = Orange.data.Table()
-        t = t + 1
-        k_a_i = Orange.data.Domain([k])
-        filtered_i = d.from_table(k_a_i, dataset)
-        c = Counter(map(tuple, filtered_i.X))
-        freq = dict(c.items())
+    # For each `instance` attribute
+    for (attr_ix, (attr, _)) in enumerate(training_dataset.attributes()):
+        # Create a dataset containing only the column of the attribute
+        filtered_dataset = training_dataset.X()[attr]
 
-        for k_ex in freq:
-            inst1 = deepcopy(instT)
-            inst1[k] = k_ex[0]
-            c1 = classifier(inst1, True)[0]
+        # Count how many times each value of that attribute appears in the dataset
+        attr_occurrences = dict(Counter(filtered_dataset).items())
 
-            prob = c1[indexI]
-            test = freq[k_ex] / len(dataset)
-            # newvalue=prob*freq[k_ex]/len(dataset)
-            newvalue = prob * test
-            listaoutput[t] = listaoutput[t] + newvalue
+        # For each value of the attribute
+        for attr_val in attr_occurrences:
+            # Create an instance whose attribute `attr` has that value (`attr_val`)
+            perturbed_instance = deepcopy(instance)
+            perturbed_instance[attr] = attr_val
 
-    l = len(listaoutput)
+            # See how the prediction changes
+            prob = classifier(perturbed_instance, True)[0][target_class_index]
 
-    for i in range(0, l):
-        listaoutput[i] = prob - listaoutput[i]
-    return listaoutput
+            # Update the attribute difference weighting the prediction by the value frequency
+            weight = attr_occurrences[attr_val] / dataset_len
+            difference = prob * weight
+            attribute_pred_difference[attr_ix] += difference
+
+    for i in range(len(attribute_pred_difference)):
+        attribute_pred_difference[i] = prob - attribute_pred_difference[i]
+
+    return attribute_pred_difference
 
 
 def compute_error_approximation(mappa_class, pred, out_data, impo_rules_complete, classname,
@@ -553,7 +556,7 @@ def convert_orange_table_to_pandas(orangeTable, ids=None, sel="all", cl=None, ma
 
 
 def savePickle(model, dirO, name):
-    createDir(dirO)
+    os.makedirs(dirO)
     with open(dirO + "/" + name + '.pickle', 'wb') as handle:
         pickle.dump(model, handle, protocol=pickle.HIGHEST_PROTOCOL)
 

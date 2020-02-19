@@ -28,12 +28,13 @@ from src.utils import gen_neighbors_info, \
     get_relevant_subset_from_local_rules, get_classifier, import_datasets, import_dataset, \
     compute_prediction_difference_subset, \
     compute_prediction_difference_single, getStartKValueSimplified, \
-    compute_class_frequency, compute_error_approximation, createDir, convert_orange_table_to_pandas, \
-    get_KNN_threshold_max, DEFAULT_DIR, OT, MT, Dataset
+    compute_class_frequency, compute_error_approximation, convert_orange_table_to_pandas, \
+    get_KNN_threshold_max, DEFAULT_DIR, MT, Dataset
 
 ERROR_DIFFERENCE_THRESHOLD = 0.01
 TEMPORARY_FOLDER_NAME = "tmp"
 ERROR_THRESHOLD = 0.02
+OT = 0
 
 
 class XPLAIN_explainer:
@@ -75,13 +76,10 @@ class XPLAIN_explainer:
                                                       threshold_error,
                                                       maxKNNUser)
 
-        self.classifier, should_exit, exit_reason = get_classifier(
+        self.classifier = get_classifier(
             self.training_dataset, classifier_name,
             classifier_parameter,
             False)
-        if should_exit:
-            print(exit_reason)
-            exit(-1)
 
         self.ix_to_class = {i: class_ for (i, class_) in
                             enumerate(self.training_dataset[MT].class_values())}
@@ -91,7 +89,7 @@ class XPLAIN_explainer:
         self.nbrs = sklearn.neighbors.NearestNeighbors(
             n_neighbors=len(self.training_dataset[MT]), metric='euclidean',
             algorithm='auto', metric_params=None).fit(
-            self.training_dataset[MT].X())
+            self.training_dataset[MT].X_numpy())
 
         self.starting_K = self.K
 
@@ -195,7 +193,7 @@ class XPLAIN_explainer:
                           target_class_index, pred, single_attribute_differences):
         print(f"compute_lace_step k={k}")
 
-        gen_neighbors_info(self.training_dataset, self.nbrs, instance, k,
+        gen_neighbors_info(self.training_dataset[MT], self.nbrs, instance, k,
                            self.unique_filename, self.classifier)
         subprocess.call(['java', '-jar', DEFAULT_DIR + 'AL3.jar', '-no-cv', '-t',
                          (DEFAULT_DIR + self.unique_filename + '/Knnres.arff'), '-T',
