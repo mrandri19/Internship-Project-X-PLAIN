@@ -23,7 +23,6 @@ from sklearn.preprocessing import LabelEncoder
 from src import DEFAULT_DIR
 
 MAX_SAMPLE_COUNT = 100
-MT = 1
 
 
 class Dataset:
@@ -80,6 +79,9 @@ class Dataset:
     def __getitem__(self, item):
         return self._encoded_df.iloc[item]
 
+    def get_decoded(self, item):
+        return self._df.iloc[item]
+
     def orange_domain(self):
         """"Return a Orange.data.Domain built using the dataset's attributes"""
         orange_vars = [Orange.data.DiscreteVariable.make(name, vals) for (name, vals) in
@@ -92,9 +94,17 @@ class Dataset:
                'data': self._df.values.tolist()}
         return obj
 
+    def to_orange_table(self):
+        return Orange.data.Table.from_numpy(self.orange_domain(), self.X_numpy(),
+                                            self.Y_numpy())
 
-def make_orange_instance(dataset, index):
+
+def make_orange_instance_index(dataset, index):
     return Orange.data.Instance(dataset.orange_domain(), dataset[index])
+
+
+def make_orange_instance(dataset, instance):
+    return Orange.data.Instance(dataset.orange_domain(), instance)
 
 
 def table_to_arff(t):
@@ -111,7 +121,7 @@ def assert_orange_pd_equal(table: Orange.data.Table, dataset: Dataset):
 
 # noinspection PyUnresolvedReferences
 def import_dataset(dataset_name: str, explain_indices: List[int], random_explain_dataset: bool) -> \
-        Tuple[Tuple[Orange.data.Table, Dataset], Tuple[Orange.data.Table, Dataset], int, List[str]]:
+        Tuple[Dataset, Dataset, int, List[str]]:
     if dataset_name[-4:] == "arff":
         orange_dataset, pd_dataset = loadARFF(dataset_name)
     else:
@@ -127,12 +137,9 @@ def import_dataset(dataset_name: str, explain_indices: List[int], random_explain
         with open(dataset_file_name, "w") as f:
             arff.dump(table_to_arff(orange_dataset), f)
 
-        orange_dataset, pd_dataset = loadARFF(dataset_file_name)
-        assert_orange_pd_equal(orange_dataset, pd_dataset)
+        pd_dataset = loadARFF(dataset_file_name)
 
-    assert_orange_pd_equal(orange_dataset, pd_dataset)
-
-    dataset_len = len(orange_dataset)
+    dataset_len = len(pd_dataset)
     training_indices = list(range(dataset_len))
 
     if random_explain_dataset:
@@ -149,23 +156,18 @@ def import_dataset(dataset_name: str, explain_indices: List[int], random_explain
     for i in explain_indices:
         training_indices.remove(i)
 
-    orange_training_dataset = Orange.data.Table.from_table_rows(orange_dataset, training_indices)
     pd_training_dataset = Dataset(pd_dataset._df.iloc[training_indices], pd_dataset.columns)
-    assert_orange_pd_equal(orange_training_dataset, pd_training_dataset)
 
-    orange_explain_dataset = Orange.data.Table.from_table_rows(orange_dataset, explain_indices)
     pd_explain_dataset = Dataset(pd_dataset._df.iloc[explain_indices], pd_dataset.columns)
-    assert_orange_pd_equal(orange_explain_dataset, pd_explain_dataset)
 
-    return (orange_training_dataset, pd_training_dataset), (
-        orange_explain_dataset, pd_explain_dataset), len(
-        orange_training_dataset), \
+    return pd_training_dataset, pd_explain_dataset, len(
+        pd_training_dataset), \
            [str(i) for i in explain_indices]
 
 
 def import_datasets(dataset_name: str, explain_indices: List[int],
                     random_explain_dataset: bool) -> Tuple[
-    Tuple[Orange.data.Table, Dataset], Tuple[Orange.data.Table, Dataset], int, List[str]]:
+    Dataset, Dataset, int, List[str]]:
     """
     :param dataset_name: path of the dataset file
     :param explain_indices: indices of the instances to be added in the explain dataset
@@ -177,39 +179,29 @@ def import_datasets(dataset_name: str, explain_indices: List[int],
 
     explain_dataset_name = dataset_name[:-5] + "_explain.arff"
 
-    orange_training_dataset, pd_training_dataset = loadARFF(dataset_name)
-    orange_explain_dataset, pd_explain_dataset = loadARFF(explain_dataset_name)
-    assert_orange_pd_equal(orange_training_dataset, pd_training_dataset)
+    pd_training_dataset = loadARFF(dataset_name)
+    pd_explain_dataset = loadARFF(explain_dataset_name)
 
-    len_dataset = len(orange_training_dataset)
-    len_explain_dataset = len(orange_explain_dataset)
+    len_dataset = len(pd_training_dataset)
+    len_explain_dataset = len(pd_explain_dataset)
 
     if random_explain_dataset:
         random.seed(7)
         explain_indices = list(random.sample(range(len_explain_dataset), 300))
 
-    orange_explain_dataset = Orange.data.Table.from_table_rows(orange_explain_dataset,
-                                                               explain_indices)
     pd_explain_dataset = Dataset(pd_explain_dataset._df.iloc[explain_indices],
                                  pd_explain_dataset.columns)
-    assert_orange_pd_equal(orange_explain_dataset, pd_explain_dataset)
 
-    return (orange_training_dataset, pd_training_dataset), (
-        orange_explain_dataset, pd_explain_dataset), len_dataset, [str(i) for i in explain_indices]
+    return pd_training_dataset, pd_explain_dataset, len_dataset, [str(i) for i in
+                                                                  explain_indices]
 
 
-def loadARFF(filename: str) -> Tuple[Orange.data.Table, Dataset]:
+def loadARFF(filename: str) -> Dataset:
     with open(filename, 'r') as f:
         a = arff.load(f)
         dataset = Dataset(a['data'], a['attributes'])
 
-        table = Orange.data.Table.from_numpy(dataset.orange_domain(), dataset.X_numpy(),
-                                             dataset.Y_numpy())
-        table.name = a['relation']
-
-        assert_orange_pd_equal(table, dataset)
-
-        return table, dataset
+        return dataset
 
 
 def get_features_names(classifier):
@@ -229,15 +221,12 @@ def get_features_names(classifier):
 
 
 # noinspection PyUnresolvedReferences
-def get_classifier(training_datasets: Tuple[Orange.data.Table, Dataset], classifier_name: str,
+def get_classifier(training_dataset: Dataset, classifier_name: str,
                    classifier_parameter: str, should_exit) -> Orange.classification.Learner:
-    # TODO(Andrea): FINISH continue threading through the pandas dataset
     classifier_name = classifier_name
     classifier = None
 
-    training_dataset, pd_training_dataset = training_datasets
-
-    assert_orange_pd_equal(training_dataset, pd_training_dataset)
+    orange_training_dataset = training_dataset.to_orange_table()
 
     if classifier_name == "tree":
         continuizer = Orange.preprocess.Continuize()
@@ -245,11 +234,11 @@ def get_classifier(training_datasets: Tuple[Orange.data.Table, Dataset], classif
         learnertree = Orange.classification.SklTreeLearner(
             preprocessors=continuizer, max_depth=7, min_samples_split=5,
             min_samples_leaf=3, random_state=1)
-        classifier = learnertree(training_dataset)
+        classifier = learnertree(orange_training_dataset)
 
     elif classifier_name == "nb":
         learnernb = Orange.classification.NaiveBayesLearner()
-        classifier = learnernb(training_dataset)
+        classifier = learnernb(orange_training_dataset)
 
     elif classifier_name == "nn":
         continuizer = Orange.preprocess.Continuize()
@@ -257,20 +246,20 @@ def get_classifier(training_datasets: Tuple[Orange.data.Table, Dataset], classif
         learnernet = Orange.classification.NNClassificationLearner(
             preprocessors=continuizer, random_state=42,
             max_iter=1000)
-        classifier = learnernet(training_dataset)
+        classifier = learnernet(orange_training_dataset)
 
     elif classifier_name == "rf":
         continuizer = Orange.preprocess.Continuize()
         continuizer.multinomial_treatment = continuizer.Indicators
         learnerrf = Orange.classification.RandomForestLearner(
             preprocessors=continuizer, random_state=42)
-        classifier = learnerrf(training_dataset)
+        classifier = learnerrf(orange_training_dataset)
 
     elif classifier_name == "svm":
         continuizer = Orange.preprocess.Continuize()
         continuizer.multinomial_treatment = continuizer.Indicators
         learnerrf = Orange.classification.SVMLearner(preprocessors=continuizer)
-        classifier = learnerrf(training_dataset)
+        classifier = learnerrf(orange_training_dataset)
 
     elif classifier_name == "knn":
         if classifier_parameter is None:
@@ -298,7 +287,7 @@ def get_classifier(training_datasets: Tuple[Orange.data.Table, Dataset], classif
                 preprocessors=continuizer, n_neighbors=KofKNN,
                 metric=metricKNN, weights='uniform', algorithm='auto',
                 metric_params=None)
-            classifier = knnLearner(training_dataset)
+            classifier = knnLearner(orange_training_dataset)
     else:
         raise ValueError("Classifier not available")
 
@@ -310,14 +299,14 @@ def gen_neighbors_info(training_dataset: Dataset, nbrs,
                        unique_filename: str, classifier):
     nearest_neighbors_ixs = nbrs.kneighbors([instance.x], k,
                                             return_distance=False)[0]
-    orange_closest_instance = make_orange_instance(training_dataset, nearest_neighbors_ixs[0])
+    orange_closest_instance = make_orange_instance_index(training_dataset, nearest_neighbors_ixs[0])
 
     classified_instance = deepcopy(instance)
     classified_instance.set_class(classifier(instance)[0])
     classified_instances = [classified_instance]
 
     for neigh_ix in nearest_neighbors_ixs:
-        orange_neigh = make_orange_instance(training_dataset, neigh_ix)
+        orange_neigh = make_orange_instance_index(training_dataset, neigh_ix)
         classified_neigh = deepcopy(orange_neigh)
         classified_neigh.set_class(classifier(orange_neigh)[0])
 
@@ -378,7 +367,7 @@ def compute_prediction_difference_subset(training_dataset_,
     Compute the prediction difference for an instance in a training_dataset, w.r.t. some
     rules and a class, given a classifier
     """
-    training_dataset: Dataset = training_dataset_[MT]
+    training_dataset: Dataset = training_dataset_
 
     rule_attributes = [
         list(training_dataset.attributes())[rule_body_index - 1][0] for
@@ -422,14 +411,14 @@ def compute_perturbed_difference(item, classifier, instance, instance_class_inde
     # Compute the prediction difference using the weighted average of the
     # probability over the frequency of this attribute set in the
     # dataset
-    difference = prob * occurrences / len(training_dataset_[MT])
+    difference = prob * occurrences / len(training_dataset_)
     return difference
 
 
 # Single explanation. Change 1 value at the time e compute the difference
 def compute_prediction_difference_single(instance, classifier, target_class_index,
                                          training_dataset_):
-    training_dataset = training_dataset_[MT]
+    training_dataset = training_dataset_
     dataset_len = len(training_dataset)
 
     attribute_pred_difference = [0] * len(training_dataset.attributes())
@@ -510,16 +499,14 @@ def getStartKValueSimplified(len_dataset):
     return maxN
 
 
-def compute_class_frequency(data_):
-    pd_data = data_[MT]
-
+def compute_class_frequency(dataset: Dataset):
     class_frequency = {}
-    h = len(pd_data)
+    h = len(dataset)
 
     for i in range(h):
-        row = pd_data[i]
-        cc = pd_data.class_column_name()
-        row_class = pd_data.row_inverse_transform_value(row[cc], cc)
+        row = dataset[i]
+        cc = dataset.class_column_name()
+        row_class = dataset.row_inverse_transform_value(row[cc], cc)
         if row_class in class_frequency:
             class_frequency[row_class] = class_frequency[row_class] + 1.0
         else:

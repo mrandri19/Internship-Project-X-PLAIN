@@ -2,9 +2,9 @@ from copy import deepcopy
 
 
 class UserExplanation:
-    def __init__(self, explaination, ):
-        self.lace_explanation = deepcopy(explaination)
-        self.instance_explanation = deepcopy(explaination)
+    def __init__(self, explanation, ):
+        self.lace_explanation = deepcopy(explanation)
+        self.instance_explanation = deepcopy(explanation)
         self.id_user_rules = []
 
     def update_user_rules(self, explaination, user_rule_id):

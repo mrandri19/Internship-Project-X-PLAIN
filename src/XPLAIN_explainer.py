@@ -29,7 +29,7 @@ from src.utils import gen_neighbors_info, \
     compute_prediction_difference_subset, \
     compute_prediction_difference_single, getStartKValueSimplified, \
     compute_class_frequency, compute_error_approximation, convert_orange_table_to_pandas, \
-    get_KNN_threshold_max, DEFAULT_DIR, MT, Dataset
+    get_KNN_threshold_max, DEFAULT_DIR, Dataset, make_orange_instance_index, make_orange_instance
 
 ERROR_DIFFERENCE_THRESHOLD = 0.01
 TEMPORARY_FOLDER_NAME = "tmp"
@@ -82,14 +82,14 @@ class XPLAIN_explainer:
             False)
 
         self.ix_to_class = {i: class_ for (i, class_) in
-                            enumerate(self.training_dataset[MT].class_values())}
+                            enumerate(self.training_dataset.class_values())}
 
         self.dataset_name = dataset_name.split("/")[-1]
 
         self.nbrs = sklearn.neighbors.NearestNeighbors(
-            n_neighbors=len(self.training_dataset[MT]), metric='euclidean',
+            n_neighbors=len(self.training_dataset), metric='euclidean',
             algorithm='auto', metric_params=None).fit(
-            self.training_dataset[MT].X_numpy())
+            self.training_dataset.X_numpy())
 
         self.starting_K = self.K
 
@@ -98,7 +98,7 @@ class XPLAIN_explainer:
 
     def get_class_index(self, class_name):
         class_index = -1
-        for i in self.training_dataset[MT].class_values():
+        for i in self.training_dataset.class_values():
             class_index += 1
             if i == class_name:
                 return class_index
@@ -120,8 +120,8 @@ class XPLAIN_explainer:
         return self.mispredictedInstances
 
     def explain_instance(self, instance, target_class):
-
-        c = self.classifier(instance, False)
+        orange_instance = make_orange_instance(self.explain_dataset, instance)
+        c = self.classifier(orange_instance, False)
         target_class_index = self.get_class_index(target_class)
 
         self.starting_K = self.K
@@ -155,14 +155,14 @@ class XPLAIN_explainer:
             # Compute the prediction difference of single attributes only on the
             # first iteration
             if first_iteration:
-                pred = self.classifier(instance, True)[0][target_class_index]
-                single_attribute_differences = compute_prediction_difference_single(instance,
+                pred = self.classifier(orange_instance, True)[0][target_class_index]
+                single_attribute_differences = compute_prediction_difference_single(orange_instance,
                                                                                     self.classifier,
                                                                                     target_class_index,
                                                                                     self.training_dataset)
 
             PI_rel2, difference_map, error, impo_rules_complete, importance_rules_lines, single_attribute_differences = self.compute_lace_step(
-                cached_subset_differences, instance,
+                cached_subset_differences, orange_instance,
                 instance_predictions_cache,
                 k, all_rule_body_indices, target_class, target_class_index, pred,
                 single_attribute_differences)
@@ -176,7 +176,7 @@ class XPLAIN_explainer:
                 old_error = error
         instance_explanation = XPLAIN_explanation(self,
                                                   target_class,
-                                                  instance,
+                                                  orange_instance,
                                                   single_attribute_differences,
                                                   k,
                                                   error,
@@ -193,7 +193,7 @@ class XPLAIN_explainer:
                           target_class_index, pred, single_attribute_differences):
         print(f"compute_lace_step k={k}")
 
-        gen_neighbors_info(self.training_dataset[MT], self.nbrs, instance, k,
+        gen_neighbors_info(self.training_dataset, self.nbrs, instance, k,
                            self.unique_filename, self.classifier)
         subprocess.call(['java', '-jar', DEFAULT_DIR + 'AL3.jar', '-no-cv', '-t',
                          (DEFAULT_DIR + self.unique_filename + '/Knnres.arff'), '-T',
