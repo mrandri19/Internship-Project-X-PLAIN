@@ -22,6 +22,8 @@ from Orange.data import Table
 
 # noinspection PyUnresolvedReferences
 from src.XPLAIN_explanation import XPLAIN_explanation
+# noinspection PyUnresolvedReferences
+from src.dataset import Dataset
 from src.global_explanation import *
 # noinspection PyUnresolvedReferences
 from src.utils import gen_neighbors_info, \
@@ -29,7 +31,7 @@ from src.utils import gen_neighbors_info, \
     compute_prediction_difference_subset, \
     compute_prediction_difference_single, getStartKValueSimplified, \
     compute_class_frequency, compute_error_approximation, convert_orange_table_to_pandas, \
-    get_KNN_threshold_max, DEFAULT_DIR, Dataset, make_orange_instance_index, make_orange_instance
+    get_KNN_threshold_max, DEFAULT_DIR, make_orange_instance_index, make_orange_instance
 
 ERROR_DIFFERENCE_THRESHOLD = 0.01
 TEMPORARY_FOLDER_NAME = "tmp"
@@ -38,7 +40,7 @@ OT = 0
 
 
 class XPLAIN_explainer:
-    training_dataset: Tuple[Table, Dataset]
+    training_dataset: Dataset
     datanamepred: str
     unique_filename: str
     present: bool
@@ -76,10 +78,8 @@ class XPLAIN_explainer:
                                                       threshold_error,
                                                       maxKNNUser)
 
-        self.classifier = get_classifier(
-            self.training_dataset, classifier_name,
-            classifier_parameter,
-            False)
+        self.classifier = get_classifier(self.training_dataset, classifier_name,
+                                         classifier_parameter)
 
         self.ix_to_class = {i: class_ for (i, class_) in
                             enumerate(self.training_dataset.class_values())}

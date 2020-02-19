@@ -4,8 +4,7 @@ import os
 import pickle
 import random
 # noinspection PyUnresolvedReferences
-from collections import Counter
-from collections import defaultdict
+from collections import Counter, defaultdict
 # noinspection PyUnresolvedReferences
 from copy import deepcopy
 # noinspection PyUnresolvedReferences
@@ -16,94 +15,21 @@ from typing import Tuple, List
 
 import Orange
 import arff
-import numpy as np
 import pandas as pd
-from sklearn.preprocessing import LabelEncoder
 
 from src import DEFAULT_DIR
+from src.dataset import Dataset
 
 MAX_SAMPLE_COUNT = 100
 
 
-class Dataset:
-    _df: pd.DataFrame
-
-    def __init__(self, data, attributes):
-        self._df = pd.DataFrame(data)
-        self.columns = attributes
-
-        # Rename columns from 0,1,... to the attributes[0,1,...][0]
-        columns_mapper = {i: a for (i, a) in enumerate([a for (a, _) in attributes])}
-        self._df = self._df.rename(columns=columns_mapper)
-
-        # Encode categorical columns with value between 0 and n_classes-1
-        # Keep the columns encoders used to perform the inverse transformation
-        # https://stackoverflow.com/a/31939145
-        self._column_encoders = defaultdict(LabelEncoder)
-        self._encoded_df = self._df.apply(lambda x: self._column_encoders[x.name].fit_transform(x))
-
-    def class_values(self):
-        """All possible classes in the dataset"""
-        return self.columns[-1][1]
-
-    def X(self):
-        """All rows' attributes as a pandas DataFrame."""
-        return self._encoded_df.iloc[:, :-1]
-
-    def Y(self):
-        """All rows' classes as a pandas Series."""
-        return self._encoded_df.iloc[:, -1]
-
-    def X_numpy(self):
-        """All rows' attributes as a numpy float64 array."""
-        return self._encoded_df.iloc[:, :-1].to_numpy().astype(np.float64)
-
-    def Y_numpy(self):
-        """All rows' classes as a numpy float64 array."""
-        return self._encoded_df.iloc[:, -1].to_numpy().astype(np.float64)
-
-    def attributes(self):
-        return self.columns[:-1]
-
-    def row_inverse_transform_value(self, value, column):
-        """"Given a value (one column of a row) and that column's name, return itsdecoded value"""
-        return self._column_encoders[column].inverse_transform(value)
-
-    def class_column_name(self):
-        """"The column name of the class attribute"""
-        return self.columns[-1][0]
-
-    def __len__(self):
-        return len(self._df)
-
-    def __getitem__(self, item):
-        return self._encoded_df.iloc[item]
-
-    def get_decoded(self, item):
-        return self._df.iloc[item]
-
-    def orange_domain(self):
-        """"Return a Orange.data.Domain built using the dataset's attributes"""
-        orange_vars = [Orange.data.DiscreteVariable.make(name, vals) for (name, vals) in
-                       self.columns]
-        return Orange.data.Domain(attributes=orange_vars[:-1], class_vars=orange_vars[-1])
-
-    def to_arff_obj(self):
-        obj = {'relation': self.class_column_name(),
-               'attributes': self.columns,
-               'data': self._df.values.tolist()}
-        return obj
-
-    def to_orange_table(self):
-        return Orange.data.Table.from_numpy(self.orange_domain(), self.X_numpy(),
-                                            self.Y_numpy())
-
-
-def make_orange_instance_index(dataset, index):
+def make_orange_instance_index(dataset: Dataset, index: int) -> Orange.data.Instance:
+    """"Make an Orange.data.Instance from the row at `index` of the `dataset`"""
     return Orange.data.Instance(dataset.orange_domain(), dataset[index])
 
 
-def make_orange_instance(dataset, instance):
+def make_orange_instance(dataset: Dataset, instance: pd.Series) -> Orange.data.Instance:
+    """"Make an Orange.data.Instance from an `instance` (a row) of the `dataset`"""
     return Orange.data.Instance(dataset.orange_domain(), instance)
 
 
@@ -156,9 +82,9 @@ def import_dataset(dataset_name: str, explain_indices: List[int], random_explain
     for i in explain_indices:
         training_indices.remove(i)
 
-    pd_training_dataset = Dataset(pd_dataset._df.iloc[training_indices], pd_dataset.columns)
+    pd_training_dataset = Dataset(pd_dataset._decoded_df.iloc[training_indices], pd_dataset.columns)
 
-    pd_explain_dataset = Dataset(pd_dataset._df.iloc[explain_indices], pd_dataset.columns)
+    pd_explain_dataset = Dataset(pd_dataset._decoded_df.iloc[explain_indices], pd_dataset.columns)
 
     return pd_training_dataset, pd_explain_dataset, len(
         pd_training_dataset), \
@@ -189,7 +115,7 @@ def import_datasets(dataset_name: str, explain_indices: List[int],
         random.seed(7)
         explain_indices = list(random.sample(range(len_explain_dataset), 300))
 
-    pd_explain_dataset = Dataset(pd_explain_dataset._df.iloc[explain_indices],
+    pd_explain_dataset = Dataset(pd_explain_dataset._decoded_df.iloc[explain_indices],
                                  pd_explain_dataset.columns)
 
     return pd_training_dataset, pd_explain_dataset, len_dataset, [str(i) for i in
@@ -204,25 +130,9 @@ def loadARFF(filename: str) -> Dataset:
         return dataset
 
 
-def get_features_names(classifier):
-    features_names = []
-    for i in range(0, len(classifier.domain.attributes)):
-        if ">" in classifier.domain.attributes[i].name:
-            features_names.append(
-                classifier.domain.attributes[i].name.replace(">", "gr"))
-
-        elif "<" in classifier.domain.attributes[i].name:
-            features_names.append(
-                classifier.domain.attributes[i].name.replace("<", "low"))
-        else:
-            features_names.append(classifier.domain.attributes[i].name)
-
-    return features_names
-
-
 # noinspection PyUnresolvedReferences
 def get_classifier(training_dataset: Dataset, classifier_name: str,
-                   classifier_parameter: str, should_exit) -> Orange.classification.Learner:
+                   classifier_parameter: str) -> Orange.classification.Learner:
     classifier_name = classifier_name
     classifier = None
 
@@ -235,10 +145,12 @@ def get_classifier(training_dataset: Dataset, classifier_name: str,
             preprocessors=continuizer, max_depth=7, min_samples_split=5,
             min_samples_leaf=3, random_state=1)
         classifier = learnertree(orange_training_dataset)
+        raise NotImplementedError
 
     elif classifier_name == "nb":
         learnernb = Orange.classification.NaiveBayesLearner()
         classifier = learnernb(orange_training_dataset)
+        # raise NotImplementedError
 
     elif classifier_name == "nn":
         continuizer = Orange.preprocess.Continuize()
@@ -247,6 +159,7 @@ def get_classifier(training_dataset: Dataset, classifier_name: str,
             preprocessors=continuizer, random_state=42,
             max_iter=1000)
         classifier = learnernet(orange_training_dataset)
+        raise NotImplementedError
 
     elif classifier_name == "rf":
         continuizer = Orange.preprocess.Continuize()
@@ -254,14 +167,17 @@ def get_classifier(training_dataset: Dataset, classifier_name: str,
         learnerrf = Orange.classification.RandomForestLearner(
             preprocessors=continuizer, random_state=42)
         classifier = learnerrf(orange_training_dataset)
+        # raise NotImplementedError
 
     elif classifier_name == "svm":
         continuizer = Orange.preprocess.Continuize()
         continuizer.multinomial_treatment = continuizer.Indicators
         learnerrf = Orange.classification.SVMLearner(preprocessors=continuizer)
         classifier = learnerrf(orange_training_dataset)
+        raise NotImplementedError
 
     elif classifier_name == "knn":
+
         if classifier_parameter is None:
             raise ValueError("k - missing the K parameter")
         elif len(classifier_parameter.split("-")) == 1:
@@ -270,24 +186,25 @@ def get_classifier(training_dataset: Dataset, classifier_name: str,
         else:
             KofKNN = int(classifier_parameter.split("-")[0])
             distance = classifier_parameter.split("-")[1]
-        if not should_exit:
-            if distance == "eu":
-                metricKNN = 'euclidean'
-            elif distance == "ham":
-                metricKNN = 'hamming'
-            elif distance == "man":
-                metricKNN = 'manhattan'
-            elif distance == "max":
-                metricKNN = 'maximal'
-            else:
-                metricKNN = 'euclidean'
-            continuizer = Orange.preprocess.Continuize()
-            continuizer.multinomial_treatment = continuizer.Indicators
-            knnLearner = Orange.classification.KNNLearner(
-                preprocessors=continuizer, n_neighbors=KofKNN,
-                metric=metricKNN, weights='uniform', algorithm='auto',
-                metric_params=None)
-            classifier = knnLearner(orange_training_dataset)
+
+        if distance == "eu":
+            metricKNN = 'euclidean'
+        elif distance == "ham":
+            metricKNN = 'hamming'
+        elif distance == "man":
+            metricKNN = 'manhattan'
+        elif distance == "max":
+            metricKNN = 'maximal'
+        else:
+            metricKNN = 'euclidean'
+        continuizer = Orange.preprocess.Continuize()
+        continuizer.multinomial_treatment = continuizer.Indicators
+        knnLearner = Orange.classification.KNNLearner(
+            preprocessors=continuizer, n_neighbors=KofKNN,
+            metric=metricKNN, weights='uniform', algorithm='auto',
+            metric_params=None)
+        classifier = knnLearner(orange_training_dataset)
+        raise NotImplementedError
     else:
         raise ValueError("Classifier not available")
 
@@ -357,8 +274,8 @@ def get_relevant_subset_from_local_rules(impo_rules, oldinputAr):
     return inputAr, nInputAr, newInputAr, oldAr_set
 
 
-def compute_prediction_difference_subset(training_dataset_,
-                                         instance,
+def compute_prediction_difference_subset(training_dataset: Dataset,
+                                         instance: Orange.data.Instance,
                                          rule_body_indices,
                                          classifier,
                                          instance_class_index,
@@ -367,7 +284,6 @@ def compute_prediction_difference_subset(training_dataset_,
     Compute the prediction difference for an instance in a training_dataset, w.r.t. some
     rules and a class, given a classifier
     """
-    training_dataset: Dataset = training_dataset_
 
     rule_attributes = [
         list(training_dataset.attributes())[rule_body_index - 1][0] for
@@ -382,7 +298,7 @@ def compute_prediction_difference_subset(training_dataset_,
 
     # For each set of attributes
     differences = [compute_perturbed_difference(item, classifier, instance, instance_class_index,
-                                                rule_attributes, training_dataset_) for
+                                                rule_attributes, training_dataset) for
                    item in
                    attribute_sets_occurrences.items()]
 
