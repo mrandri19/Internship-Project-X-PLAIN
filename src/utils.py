@@ -5,6 +5,7 @@ import pickle
 import random
 # noinspection PyUnresolvedReferences
 from collections import Counter
+from collections import defaultdict
 # noinspection PyUnresolvedReferences
 from copy import deepcopy
 # noinspection PyUnresolvedReferences
@@ -24,8 +25,6 @@ from src import DEFAULT_DIR
 MAX_SAMPLE_COUNT = 100
 OT = 0
 MT = 1
-
-from collections import defaultdict
 
 
 class Dataset:
@@ -50,11 +49,16 @@ class Dataset:
         return self.attributes[-1][1]
 
     def X(self):
-        """The dataset's attributes as a numpy float64 array."""
+        """All rows' attributes as a numpy float64 array."""
         return self._encoded_df.iloc[:, :-1].to_numpy().astype(np.float64)
 
-    def row_inverse_transform_value(self, attr, column_index):
-        return self._column_encoders[column_index].inverse_transform(attr)
+    def Y(self):
+        """All rows' classes as a numpy float64 array."""
+        return self._encoded_df.iloc[:, -1].to_numpy().astype(np.float64)
+
+    def row_inverse_transform_value(self, value, column):
+        """"Given a value (one column of a row) and that column's name, return itsdecoded value"""
+        return self._column_encoders[column].inverse_transform(value)
 
     def class_column_name(self):
         """"The column name of the class attribute"""
@@ -66,23 +70,36 @@ class Dataset:
     def __getitem__(self, item):
         return self._encoded_df.iloc[item]
 
-    def Y(self):
-        return self._encoded_df.iloc[:, -1].to_numpy().astype(np.float64)
-
     def orange_domain(self):
-        vars = [Orange.data.DiscreteVariable.make(name, vals) for (name, vals) in
-                self.attributes]
-        return Orange.data.Domain(attributes=vars[:-1], class_vars=vars[-1])
+        """"Return a Orange.data.Domain built using the dataset's attributes"""
+        orange_vars = [Orange.data.DiscreteVariable.make(name, vals) for (name, vals) in
+                       self.attributes]
+        return Orange.data.Domain(attributes=orange_vars[:-1], class_vars=orange_vars[-1])
+
+    def to_arff_obj(self):
+        obj = {'relation': self.class_column_name(),
+               'attributes': self.attributes,
+               'data': self._df.values.tolist()}
+        return obj
 
 
-# TODO(Andrea): Remove when Orange is completely out
+def make_orange_instance(dataset, index):
+    return Orange.data.Instance(dataset.orange_domain(), dataset[index])
+
+
+def table_to_arff(t):
+    obj = {'relation': t.domain.class_var.name,
+           'attributes': [(v.name, v.values) for v in t.domain.variables],
+           'data': [list(r.values()) for r in t]}
+    return obj
 
 
 def assert_orange_pd_equal(table: Orange.data.Table, dataset: Dataset):
     # TODO(Andrea): Remove when Orange is completely out
-    assert len(table) == len(dataset._df)
+    assert len(table) == len(dataset)
 
 
+# noinspection PyUnresolvedReferences
 def import_dataset(dataset_name: str, explain_indices: List[int], random_explain_dataset: bool) -> \
         Tuple[Tuple[Orange.data.Table, Dataset], Tuple[Orange.data.Table, Dataset], int, List[str]]:
     if dataset_name[-4:] == "arff":
@@ -202,12 +219,10 @@ def get_features_names(classifier):
 
 # noinspection PyUnresolvedReferences
 def get_classifier(training_datasets: Tuple[Orange.data.Table, Dataset], classifier_name: str,
-                   classifier_parameter: str, should_exit) -> Tuple[
-    Orange.classification.Learner, bool, str]:
+                   classifier_parameter: str, should_exit) -> Orange.classification.Learner:
     # TODO(Andrea): FINISH continue threading through the pandas dataset
     classifier_name = classifier_name
     classifier = None
-    exit_reason = ""
 
     training_dataset, pd_training_dataset = training_datasets
 
@@ -248,8 +263,7 @@ def get_classifier(training_datasets: Tuple[Orange.data.Table, Dataset], classif
 
     elif classifier_name == "knn":
         if classifier_parameter is None:
-            should_exit = True
-            exit_reason = "k - missing the K parameter"
+            raise ValueError("k - missing the K parameter")
         elif len(classifier_parameter.split("-")) == 1:
             KofKNN = int(classifier_parameter.split("-")[0])
             distance = ""
@@ -274,68 +288,49 @@ def get_classifier(training_datasets: Tuple[Orange.data.Table, Dataset], classif
                 metric=metricKNN, weights='uniform', algorithm='auto',
                 metric_params=None)
             classifier = knnLearner(training_dataset)
-
     else:
-        exit_reason = "Classification model not available"
-        should_exit = True
+        raise ValueError("Classifier not available")
 
-    return classifier, should_exit, exit_reason
-
-
-def createDir(outdir):
-    try:
-        os.makedirs(outdir)
-    except:
-        pass
+    return classifier
 
 
-def table_to_arff(t):
-    obj = {}
-    obj['relation'] = t.domain.class_var.name
-    obj['attributes'] = [(v.name, v.values) for v in t.domain.variables]
-    obj['data'] = [list(r.values()) for r in t]
-    return obj
-
-
-def gen_neighbors_info(training_dataset_: Tuple[Orange.data.Table, Dataset], nbrs,
+def gen_neighbors_info(training_dataset: Dataset, nbrs,
                        instance: Orange.data.Instance, k: int,
                        unique_filename: str, classifier):
-    # TODO(Andrea): Finish. Maybe make Dataset -> Pandas Instance conversion function
-    #               Maybe make a classmethod on Dataset, something like `from_indices`
-    orange_training_dataset, pd_training_dataset = training_dataset_
-    domain = orange_training_dataset.domain
+    domain = training_dataset.orange_domain()
     nearest_neighbors_ixs = nbrs.kneighbors([instance.x], k,
                                             return_distance=False)[0]
-    orange_closest_instance = orange_training_dataset[nearest_neighbors_ixs[0]]
-    pd_closest_instance = pd_training_dataset[nearest_neighbors_ixs[0]]
-
-    # print(pd_closest_instance.to_numpy(np.float64)[:-1])
+    orange_closest_instance = make_orange_instance(training_dataset, nearest_neighbors_ixs[0])
 
     classified_instance = deepcopy(instance)
     classified_instance.set_class(classifier(instance)[0])
     classified_instances = [classified_instance]
 
     for neigh_ix in nearest_neighbors_ixs:
-        neigh = orange_training_dataset[neigh_ix]
-        classified_neigh = deepcopy(neigh)
-        classified_neigh.set_class(classifier(neigh)[0])
+        orange_neigh = make_orange_instance(training_dataset, neigh_ix)
+        classified_neigh = deepcopy(orange_neigh)
+        classified_neigh.set_class(classifier(orange_neigh)[0])
 
         classified_instances.append(classified_neigh)
 
-    classified_instances_table = Orange.data.Table(domain, classified_instances)
+    pd_classified_instances_dataset = Dataset(
+        [c.list for c in classified_instances],
+        training_dataset.attributes)
 
     closest_instance_classified = deepcopy(orange_closest_instance)
     closest_instance_classified.set_class(classifier(orange_closest_instance)[0])
-    closest_instance_table = Orange.data.Table(domain, [closest_instance_classified])
+    pd_closest_instance_dataset = Dataset(
+        [c.list for c in [closest_instance_classified]],
+        training_dataset.attributes)
 
     p = DEFAULT_DIR + unique_filename
     if not os.path.exists(p):
         os.makedirs(p)
 
     with open(join(p, "Knnres.arff"), "w") as f:
-        arff.dump(table_to_arff(classified_instances_table), f)
+        arff.dump(pd_classified_instances_dataset.to_arff_obj(), f)
     with open(join(p, "Filetest.arff"), "w") as f:
-        arff.dump(table_to_arff(closest_instance_table), f)
+        arff.dump(pd_closest_instance_dataset.to_arff_obj(), f)
 
 
 def get_relevant_subset_from_local_rules(impo_rules, oldinputAr):
@@ -455,9 +450,7 @@ def compute_prediction_difference_single(instT, classifier, indexI, dataset_):
             newvalue = prob * test
             listaoutput[t] = listaoutput[t] + newvalue
 
-    l = len(listaoutput)
-
-    for i in range(0, l):
+    for i in range(0, len(listaoutput)):
         listaoutput[i] = prob - listaoutput[i]
     return listaoutput
 
@@ -553,7 +546,7 @@ def convert_orange_table_to_pandas(orangeTable, ids=None, sel="all", cl=None, ma
 
 
 def savePickle(model, dirO, name):
-    createDir(dirO)
+    os.makedirs(dirO)
     with open(dirO + "/" + name + '.pickle', 'wb') as handle:
         pickle.dump(model, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
