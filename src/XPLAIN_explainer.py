@@ -28,7 +28,7 @@ from src.utils import gen_neighbors_info, \
     get_relevant_subset_from_local_rules, get_classifier, import_datasets, import_dataset, \
     compute_prediction_difference_subset, \
     compute_prediction_difference_single, getStartKValueSimplified, \
-    compute_class_frequency, compute_error_approximation, createDir, convertOTable2Pandas, \
+    compute_class_frequency, compute_error_approximation, createDir, convert_orange_table_to_pandas, \
     get_KNN_threshold_max, DEFAULT_DIR, OT, MT, Dataset
 
 ERROR_DIFFERENCE_THRESHOLD = 0.01
@@ -183,10 +183,10 @@ class XPLAIN_explainer:
                                                   k,
                                                   error,
                                                   difference_map)
-        # Remove the temporary folder and dir
-        import shutil
-        if os.path.exists(DEFAULT_DIR + self.unique_filename):
-            shutil.rmtree(DEFAULT_DIR + self.unique_filename)
+        # # Remove the temporary folder and dir
+        # import shutil
+        # if os.path.exists(DEFAULT_DIR + self.unique_filename):
+        #     shutil.rmtree(DEFAULT_DIR + self.unique_filename)
 
         return instance_explanation
 
@@ -253,9 +253,9 @@ class XPLAIN_explainer:
     def showMispredictedTabularForm(self, mispred_class=False):
         sel = self.getMispredicted(mispred_class=mispred_class)
         sel_index = [self.explain_indices.index(i) for i in sel]
-        return convertOTable2Pandas(self.explain_dataset, list(map(int, sel)),
-                                    sel_index, self.classifier,
-                                    self.ix_to_class)
+        return convert_orange_table_to_pandas(self.explain_dataset, list(map(int, sel)),
+                                              sel_index, self.classifier,
+                                              self.ix_to_class)
 
     # NEW_UPDATE
     def update_explain_instance(self, instance_explanation, rule_body_indices):

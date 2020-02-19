@@ -66,6 +66,17 @@ class Dataset:
     def __getitem__(self, item):
         return self._encoded_df.iloc[item]
 
+    def Y(self):
+        return self._encoded_df.iloc[:, -1].to_numpy().astype(np.float64)
+
+    def orange_domain(self):
+        vars = [Orange.data.DiscreteVariable.make(name, vals) for (name, vals) in
+                self.attributes]
+        return Orange.data.Domain(attributes=vars[:-1], class_vars=vars[-1])
+
+
+# TODO(Andrea): Remove when Orange is completely out
+
 
 def assert_orange_pd_equal(table: Orange.data.Table, dataset: Dataset):
     # TODO(Andrea): Remove when Orange is completely out
@@ -162,98 +173,11 @@ def import_datasets(dataset_name: str, explain_indices: List[int],
 
 def loadARFF(filename: str) -> Tuple[Orange.data.Table, Dataset]:
     with open(filename, 'r') as f:
-        attributes = []
-        name = ''
-        in_header = False  # header
-        rows = []
-
-        for line in f.readlines():
-            line = line.rstrip("\n\r")  # strip trailing whitespace
-            line = line.replace('\t', ' ')  # get rid of tabs
-            line = line.split('%')[0]  # strip comments
-            if len(line.strip()) == 0:  # ignore empty lines
-                continue
-            if not in_header and line[0] != '@':
-                print(("ARFF import ignoring:", line))
-            if in_header:  # Header
-                if line[0] == '{':  # sparse data format, begin with '{', ends with '}'
-                    r = [None] * len(attributes)
-                    row = line[1:-1]
-                    row = row.split(',')
-                    for xs in row:
-                        y = xs.split(" ")
-                        if len(y) != 2:
-                            raise ValueError("the format of the data is error")
-                        # noinspection PyTypeChecker
-                        r[int(y[0])] = y[1]
-                    rows.append(r)
-                else:  # normal data format, split by ','
-                    row = line.split(',')
-                    r = []
-                    for xs in row:
-                        y = xs.strip(" ")
-                        if len(y) > 0:
-                            if y[0] == "'" or y[0] == '"':
-                                r.append(xs.strip("'\""))
-                            else:
-                                ns = xs.split()
-                                for ls in ns:
-                                    if len(ls) > 0:
-                                        r.append(ls)
-                        else:
-                            r.append('?')
-                    rows.append(r[:len(attributes)])
-            else:  # Data
-                y = []
-                for cy in line.split(' '):
-                    if len(cy) > 0:
-                        y.append(cy)
-                if str.lower(y[0][1:]) == 'data':
-                    in_header = True
-                elif str.lower(y[0][1:]) == 'relation':
-                    name = str.strip(y[1])
-                elif str.lower(y[0][1:]) == 'attribute':
-                    if y[1][0] == "'":
-                        atn = y[1].strip("' ")
-                        idx = 1
-                        while y[idx][-1] != "'":
-                            idx += 1
-                            atn += ' ' + y[idx]
-                        atn = atn.strip("' ")
-                    else:
-                        atn = y[1]
-                    z = line.split('{')
-                    w = z[-1].split('}')
-                    if len(z) > 1 and len(w) > 1:
-                        # there is a list of values
-                        vals = []
-                        for y in w[0].split(','):
-                            sy = y.strip(" '\"")
-                            if len(sy) > 0:
-                                vals.append(sy)
-                        a = Orange.data.DiscreteVariable.make(atn, vals, True, 0)
-                    else:
-                        a = Orange.data.variable.ContinuousVariable.make(atn)
-                    attributes.append(a)
-
-        # generate the domain
-        if attributes[-1].name == name:
-            domain = Orange.data.Domain(attributes[:-1], attributes[-1])
-        else:
-            new_attr = []
-            for att in attributes:
-                if att != name:
-                    new_attr.append(att)
-            domain = Orange.data.Domain(new_attr)
-
-        instances = [Orange.data.Instance(domain, row) for row in rows]
-
-        table = Orange.data.Table.from_list(domain, instances)
-        table.name = name
-
-        f.seek(0)
         a = arff.load(f)
         dataset = Dataset(a['data'], a['attributes'])
+
+        table = Orange.data.Table.from_numpy(dataset.orange_domain(), dataset.X(), dataset.Y())
+        table.name = a['relation']
 
         assert_orange_pd_equal(table, dataset)
 
@@ -373,20 +297,26 @@ def table_to_arff(t):
     return obj
 
 
-def gen_neighbors_info(training_dataset_, nbrs, instance, k,
-                       unique_filename, classifier):
-    training_dataset = training_dataset_[OT]
-    domain = training_dataset.domain
+def gen_neighbors_info(training_dataset_: Tuple[Orange.data.Table, Dataset], nbrs,
+                       instance: Orange.data.Instance, k: int,
+                       unique_filename: str, classifier):
+    # TODO(Andrea): Finish. Maybe make Dataset -> Pandas Instance conversion function
+    #               Maybe make a classmethod on Dataset, something like `from_indices`
+    orange_training_dataset, pd_training_dataset = training_dataset_
+    domain = orange_training_dataset.domain
     nearest_neighbors_ixs = nbrs.kneighbors([instance.x], k,
                                             return_distance=False)[0]
-    closest_instance = training_dataset[nearest_neighbors_ixs[0]]
+    orange_closest_instance = orange_training_dataset[nearest_neighbors_ixs[0]]
+    pd_closest_instance = pd_training_dataset[nearest_neighbors_ixs[0]]
+
+    # print(pd_closest_instance.to_numpy(np.float64)[:-1])
 
     classified_instance = deepcopy(instance)
     classified_instance.set_class(classifier(instance)[0])
     classified_instances = [classified_instance]
 
     for neigh_ix in nearest_neighbors_ixs:
-        neigh = training_dataset[neigh_ix]
+        neigh = orange_training_dataset[neigh_ix]
         classified_neigh = deepcopy(neigh)
         classified_neigh.set_class(classifier(neigh)[0])
 
@@ -394,11 +324,10 @@ def gen_neighbors_info(training_dataset_, nbrs, instance, k,
 
     classified_instances_table = Orange.data.Table(domain, classified_instances)
 
-    closest_instance_classified = deepcopy(closest_instance)
-    closest_instance_classified.set_class(classifier(closest_instance)[0])
+    closest_instance_classified = deepcopy(orange_closest_instance)
+    closest_instance_classified.set_class(classifier(orange_closest_instance)[0])
     closest_instance_table = Orange.data.Table(domain, [closest_instance_classified])
 
-    import os
     p = DEFAULT_DIR + unique_filename
     if not os.path.exists(p):
         os.makedirs(p)
@@ -599,7 +528,7 @@ def compute_class_frequency(data_):
     return class_frequency
 
 
-def convertOTable2Pandas(orangeTable, ids=None, sel="all", cl=None, mapName=None):
+def convert_orange_table_to_pandas(orangeTable, ids=None, sel="all", cl=None, mapName=None):
     if sel == "all":
         dataK = [orangeTable[k].list for k in range(0, len(orangeTable))]
     else:
