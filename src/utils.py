@@ -32,7 +32,7 @@ class Dataset:
 
     def __init__(self, data, attributes):
         self._df = pd.DataFrame(data)
-        self.attributes = attributes
+        self.columns = attributes
 
         # Rename columns from 0,1,... to the attributes[0,1,...][0]
         columns_mapper = {i: a for (i, a) in enumerate([a for (a, _) in attributes])}
@@ -46,15 +46,26 @@ class Dataset:
 
     def class_values(self):
         """All possible classes in the dataset"""
-        return self.attributes[-1][1]
+        return self.columns[-1][1]
 
     def X(self):
+        """All rows' attributes as a pandas DataFrame."""
+        return self._encoded_df.iloc[:, :-1]
+
+    def Y(self):
+        """All rows' classes as a pandas Series."""
+        return self._encoded_df.iloc[:, -1]
+
+    def X_numpy(self):
         """All rows' attributes as a numpy float64 array."""
         return self._encoded_df.iloc[:, :-1].to_numpy().astype(np.float64)
 
-    def Y(self):
+    def Y_numpy(self):
         """All rows' classes as a numpy float64 array."""
         return self._encoded_df.iloc[:, -1].to_numpy().astype(np.float64)
+
+    def attributes(self):
+        return self.columns[:-1]
 
     def row_inverse_transform_value(self, value, column):
         """"Given a value (one column of a row) and that column's name, return itsdecoded value"""
@@ -62,7 +73,7 @@ class Dataset:
 
     def class_column_name(self):
         """"The column name of the class attribute"""
-        return self.attributes[-1][0]
+        return self.columns[-1][0]
 
     def __len__(self):
         return len(self._df)
@@ -73,12 +84,12 @@ class Dataset:
     def orange_domain(self):
         """"Return a Orange.data.Domain built using the dataset's attributes"""
         orange_vars = [Orange.data.DiscreteVariable.make(name, vals) for (name, vals) in
-                       self.attributes]
+                       self.columns]
         return Orange.data.Domain(attributes=orange_vars[:-1], class_vars=orange_vars[-1])
 
     def to_arff_obj(self):
         obj = {'relation': self.class_column_name(),
-               'attributes': self.attributes,
+               'attributes': self.columns,
                'data': self._df.values.tolist()}
         return obj
 
@@ -140,11 +151,11 @@ def import_dataset(dataset_name: str, explain_indices: List[int], random_explain
         training_indices.remove(i)
 
     orange_training_dataset = Orange.data.Table.from_table_rows(orange_dataset, training_indices)
-    pd_training_dataset = Dataset(pd_dataset._df.iloc[training_indices], pd_dataset.attributes)
+    pd_training_dataset = Dataset(pd_dataset._df.iloc[training_indices], pd_dataset.columns)
     assert_orange_pd_equal(orange_training_dataset, pd_training_dataset)
 
     orange_explain_dataset = Orange.data.Table.from_table_rows(orange_dataset, explain_indices)
-    pd_explain_dataset = Dataset(pd_dataset._df.iloc[explain_indices], pd_dataset.attributes)
+    pd_explain_dataset = Dataset(pd_dataset._df.iloc[explain_indices], pd_dataset.columns)
     assert_orange_pd_equal(orange_explain_dataset, pd_explain_dataset)
 
     return (orange_training_dataset, pd_training_dataset), (
@@ -181,7 +192,7 @@ def import_datasets(dataset_name: str, explain_indices: List[int],
     orange_explain_dataset = Orange.data.Table.from_table_rows(orange_explain_dataset,
                                                                explain_indices)
     pd_explain_dataset = Dataset(pd_explain_dataset._df.iloc[explain_indices],
-                                 pd_explain_dataset.attributes)
+                                 pd_explain_dataset.columns)
     assert_orange_pd_equal(orange_explain_dataset, pd_explain_dataset)
 
     return (orange_training_dataset, pd_training_dataset), (
@@ -193,7 +204,8 @@ def loadARFF(filename: str) -> Tuple[Orange.data.Table, Dataset]:
         a = arff.load(f)
         dataset = Dataset(a['data'], a['attributes'])
 
-        table = Orange.data.Table.from_numpy(dataset.orange_domain(), dataset.X(), dataset.Y())
+        table = Orange.data.Table.from_numpy(dataset.orange_domain(), dataset.X_numpy(),
+                                             dataset.Y_numpy())
         table.name = a['relation']
 
         assert_orange_pd_equal(table, dataset)
@@ -297,7 +309,6 @@ def get_classifier(training_datasets: Tuple[Orange.data.Table, Dataset], classif
 def gen_neighbors_info(training_dataset: Dataset, nbrs,
                        instance: Orange.data.Instance, k: int,
                        unique_filename: str, classifier):
-    domain = training_dataset.orange_domain()
     nearest_neighbors_ixs = nbrs.kneighbors([instance.x], k,
                                             return_distance=False)[0]
     orange_closest_instance = make_orange_instance(training_dataset, nearest_neighbors_ixs[0])
@@ -315,13 +326,13 @@ def gen_neighbors_info(training_dataset: Dataset, nbrs,
 
     pd_classified_instances_dataset = Dataset(
         [c.list for c in classified_instances],
-        training_dataset.attributes)
+        training_dataset.columns)
 
     closest_instance_classified = deepcopy(orange_closest_instance)
     closest_instance_classified.set_class(classifier(orange_closest_instance)[0])
     pd_closest_instance_dataset = Dataset(
         [c.list for c in [closest_instance_classified]],
-        training_dataset.attributes)
+        training_dataset.columns)
 
     p = DEFAULT_DIR + unique_filename
     if not os.path.exists(p):
@@ -418,41 +429,42 @@ def compute_perturbed_difference(item, classifier, instance, instance_class_inde
 
 
 # Single explanation. Change 1 value at the time e compute the difference
-def compute_prediction_difference_single(instT, classifier, indexI, dataset_):
-    dataset = dataset_[OT]
-    from copy import deepcopy
-    i = deepcopy(instT)
-    listaoutput = []
+def compute_prediction_difference_single(instance, classifier, target_class_index,
+                                         training_dataset_):
+    training_dataset = training_dataset_[MT]
+    dataset_len = len(training_dataset)
 
-    c1 = classifier(i, True)[0]
-    prob = c1[indexI]
+    attribute_pred_difference = [0] * len(training_dataset.attributes())
 
-    for _ in i.domain.attributes[:]:
-        listaoutput.append(0.0)
+    # The probability of `instance` belonging to class `target_class_index`
+    prob = classifier(instance, True)[0][target_class_index]
 
-    t = -1
-    for k in dataset.domain.attributes[:]:
-        d = Orange.data.Table()
-        t = t + 1
-        k_a_i = Orange.data.Domain([k])
-        filtered_i = d.from_table(k_a_i, dataset)
-        c = Counter(map(tuple, filtered_i.X))
-        freq = dict(c.items())
+    # For each `instance` attribute
+    for (attr_ix, (attr, _)) in enumerate(training_dataset.attributes()):
+        # Create a dataset containing only the column of the attribute
+        filtered_dataset = training_dataset.X()[attr]
 
-        for k_ex in freq:
-            inst1 = deepcopy(instT)
-            inst1[k] = k_ex[0]
-            c1 = classifier(inst1, True)[0]
+        # Count how many times each value of that attribute appears in the dataset
+        attr_occurrences = dict(Counter(filtered_dataset).items())
 
-            prob = c1[indexI]
-            test = freq[k_ex] / len(dataset)
-            # newvalue=prob*freq[k_ex]/len(dataset)
-            newvalue = prob * test
-            listaoutput[t] = listaoutput[t] + newvalue
+        # For each value of the attribute
+        for attr_val in attr_occurrences:
+            # Create an instance whose attribute `attr` has that value (`attr_val`)
+            perturbed_instance = deepcopy(instance)
+            perturbed_instance[attr] = attr_val
 
-    for i in range(0, len(listaoutput)):
-        listaoutput[i] = prob - listaoutput[i]
-    return listaoutput
+            # See how the prediction changes
+            prob = classifier(perturbed_instance, True)[0][target_class_index]
+
+            # Update the attribute difference weighting the prediction by the value frequency
+            weight = attr_occurrences[attr_val] / dataset_len
+            difference = prob * weight
+            attribute_pred_difference[attr_ix] += difference
+
+    for i in range(len(attribute_pred_difference)):
+        attribute_pred_difference[i] = prob - attribute_pred_difference[i]
+
+    return attribute_pred_difference
 
 
 def compute_error_approximation(mappa_class, pred, out_data, impo_rules_complete, classname,

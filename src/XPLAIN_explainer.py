@@ -88,7 +88,7 @@ class XPLAIN_explainer:
         self.nbrs = sklearn.neighbors.NearestNeighbors(
             n_neighbors=len(self.training_dataset[MT]), metric='euclidean',
             algorithm='auto', metric_params=None).fit(
-            self.training_dataset[MT].X())
+            self.training_dataset[MT].X_numpy())
 
         self.starting_K = self.K
 
