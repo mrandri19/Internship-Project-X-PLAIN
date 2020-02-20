@@ -15,6 +15,8 @@ from typing import Tuple, List
 
 import Orange
 import arff
+# noinspection PyUnresolvedReferences
+import numpy as np
 import pandas as pd
 # noinspection PyUnresolvedReferences
 import sklearn
@@ -23,7 +25,7 @@ from src import DEFAULT_DIR
 from src.dataset import Dataset
 
 MAX_SAMPLE_COUNT = 100
-OT = 0
+MT = 1
 
 
 def make_orange_instance_index(dataset: Dataset, index: int) -> Orange.data.Instance:
@@ -165,8 +167,7 @@ def get_classifier(training_dataset: Dataset, classifier_name: str,
         learnerrf = Orange.classification.RandomForestLearner(
             preprocessors=continuizer, random_state=42)
         orange_clf = learnerrf(orange_training_dataset)
-        return orange_clf, None
-        # raise NotImplementedError
+        raise NotImplementedError
 
     elif classifier_name == "nn":
         continuizer = Orange.preprocess.Continuize()
@@ -225,13 +226,15 @@ def gen_neighbors_info(training_dataset: Dataset, nbrs,
     orange_closest_instance = make_orange_instance_index(training_dataset, nearest_neighbors_ixs[0])
 
     classified_instance = deepcopy(instance)
-    classified_instance.set_class(classifier[OT](instance)[0])
+    classified_instance.set_class(
+        classifier[MT].predict(instance.x.reshape(1, -1))[0].astype(np.int64))
     classified_instances = [classified_instance]
 
     for neigh_ix in nearest_neighbors_ixs:
         orange_neigh = make_orange_instance_index(training_dataset, neigh_ix)
         classified_neigh = deepcopy(orange_neigh)
-        classified_neigh.set_class(classifier[OT](orange_neigh)[0])
+        classified_neigh.set_class(
+            classifier[MT].predict(orange_neigh.x.reshape(1, -1))[0].astype(np.int64))
 
         classified_instances.append(classified_neigh)
 
@@ -240,7 +243,8 @@ def gen_neighbors_info(training_dataset: Dataset, nbrs,
         training_dataset.columns)
 
     closest_instance_classified = deepcopy(orange_closest_instance)
-    closest_instance_classified.set_class(classifier[OT](orange_closest_instance)[0])
+    closest_instance_classified.set_class(
+        classifier[MT].predict(orange_closest_instance.x.reshape(1, -1))[0].astype(np.int64))
     pd_closest_instance_dataset = Dataset(
         [c.list for c in [closest_instance_classified]],
         training_dataset.columns)
@@ -311,7 +315,7 @@ def compute_prediction_difference_subset(training_dataset: Dataset,
     prediction_difference = sum(differences)
 
     # p(y=c|x) i.e. Probability that instance x belongs to class c
-    p = classifier[OT](instance, True)[0][instance_class_index]
+    p = classifier[MT].predict_proba(instance.x.reshape(1, -1))[0][instance_class_index]
     prediction_differences = p - prediction_difference
 
     return prediction_differences
@@ -328,7 +332,8 @@ def compute_perturbed_difference(item, classifier, instance, instance_class_inde
     #     instance_predictions_cache[cache_key] = classifier(perturbed_instance, True)[0][
     #         instance_class_index]
     # prob = instance_predictions_cache[cache_key]
-    prob = classifier[OT](perturbed_instance, True)[0][instance_class_index]
+    prob = classifier[MT].predict_proba(perturbed_instance.x.reshape(1, -1))[0][
+        instance_class_index]
 
     # Compute the prediction difference using the weighted average of the
     # probability over the frequency of this attribute set in the
@@ -346,7 +351,7 @@ def compute_prediction_difference_single(instance, classifier, target_class_inde
     attribute_pred_difference = [0] * len(training_dataset.attributes())
 
     # The probability of `instance` belonging to class `target_class_index`
-    orange_prob = classifier[OT](instance, True)[0][target_class_index]
+    orange_prob = classifier[MT].predict_proba(instance.x.reshape(1, -1))[0][target_class_index]
 
     # For each `instance` attribute
     for (attr_ix, (attr, _)) in enumerate(training_dataset.attributes()):
@@ -363,7 +368,8 @@ def compute_prediction_difference_single(instance, classifier, target_class_inde
             perturbed_instance[attr] = attr_val
 
             # See how the prediction changes
-            orange_prob = classifier[OT](perturbed_instance, True)[0][target_class_index]
+            orange_prob = classifier[MT].predict_proba(perturbed_instance.x.reshape(1, -1))[0][
+                target_class_index]
 
             # Update the attribute difference weighting the prediction by the value frequency
             weight = attr_occurrences[attr_val] / dataset_len

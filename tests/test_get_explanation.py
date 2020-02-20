@@ -46,6 +46,9 @@ class TestGet_explanation(TestCase):
 
     def test_get_explanation_adult_naive_bayes(self):
         e = get_explanation(join(DEFAULT_DIR, "datasets/adult_d.arff"), "nb")
+
+        print("ERROR:", e.error)
+
         self.assertMatchSnapshot((
             e.XPLAIN_explainer_o,
             e.diff_single,

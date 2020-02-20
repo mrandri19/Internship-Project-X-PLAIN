@@ -31,7 +31,7 @@ from src.utils import gen_neighbors_info, \
     compute_prediction_difference_subset, \
     compute_prediction_difference_single, getStartKValueSimplified, \
     compute_class_frequency, compute_error_approximation, convert_orange_table_to_pandas, \
-    get_KNN_threshold_max, DEFAULT_DIR, make_orange_instance_index, make_orange_instance
+    get_KNN_threshold_max, DEFAULT_DIR, make_orange_instance_index, make_orange_instance, MT
 
 ERROR_DIFFERENCE_THRESHOLD = 0.01
 TEMPORARY_FOLDER_NAME = "tmp"
@@ -121,7 +121,7 @@ class XPLAIN_explainer:
 
     def explain_instance(self, instance, target_class):
         orange_instance = make_orange_instance(self.explain_dataset, instance)
-        orange_c = self.classifier[OT](orange_instance, False)
+        orange_c = self.classifier[MT].predict(orange_instance.x.reshape(1, -1))[0]
         target_class_index = self.get_class_index(target_class)
 
         self.starting_K = self.K
@@ -131,7 +131,7 @@ class XPLAIN_explainer:
         small_dataset_len = 150
         if self.training_dataset_len < small_dataset_len:
             self.starting_K = max(int(self.mappa_class[self.ix_to_class[
-                orange_c[0]]] * self.training_dataset_len), self.starting_K)
+                orange_c]] * self.training_dataset_len), self.starting_K)
 
         # Initialize k and error to be defined in case the for loop is not entered
         k = self.starting_K
@@ -150,12 +150,16 @@ class XPLAIN_explainer:
 
         all_rule_body_indices = []
 
+        errors = []
+
         # Euristically search for the best k to use to approximate the local model
         for k in range(self.starting_K, self.max_K, self.K):
             # Compute the prediction difference of single attributes only on the
             # first iteration
             if first_iteration:
-                orange_pred = self.classifier[OT](orange_instance, True)[0][target_class_index]
+                orange_pred = \
+                    self.classifier[MT].predict_proba(orange_instance.x.reshape(1, -1))[0][
+                        target_class_index]
                 single_attribute_differences = compute_prediction_difference_single(orange_instance,
                                                                                     self.classifier,
                                                                                     target_class_index,
@@ -167,6 +171,20 @@ class XPLAIN_explainer:
                 k, all_rule_body_indices, target_class, target_class_index, orange_pred,
                 single_attribute_differences)
 
+            # TODO(Andrea): investigate this id=4943, <=50K
+            # compute_lace_step k=118
+            # compute_lace_step k=236
+            # compute_lace_step k=354
+            # compute_lace_step k=472
+            # compute_lace_step k=590
+            # explain_instance errors:
+            # [0.49673809098087984,
+            # 0.49673809098087984,
+            # 0.49673809098087984,
+            # 0.49673809098087984,
+            # 0.49673809098087984]
+            errors.append(error)
+
             # If we have reached the minimum or we are stuck in a local minimum
             if (error < ERROR_THRESHOLD) or ((abs(error) - abs(
                     old_error)) > ERROR_DIFFERENCE_THRESHOLD and not first_iteration):
@@ -174,6 +192,7 @@ class XPLAIN_explainer:
             else:
                 first_iteration = False
                 old_error = error
+
         instance_explanation = XPLAIN_explanation(self,
                                                   target_class,
                                                   orange_instance,
@@ -182,9 +201,11 @@ class XPLAIN_explainer:
                                                   error,
                                                   difference_map)
         # # Remove the temporary folder and dir
-        # import shutil
-        # if os.path.exists(DEFAULT_DIR + self.unique_filename):
-        #     shutil.rmtree(DEFAULT_DIR + self.unique_filename)
+        import shutil
+        if os.path.exists(DEFAULT_DIR + self.unique_filename):
+            shutil.rmtree(DEFAULT_DIR + self.unique_filename)
+
+        print("explain_instance errors:", errors)
 
         return instance_explanation
 

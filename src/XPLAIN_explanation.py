@@ -1,6 +1,6 @@
 from copy import deepcopy
 
-from src.utils import OT
+MT = 1
 
 
 class XPLAIN_explanation:
@@ -14,5 +14,6 @@ class XPLAIN_explanation:
         self.target_class = target_class
         self.instance_class_index = explainer.get_class_index(self.target_class)
 
-        c1 = self.XPLAIN_explainer_o.classifier[OT](instance, True)[0]
-        self.prob = c1[self.instance_class_index]
+        self.prob = \
+            self.XPLAIN_explainer_o.classifier[MT].predict_proba(instance.x.reshape(1, -1))[0][
+                self.instance_class_index]

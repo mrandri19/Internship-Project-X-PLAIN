@@ -32,37 +32,39 @@ function getTrace(differences, names) {
 
 function getNames(explanation) {
   return explanation.domain
-    .map(([name]) => `${name}=${explanation.instance[name].value}`)
-    .concat(
-      Object.keys(explanation.map_difference)
-        .map(function(rule, ix) {
-          if (rule.length === 1) {
-            return null
-          } else {
-            return `Rule ${ix + 1}`
-          }
-        })
-        .filter(x => x != null)
-    )
+  .map(([name]) =>
+    `${name}=${explanation.instance[name].value}`
+  )
+  .concat(
+    Object.keys(explanation.map_difference)
+    .map(function (rule, ix) {
+      if (rule.length === 1) {
+        return null
+      } else {
+        return `Rule ${ix + 1}`
+      }
+    })
+    .filter(x => x != null)
+  )
 }
 
 function getDifferences(explanation) {
   return explanation.diff_single.concat(
     Object.keys(explanation.map_difference)
-      .map(function(key, _) {
-        if (key.length === 1) {
-          return null
-        } else {
-          return explanation.map_difference[key]
-        }
-      })
-      .filter(x => x != null)
+    .map(function (key, _) {
+      if (key.length === 1) {
+        return null
+      } else {
+        return explanation.map_difference[key]
+      }
+    })
+    .filter(x => x != null)
   )
 }
 
 //    {compare ? '' : '{{}}'}
 //style={{width: '100%', height: '100%'}}
-function ExplanationPlot({ trace, title, xaxistitle }) {
+function ExplanationPlot({trace, title, xaxistitle}) {
   return (
     <Plot
       data={[trace]}
@@ -98,9 +100,9 @@ function ExplanationPlot({ trace, title, xaxistitle }) {
           size: 16
         }
       }}
-      config={{ displayModeBar: false, responsive: true }}
+      config={{displayModeBar: false, responsive: true}}
     />
   )
 }
 
-export { ExplanationPlot, getTrace, getDifferences, getNames }
+export {ExplanationPlot, getTrace, getDifferences, getNames}

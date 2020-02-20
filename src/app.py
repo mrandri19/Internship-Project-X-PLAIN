@@ -1,4 +1,5 @@
 from copy import deepcopy
+from os.path import join
 from typing import Dict, Any, Union
 
 from flask import Flask, jsonify, abort, request
@@ -6,8 +7,8 @@ from flask_cors import CORS
 
 from src import DEFAULT_DIR
 from src.XPLAIN_explainer import XPLAIN_explainer
-from src.utils import openPickle, savePickle
 from src.user_explanation import UserExplanation
+from src.utils import openPickle, savePickle
 
 app = Flask(__name__)
 CORS(app)
@@ -20,9 +21,9 @@ classifiers = {
 
 datasets = {
     'Zoo': {'file': 'zoo'},
-    'Adult': {'file': 'datasets/adult_d.arff'},
+    'Adult': {'file': join(DEFAULT_DIR, 'datasets/adult_d.arff')},
     'Monks': {'file': 'monks-1'},
-    'Monks-extended': {'file': 'datasets/monks_extended.arff'}
+    'Monks-extended': {'file': join(DEFAULT_DIR, 'datasets/monks_extended.arff')}
 }
 
 analyses = {"explain": {"display_name": "Explain the prediction"},
@@ -64,6 +65,16 @@ state: Dict[str, Union[str, Any]] = {
 }
 
 state["instance_id"] = state["explainer"].explain_indices[0]
+
+
+# ************************************************************************************************ #
+
+def get_domain(d):
+    return [(attr[0], attr[1]) for attr in d.attributes()]
+
+
+def get_domain_and_class(d):
+    return [(attr[0], attr[1]) for attr in d.columns]
 
 
 # ************************************************************************************************ #
@@ -144,10 +155,10 @@ def get_instances():
     d = xp.explain_dataset
 
     return jsonify({
-        'domain': [(attr.name, attr.values) for attr in d.domain.variables],
-        'instances': [(list(instance.x) + list(instance.y), ix) for instance, ix in
+        'domain': get_domain_and_class(d),
+        'instances': [(list(instance), ix) for instance, ix in
                       zip(d, xp.explain_indices)],
-        'classes': [*d.domain.class_var.values],
+        'classes': d.class_values(),
         'analysis_type': state["analysis_type"]
     })
 
@@ -233,10 +244,10 @@ def post_analyses(name):
 def explanation_to_dict(xp):
     e = xp.XPLAIN_explainer_o
     return {
-        'instance': {attr.name: {'value': attr.values[int(value_ix)], 'options': attr.values} for
+        'instance': {attr[0]: {'value': attr[1][int(value_ix)], 'options': attr[1]} for
                      (attr, value_ix) in
-                     zip(xp.instance.domain.attributes, xp.instance.x)},
-        'domain': [(attr.name, attr.values) for attr in e.training_dataset.domain.attributes],
+                     zip(e.training_dataset.attributes(), xp.instance)},
+        'domain': get_domain(e.training_dataset),
         'diff_single': xp.diff_single,
         'map_difference': xp.map_difference,
         'k': xp.k,
@@ -265,9 +276,11 @@ def get_explanation():
     xp = state['explainer']
 
     # Initialized with a default value to speed up development
-    instance = xp.explain_dataset[0] if state['instance'] is None else state['instance']
+    instance = xp.explain_dataset.get_decoded(0) if state['instance'] is None else state['instance']
 
-    class_ = instance.get_class().value if state['class'] is None else state['class']
+    cc = xp.explain_dataset.class_column_name()
+
+    class_ = instance[cc] if state['class'] is None else state['class']
 
     e = xp.explain_instance(instance, target_class=class_)
     state["last_explanation"] = deepcopy(e)
@@ -506,8 +519,8 @@ def show_instances():
     d = xp.explain_dataset
 
     return jsonify({
-        'domain': [(attr.name, attr.values) for attr in d.domain.variables],
-        'instances': [(list(instance.x) + list(instance.y), ix) for instance, ix in
+        'domain': get_domain_and_class(d),
+        'instances': [(list(instance), ix) for instance, ix in
                       zip(d, xp.explain_indices)],
         "dataset_name": xp.dataset_name
 
