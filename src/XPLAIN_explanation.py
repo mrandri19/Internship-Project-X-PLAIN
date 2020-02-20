@@ -1,5 +1,7 @@
 from copy import deepcopy
 
+from src.utils import OT
+
 
 class XPLAIN_explanation:
     def __init__(self, explainer, target_class, instance, diff_single, k, error, difference_map):
@@ -12,5 +14,5 @@ class XPLAIN_explanation:
         self.target_class = target_class
         self.instance_class_index = explainer.get_class_index(self.target_class)
 
-        c1 = self.XPLAIN_explainer_o.classifier(instance, True)[0]
+        c1 = self.XPLAIN_explainer_o.classifier[OT](instance, True)[0]
         self.prob = c1[self.instance_class_index]

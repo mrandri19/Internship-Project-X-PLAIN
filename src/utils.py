@@ -16,11 +16,14 @@ from typing import Tuple, List
 import Orange
 import arff
 import pandas as pd
+# noinspection PyUnresolvedReferences
+import sklearn
 
 from src import DEFAULT_DIR
 from src.dataset import Dataset
 
 MAX_SAMPLE_COUNT = 100
+OT = 0
 
 
 def make_orange_instance_index(dataset: Dataset, index: int) -> Orange.data.Instance:
@@ -97,8 +100,8 @@ def import_datasets(dataset_name: str, explain_indices: List[int],
     """
     :param dataset_name: path of the dataset file
     :param explain_indices: indices of the instances to be added in the explain dataset
-    :param random_explain_dataset: create the explain dataset randomly, will make `explain_idnices`
-    futile
+    :param random_explain_dataset: randomly sample 300 rows from the _explain.arff file to make the
+                                   explain, will make `explain_indices` futile
     :return:
     """
     assert (dataset_name[-4:] == "arff")
@@ -132,9 +135,8 @@ def loadARFF(filename: str) -> Dataset:
 
 # noinspection PyUnresolvedReferences
 def get_classifier(training_dataset: Dataset, classifier_name: str,
-                   classifier_parameter: str) -> Orange.classification.Learner:
+                   classifier_parameter: str) -> Tuple[Orange.classification.Learner, object]:
     classifier_name = classifier_name
-    classifier = None
 
     orange_training_dataset = training_dataset.to_orange_table()
 
@@ -144,12 +146,26 @@ def get_classifier(training_dataset: Dataset, classifier_name: str,
         learnertree = Orange.classification.SklTreeLearner(
             preprocessors=continuizer, max_depth=7, min_samples_split=5,
             min_samples_leaf=3, random_state=1)
-        classifier = learnertree(orange_training_dataset)
+        orange_clf = learnertree(orange_training_dataset)
         raise NotImplementedError
 
     elif classifier_name == "nb":
+        from sklearn.naive_bayes import MultinomialNB
+
         learnernb = Orange.classification.NaiveBayesLearner()
-        classifier = learnernb(orange_training_dataset)
+        orange_clf = learnernb(orange_training_dataset)
+        skl_clf = MultinomialNB().fit(orange_training_dataset.X, orange_training_dataset.Y)
+
+        return orange_clf, skl_clf
+        # raise NotImplementedError
+
+    elif classifier_name == "rf":
+        continuizer = Orange.preprocess.Continuize()
+        continuizer.multinomial_treatment = continuizer.Indicators
+        learnerrf = Orange.classification.RandomForestLearner(
+            preprocessors=continuizer, random_state=42)
+        orange_clf = learnerrf(orange_training_dataset)
+        return orange_clf, None
         # raise NotImplementedError
 
     elif classifier_name == "nn":
@@ -158,22 +174,14 @@ def get_classifier(training_dataset: Dataset, classifier_name: str,
         learnernet = Orange.classification.NNClassificationLearner(
             preprocessors=continuizer, random_state=42,
             max_iter=1000)
-        classifier = learnernet(orange_training_dataset)
+        orange_clf = learnernet(orange_training_dataset)
         raise NotImplementedError
-
-    elif classifier_name == "rf":
-        continuizer = Orange.preprocess.Continuize()
-        continuizer.multinomial_treatment = continuizer.Indicators
-        learnerrf = Orange.classification.RandomForestLearner(
-            preprocessors=continuizer, random_state=42)
-        classifier = learnerrf(orange_training_dataset)
-        # raise NotImplementedError
 
     elif classifier_name == "svm":
         continuizer = Orange.preprocess.Continuize()
         continuizer.multinomial_treatment = continuizer.Indicators
         learnerrf = Orange.classification.SVMLearner(preprocessors=continuizer)
-        classifier = learnerrf(orange_training_dataset)
+        orange_clf = learnerrf(orange_training_dataset)
         raise NotImplementedError
 
     elif classifier_name == "knn":
@@ -203,12 +211,10 @@ def get_classifier(training_dataset: Dataset, classifier_name: str,
             preprocessors=continuizer, n_neighbors=KofKNN,
             metric=metricKNN, weights='uniform', algorithm='auto',
             metric_params=None)
-        classifier = knnLearner(orange_training_dataset)
+        orange_clf = knnLearner(orange_training_dataset)
         raise NotImplementedError
     else:
         raise ValueError("Classifier not available")
-
-    return classifier
 
 
 def gen_neighbors_info(training_dataset: Dataset, nbrs,
@@ -219,13 +225,13 @@ def gen_neighbors_info(training_dataset: Dataset, nbrs,
     orange_closest_instance = make_orange_instance_index(training_dataset, nearest_neighbors_ixs[0])
 
     classified_instance = deepcopy(instance)
-    classified_instance.set_class(classifier(instance)[0])
+    classified_instance.set_class(classifier[OT](instance)[0])
     classified_instances = [classified_instance]
 
     for neigh_ix in nearest_neighbors_ixs:
         orange_neigh = make_orange_instance_index(training_dataset, neigh_ix)
         classified_neigh = deepcopy(orange_neigh)
-        classified_neigh.set_class(classifier(orange_neigh)[0])
+        classified_neigh.set_class(classifier[OT](orange_neigh)[0])
 
         classified_instances.append(classified_neigh)
 
@@ -234,7 +240,7 @@ def gen_neighbors_info(training_dataset: Dataset, nbrs,
         training_dataset.columns)
 
     closest_instance_classified = deepcopy(orange_closest_instance)
-    closest_instance_classified.set_class(classifier(orange_closest_instance)[0])
+    closest_instance_classified.set_class(classifier[OT](orange_closest_instance)[0])
     pd_closest_instance_dataset = Dataset(
         [c.list for c in [closest_instance_classified]],
         training_dataset.columns)
@@ -305,7 +311,7 @@ def compute_prediction_difference_subset(training_dataset: Dataset,
     prediction_difference = sum(differences)
 
     # p(y=c|x) i.e. Probability that instance x belongs to class c
-    p = classifier(instance, True)[0][instance_class_index]
+    p = classifier[OT](instance, True)[0][instance_class_index]
     prediction_differences = p - prediction_difference
 
     return prediction_differences
@@ -322,7 +328,7 @@ def compute_perturbed_difference(item, classifier, instance, instance_class_inde
     #     instance_predictions_cache[cache_key] = classifier(perturbed_instance, True)[0][
     #         instance_class_index]
     # prob = instance_predictions_cache[cache_key]
-    prob = classifier(perturbed_instance, True)[0][instance_class_index]
+    prob = classifier[OT](perturbed_instance, True)[0][instance_class_index]
 
     # Compute the prediction difference using the weighted average of the
     # probability over the frequency of this attribute set in the
@@ -340,7 +346,7 @@ def compute_prediction_difference_single(instance, classifier, target_class_inde
     attribute_pred_difference = [0] * len(training_dataset.attributes())
 
     # The probability of `instance` belonging to class `target_class_index`
-    prob = classifier(instance, True)[0][target_class_index]
+    orange_prob = classifier[OT](instance, True)[0][target_class_index]
 
     # For each `instance` attribute
     for (attr_ix, (attr, _)) in enumerate(training_dataset.attributes()):
@@ -357,15 +363,15 @@ def compute_prediction_difference_single(instance, classifier, target_class_inde
             perturbed_instance[attr] = attr_val
 
             # See how the prediction changes
-            prob = classifier(perturbed_instance, True)[0][target_class_index]
+            orange_prob = classifier[OT](perturbed_instance, True)[0][target_class_index]
 
             # Update the attribute difference weighting the prediction by the value frequency
             weight = attr_occurrences[attr_val] / dataset_len
-            difference = prob * weight
+            difference = orange_prob * weight
             attribute_pred_difference[attr_ix] += difference
 
     for i in range(len(attribute_pred_difference)):
-        attribute_pred_difference[i] = prob - attribute_pred_difference[i]
+        attribute_pred_difference[i] = orange_prob - attribute_pred_difference[i]
 
     return attribute_pred_difference
 

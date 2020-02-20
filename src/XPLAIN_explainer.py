@@ -109,7 +109,7 @@ class XPLAIN_explainer:
         for n_ist in self.explain_indices:
             instanceI = Orange.data.Instance(self.explain_dataset[OT].domain,
                                              self.explain_dataset[OT][count_inst])
-            c = self.classifier(instanceI, False)
+            c = self.classifier[OT](instanceI, False)
             if instanceI.get_class() != self.ix_to_class[c[0]]:
                 if mispred_class is not False:
                     if instanceI.get_class() == mispred_class:
@@ -121,7 +121,7 @@ class XPLAIN_explainer:
 
     def explain_instance(self, instance, target_class):
         orange_instance = make_orange_instance(self.explain_dataset, instance)
-        c = self.classifier(orange_instance, False)
+        orange_c = self.classifier[OT](orange_instance, False)
         target_class_index = self.get_class_index(target_class)
 
         self.starting_K = self.K
@@ -131,14 +131,14 @@ class XPLAIN_explainer:
         small_dataset_len = 150
         if self.training_dataset_len < small_dataset_len:
             self.starting_K = max(int(self.mappa_class[self.ix_to_class[
-                c[0]]] * self.training_dataset_len), self.starting_K)
+                orange_c[0]]] * self.training_dataset_len), self.starting_K)
 
         # Initialize k and error to be defined in case the for loop is not entered
         k = self.starting_K
         old_error = 10.0
         error = 1e9
         single_attribute_differences = {}
-        pred = 0.0
+        orange_pred = 0.0
         difference_map = {}
 
         first_iteration = True
@@ -155,7 +155,7 @@ class XPLAIN_explainer:
             # Compute the prediction difference of single attributes only on the
             # first iteration
             if first_iteration:
-                pred = self.classifier(orange_instance, True)[0][target_class_index]
+                orange_pred = self.classifier[OT](orange_instance, True)[0][target_class_index]
                 single_attribute_differences = compute_prediction_difference_single(orange_instance,
                                                                                     self.classifier,
                                                                                     target_class_index,
@@ -164,7 +164,7 @@ class XPLAIN_explainer:
             PI_rel2, difference_map, error, impo_rules_complete, importance_rules_lines, single_attribute_differences = self.compute_lace_step(
                 cached_subset_differences, orange_instance,
                 instance_predictions_cache,
-                k, all_rule_body_indices, target_class, target_class_index, pred,
+                k, all_rule_body_indices, target_class, target_class_index, orange_pred,
                 single_attribute_differences)
 
             # If we have reached the minimum or we are stuck in a local minimum
@@ -260,7 +260,7 @@ class XPLAIN_explainer:
         target_class = instance_explanation.target_class
         instance = instance_explanation.instance
         target_class_index = instance_explanation.instance_class_index
-        pred = self.classifier(instance, True)[0][target_class_index]
+        orange_pred = self.classifier[OT](instance, True)[0][target_class_index]
 
         difference_map = instance_explanation.map_difference
 
@@ -276,7 +276,7 @@ class XPLAIN_explainer:
         PI_rel2, difference_map, error, impo_rules_complete = self.compute_prediction_difference_user_rule(
             rule_body_indices, instance,
             instance_predictions_cache,
-            target_class, target_class_index, pred,
+            target_class, target_class_index, orange_pred,
             single_attribute_differences, difference_map)
 
         instance_explanation = XPLAIN_explanation(self,
