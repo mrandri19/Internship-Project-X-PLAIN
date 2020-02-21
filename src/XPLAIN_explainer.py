@@ -202,8 +202,8 @@ class XPLAIN_explainer:
                                                   difference_map)
         # # Remove the temporary folder and dir
         import shutil
-        if os.path.exists(DEFAULT_DIR + self.unique_filename):
-            shutil.rmtree(DEFAULT_DIR + self.unique_filename)
+        if os.path.exists(join(DEFAULT_DIR, self.unique_filename)):
+            shutil.rmtree(join(DEFAULT_DIR, self.unique_filename))
 
         print("explain_instance errors:", errors)
 

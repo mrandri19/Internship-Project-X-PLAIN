@@ -159,15 +159,19 @@ def get_classifier(training_dataset: Dataset, classifier_name: str,
         skl_clf = MultinomialNB().fit(orange_training_dataset.X, orange_training_dataset.Y)
 
         return orange_clf, skl_clf
-        # raise NotImplementedError
 
     elif classifier_name == "rf":
+        from sklearn.ensemble import RandomForestClassifier
+
         continuizer = Orange.preprocess.Continuize()
         continuizer.multinomial_treatment = continuizer.Indicators
+
         learnerrf = Orange.classification.RandomForestLearner(
             preprocessors=continuizer, random_state=42)
         orange_clf = learnerrf(orange_training_dataset)
-        raise NotImplementedError
+        skl_clf = RandomForestClassifier().fit(orange_training_dataset.X, orange_training_dataset.Y)
+
+        return orange_clf, skl_clf
 
     elif classifier_name == "nn":
         continuizer = Orange.preprocess.Continuize()
