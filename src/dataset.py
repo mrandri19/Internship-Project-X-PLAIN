@@ -46,7 +46,7 @@ class Dataset:
         return self.columns[:-1]
 
     def row_inverse_transform_value(self, value, column):
-        """"Given a value (one column of a row) and that column's name, return itsdecoded value"""
+        """"Given a value (one column of a row) and that column's name, return its decoded value"""
         return self._column_encoders[column].inverse_transform(value)
 
     def class_column_name(self):
