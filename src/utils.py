@@ -54,7 +54,7 @@ def assert_orange_pd_equal(table: Orange.data.Table, dataset: Dataset):
 def import_dataset(dataset_name: str, explain_indices: List[int], random_explain_dataset: bool) -> \
         Tuple[Dataset, Dataset, int, List[str]]:
     if dataset_name[-4:] == "arff":
-        orange_dataset, pd_dataset = loadARFF(dataset_name)
+        pd_dataset = loadARFF(dataset_name)
     else:
         orange_dataset = Orange.data.Table(dataset_name)
 
@@ -138,6 +138,22 @@ def loadARFF(filename: str) -> Dataset:
 # noinspection PyUnresolvedReferences
 def get_classifier(training_dataset: Dataset, classifier_name: str,
                    classifier_parameter: str) -> Tuple[Orange.classification.Learner, object]:
+    class OrangeSklearnAdapter:
+        def __init__(self, clf, dataset):
+            self.clf = clf
+            self.dataset = dataset
+
+        def predict(self, x):
+            # Take a (1,N) feature array, reshape it into (N,) append a dummy class to it and use the dataset's
+            # domain to make an orange instance
+            i = make_orange_instance(self.dataset, pd.Series(np.append(x.reshape(-1), 0)))
+            return self.clf(i, False)
+
+        def predict_proba(self, x):
+            i = make_orange_instance(self.dataset, pd.Series(np.append(x.reshape(-1), 0)))
+            return self.clf(i, True)
+
+
     classifier_name = classifier_name
 
     orange_training_dataset = training_dataset.to_orange_table()
@@ -156,9 +172,15 @@ def get_classifier(training_dataset: Dataset, classifier_name: str,
 
         learnernb = Orange.classification.NaiveBayesLearner()
         orange_clf = learnernb(orange_training_dataset)
+
+        return None, OrangeSklearnAdapter(orange_clf, training_dataset)
+
+    elif classifier_name == "sklearn_nb":
+        from sklearn.naive_bayes import MultinomialNB
+
         skl_clf = MultinomialNB().fit(orange_training_dataset.X, orange_training_dataset.Y)
 
-        return orange_clf, skl_clf
+        return None, skl_clf
 
     elif classifier_name == "rf":
         from sklearn.ensemble import RandomForestClassifier
@@ -169,18 +191,30 @@ def get_classifier(training_dataset: Dataset, classifier_name: str,
         learnerrf = Orange.classification.RandomForestLearner(
             preprocessors=continuizer, random_state=42)
         orange_clf = learnerrf(orange_training_dataset)
+
+        return None, OrangeSklearnAdapter(orange_clf, training_dataset)
+
+    elif classifier_name == "sklearn_rf":
+        from sklearn.ensemble import RandomForestClassifier
+
         skl_clf = RandomForestClassifier().fit(orange_training_dataset.X, orange_training_dataset.Y)
 
-        return orange_clf, skl_clf
+        return None, skl_clf
 
     elif classifier_name == "nn":
+        from sklearn.neural_network import MLPClassifier
+
         continuizer = Orange.preprocess.Continuize()
         continuizer.multinomial_treatment = continuizer.Indicators
+
         learnernet = Orange.classification.NNClassificationLearner(
             preprocessors=continuizer, random_state=42,
             max_iter=1000)
         orange_clf = learnernet(orange_training_dataset)
-        raise NotImplementedError
+
+        skl_clf = MLPClassifier(random_state=42, max_iter=1000).fit(orange_training_dataset.X, orange_training_dataset.Y)
+
+        return orange_clf, skl_clf
 
     elif classifier_name == "svm":
         continuizer = Orange.preprocess.Continuize()
