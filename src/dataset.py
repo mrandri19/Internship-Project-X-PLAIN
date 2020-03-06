@@ -30,9 +30,9 @@ class Dataset:
         """All rows' attributes as a pandas DataFrame."""
         return self._encoded_df.iloc[:, :-1]
 
-    def Y(self):
+    def Y_decoded(self):
         """All rows' classes as a pandas Series."""
-        return self._encoded_df.iloc[:, -1]
+        return self._decoded_df.iloc[:, -1]
 
     def X_numpy(self):
         """All rows' attributes as a numpy float64 array."""
@@ -44,10 +44,6 @@ class Dataset:
 
     def attributes(self):
         return self.columns[:-1]
-
-    def row_inverse_transform_value(self, value, column):
-        """"Given a value (one column of a row) and that column's name, return its decoded value"""
-        return self._column_encoders[column].inverse_transform(value)
 
     def class_column_name(self):
         """"The column name of the class attribute"""

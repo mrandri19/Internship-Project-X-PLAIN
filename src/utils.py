@@ -54,7 +54,7 @@ def assert_orange_pd_equal(table: Orange.data.Table, dataset: Dataset):
 def import_dataset(dataset_name: str, explain_indices: List[int], random_explain_dataset: bool) -> \
         Tuple[Dataset, Dataset, int, List[str]]:
     if dataset_name[-4:] == "arff":
-        pd_dataset = loadARFF(dataset_name)
+        pd_dataset = load_arff(dataset_name)
     else:
         orange_dataset = Orange.data.Table(dataset_name)
 
@@ -68,7 +68,7 @@ def import_dataset(dataset_name: str, explain_indices: List[int], random_explain
         with open(dataset_file_name, "w") as f:
             arff.dump(table_to_arff(orange_dataset), f)
 
-        pd_dataset = loadARFF(dataset_file_name)
+        pd_dataset = load_arff(dataset_file_name)
 
     dataset_len = len(pd_dataset)
     training_indices = list(range(dataset_len))
@@ -110,8 +110,8 @@ def import_datasets(dataset_name: str, explain_indices: List[int],
 
     explain_dataset_name = dataset_name[:-5] + "_explain.arff"
 
-    pd_training_dataset = loadARFF(dataset_name)
-    pd_explain_dataset = loadARFF(explain_dataset_name)
+    pd_training_dataset = load_arff(dataset_name)
+    pd_explain_dataset = load_arff(explain_dataset_name)
 
     len_dataset = len(pd_training_dataset)
     len_explain_dataset = len(pd_explain_dataset)
@@ -127,7 +127,7 @@ def import_datasets(dataset_name: str, explain_indices: List[int],
                                                                   explain_indices]
 
 
-def loadARFF(filename: str) -> Dataset:
+def load_arff(filename: str) -> Dataset:
     with open(filename, 'r') as f:
         a = arff.load(f)
         dataset = Dataset(a['data'], a['attributes'])
@@ -152,9 +152,6 @@ def get_classifier(training_dataset: Dataset, classifier_name: str,
         def predict_proba(self, x):
             i = make_orange_instance(self.dataset, pd.Series(np.append(x.reshape(-1), 0)))
             return self.clf(i, True)
-
-
-    classifier_name = classifier_name
 
     orange_training_dataset = training_dataset.to_orange_table()
 
@@ -196,14 +193,15 @@ def get_classifier(training_dataset: Dataset, classifier_name: str,
 
     elif classifier_name == "sklearn_rf":
         from sklearn.ensemble import RandomForestClassifier
+        from sklearn.pipeline import make_pipeline
+        from sklearn.preprocessing import OneHotEncoder
 
-        skl_clf = RandomForestClassifier().fit(orange_training_dataset.X, orange_training_dataset.Y)
+        pipe = make_pipeline(OneHotEncoder(), RandomForestClassifier(random_state=42))
+        skl_clf = pipe.fit(orange_training_dataset.X, orange_training_dataset.Y)
 
         return None, skl_clf
 
-    elif classifier_name == "nn":
-        from sklearn.neural_network import MLPClassifier
-
+    elif classifier_name == "nn_continuizer":
         continuizer = Orange.preprocess.Continuize()
         continuizer.multinomial_treatment = continuizer.Indicators
 
@@ -212,9 +210,25 @@ def get_classifier(training_dataset: Dataset, classifier_name: str,
             max_iter=1000)
         orange_clf = learnernet(orange_training_dataset)
 
-        skl_clf = MLPClassifier(random_state=42, max_iter=1000).fit(orange_training_dataset.X, orange_training_dataset.Y)
+        return None, OrangeSklearnAdapter(orange_clf, training_dataset)
 
-        return orange_clf, skl_clf
+    elif classifier_name == "nn_label_enc":
+        from sklearn.neural_network import MLPClassifier
+
+        skl_clf = MLPClassifier(random_state=42, max_iter=1000).fit(orange_training_dataset.X,
+                                                                    orange_training_dataset.Y)
+
+        return None, skl_clf
+
+    elif classifier_name == "nn_onehot_enc":
+        from sklearn.neural_network import MLPClassifier
+        from sklearn.pipeline import make_pipeline
+        from sklearn.preprocessing import OneHotEncoder
+
+        pipe = make_pipeline(OneHotEncoder(), MLPClassifier(random_state=42, max_iter=1000))
+        skl_clf = pipe.fit(orange_training_dataset.X, orange_training_dataset.Y)
+
+        return None, skl_clf
 
     elif classifier_name == "svm":
         continuizer = Orange.preprocess.Continuize()
@@ -235,20 +249,20 @@ def get_classifier(training_dataset: Dataset, classifier_name: str,
             distance = classifier_parameter.split("-")[1]
 
         if distance == "eu":
-            metricKNN = 'euclidean'
+            knn_metric = 'euclidean'
         elif distance == "ham":
-            metricKNN = 'hamming'
+            knn_metric = 'hamming'
         elif distance == "man":
-            metricKNN = 'manhattan'
+            knn_metric = 'manhattan'
         elif distance == "max":
-            metricKNN = 'maximal'
+            knn_metric = 'maximal'
         else:
-            metricKNN = 'euclidean'
+            knn_metric = 'euclidean'
         continuizer = Orange.preprocess.Continuize()
         continuizer.multinomial_treatment = continuizer.Indicators
         knnLearner = Orange.classification.KNNLearner(
             preprocessors=continuizer, n_neighbors=KofKNN,
-            metric=metricKNN, weights='uniform', algorithm='auto',
+            metric=knn_metric, weights='uniform', algorithm='auto',
             metric_params=None)
         orange_clf = knnLearner(orange_training_dataset)
         raise NotImplementedError
@@ -466,20 +480,13 @@ def getStartKValueSimplified(len_dataset):
 
 
 def compute_class_frequency(dataset: Dataset):
-    class_frequency = {}
-    h = len(dataset)
+    class_frequency = defaultdict(float)
 
-    for i in range(h):
-        row = dataset[i]
-        cc = dataset.class_column_name()
-        row_class = dataset.row_inverse_transform_value(row[cc], cc)
-        if row_class in class_frequency:
-            class_frequency[row_class] = class_frequency[row_class] + 1.0
-        else:
-            class_frequency[row_class] = 1.0
+    for row in dataset.Y_decoded():
+        class_frequency[row] += 1.0
 
     for key in class_frequency.keys():
-        class_frequency[key] = class_frequency[key] / h
+        class_frequency[key] /= len(dataset)
 
     return class_frequency
 
