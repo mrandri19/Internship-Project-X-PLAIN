@@ -49,10 +49,10 @@ def table_to_arff(t):
 def import_dataset(dataset_name: str, explain_indices: List[int], random_explain_dataset: bool) -> \
         Tuple[Dataset, Dataset, int, List[str]]:
     assert dataset_name.endswith("arff")
-   
-    pd_dataset = load_arff(dataset_name)
 
-    dataset_len = len(pd_dataset)
+    dataset = load_arff(dataset_name)
+
+    dataset_len = len(dataset)
     training_indices = list(range(dataset_len))
 
     if random_explain_dataset:
@@ -69,12 +69,11 @@ def import_dataset(dataset_name: str, explain_indices: List[int], random_explain
     for i in explain_indices:
         training_indices.remove(i)
 
-    pd_training_dataset = Dataset(pd_dataset._decoded_df.iloc[training_indices], pd_dataset.columns)
+    training_dataset = Dataset(dataset._decoded_df.iloc[training_indices], dataset.columns)
 
-    pd_explain_dataset = Dataset(pd_dataset._decoded_df.iloc[explain_indices], pd_dataset.columns)
+    explain_dataset = Dataset(dataset._decoded_df.iloc[explain_indices], dataset.columns)
 
-    return pd_training_dataset, pd_explain_dataset, len(
-        pd_training_dataset), \
+    return training_dataset, explain_dataset, len(training_dataset), \
            [str(i) for i in explain_indices]
 
 
@@ -120,58 +119,12 @@ def load_arff(filename: str) -> Dataset:
 # noinspection PyUnresolvedReferences
 def get_classifier(training_dataset: Dataset, classifier_name: str,
                    classifier_parameter: str) -> Tuple[Orange.classification.Learner, object]:
-    class OrangeSklearnAdapter:
-        def __init__(self, clf, dataset):
-            self.clf = clf
-            self.dataset = dataset
-
-        def predict(self, x):
-            # Take a (1,N) feature array, reshape it into (N,) append a dummy class to it and use the dataset's
-            # domain to make an orange instance
-            i = make_orange_instance(self.dataset, pd.Series(np.append(x.reshape(-1), 0)))
-            return self.clf(i, False)
-
-        def predict_proba(self, x):
-            i = make_orange_instance(self.dataset, pd.Series(np.append(x.reshape(-1), 0)))
-            return self.clf(i, True)
-
-    orange_training_dataset = training_dataset.to_orange_table()
-
-    if classifier_name == "tree":
-        continuizer = Orange.preprocess.Continuize()
-        continuizer.multinomial_treatment = continuizer.Indicators
-        learnertree = Orange.classification.SklTreeLearner(
-            preprocessors=continuizer, max_depth=7, min_samples_split=5,
-            min_samples_leaf=3, random_state=1)
-        orange_clf = learnertree(orange_training_dataset)
-        raise NotImplementedError
-
-    elif classifier_name == "nb":
+    if classifier_name == "sklearn_nb":
         from sklearn.naive_bayes import MultinomialNB
 
-        learnernb = Orange.classification.NaiveBayesLearner()
-        orange_clf = learnernb(orange_training_dataset)
-
-        return None, OrangeSklearnAdapter(orange_clf, training_dataset)
-
-    elif classifier_name == "sklearn_nb":
-        from sklearn.naive_bayes import MultinomialNB
-
-        skl_clf = MultinomialNB().fit(orange_training_dataset.X, orange_training_dataset.Y)
+        skl_clf = MultinomialNB().fit(training_dataset.X_numpy(), training_dataset.Y_numpy())
 
         return None, skl_clf
-
-    elif classifier_name == "rf":
-        from sklearn.ensemble import RandomForestClassifier
-
-        continuizer = Orange.preprocess.Continuize()
-        continuizer.multinomial_treatment = continuizer.Indicators
-
-        learnerrf = Orange.classification.RandomForestLearner(
-            preprocessors=continuizer, random_state=42)
-        orange_clf = learnerrf(orange_training_dataset)
-
-        return None, OrangeSklearnAdapter(orange_clf, training_dataset)
 
     elif classifier_name == "sklearn_rf":
         from sklearn.ensemble import RandomForestClassifier
@@ -179,27 +132,15 @@ def get_classifier(training_dataset: Dataset, classifier_name: str,
         from sklearn.preprocessing import OneHotEncoder
 
         pipe = make_pipeline(OneHotEncoder(), RandomForestClassifier(random_state=42))
-        skl_clf = pipe.fit(orange_training_dataset.X, orange_training_dataset.Y)
+        skl_clf = pipe.fit(training_dataset.X_numpy(), training_dataset.Y_numpy())
 
         return None, skl_clf
-
-    elif classifier_name == "nn_continuizer":
-        continuizer = Orange.preprocess.Continuize()
-        continuizer.multinomial_treatment = continuizer.Indicators
-
-        learnernet = Orange.classification.NNClassificationLearner(
-            preprocessors=continuizer, random_state=42,
-            max_iter=1000)
-        orange_clf = learnernet(orange_training_dataset)
-
-        return None, OrangeSklearnAdapter(orange_clf, training_dataset)
 
     elif classifier_name == "nn_label_enc":
         from sklearn.neural_network import MLPClassifier
 
-        skl_clf = MLPClassifier(random_state=42, max_iter=1000).fit(orange_training_dataset.X,
-                                                                    orange_training_dataset.Y)
-
+        skl_clf = MLPClassifier(random_state=42, max_iter=1000).fit(training_dataset.X_numpy(),
+                                                                    training_dataset.Y_numpy())
         return None, skl_clf
 
     elif classifier_name == "nn_onehot_enc":
@@ -208,46 +149,10 @@ def get_classifier(training_dataset: Dataset, classifier_name: str,
         from sklearn.preprocessing import OneHotEncoder
 
         pipe = make_pipeline(OneHotEncoder(), MLPClassifier(random_state=42, max_iter=1000))
-        skl_clf = pipe.fit(orange_training_dataset.X, orange_training_dataset.Y)
+        skl_clf = pipe.fit(training_dataset.X_numpy(), training_dataset.Y_numpy())
 
         return None, skl_clf
 
-    elif classifier_name == "svm":
-        continuizer = Orange.preprocess.Continuize()
-        continuizer.multinomial_treatment = continuizer.Indicators
-        learnerrf = Orange.classification.SVMLearner(preprocessors=continuizer)
-        orange_clf = learnerrf(orange_training_dataset)
-        raise NotImplementedError
-
-    elif classifier_name == "knn":
-
-        if classifier_parameter is None:
-            raise ValueError("k - missing the K parameter")
-        elif len(classifier_parameter.split("-")) == 1:
-            KofKNN = int(classifier_parameter.split("-")[0])
-            distance = ""
-        else:
-            KofKNN = int(classifier_parameter.split("-")[0])
-            distance = classifier_parameter.split("-")[1]
-
-        if distance == "eu":
-            knn_metric = 'euclidean'
-        elif distance == "ham":
-            knn_metric = 'hamming'
-        elif distance == "man":
-            knn_metric = 'manhattan'
-        elif distance == "max":
-            knn_metric = 'maximal'
-        else:
-            knn_metric = 'euclidean'
-        continuizer = Orange.preprocess.Continuize()
-        continuizer.multinomial_treatment = continuizer.Indicators
-        knnLearner = Orange.classification.KNNLearner(
-            preprocessors=continuizer, n_neighbors=KofKNN,
-            metric=knn_metric, weights='uniform', algorithm='auto',
-            metric_params=None)
-        orange_clf = knnLearner(orange_training_dataset)
-        raise NotImplementedError
     else:
         raise ValueError("Classifier not available")
 
@@ -451,14 +356,13 @@ def compute_error_approximation(mappa_class, pred, out_data, impo_rules_complete
 
 def getStartKValueSimplified(len_dataset):
     if len_dataset < 150:
-        maxN = len_dataset
+        return len_dataset
     elif len_dataset < 1000:
-        maxN = int(len_dataset / 2)
+        return int(len_dataset / 2)
     elif len_dataset < 10000:
-        maxN = int(len_dataset / 10)
+        return int(len_dataset / 10)
     else:
-        maxN = int(len_dataset * 5 / 100)
-    return maxN
+        return int(len_dataset * 5 / 100)
 
 
 def compute_class_frequency(dataset: Dataset):
@@ -471,30 +375,6 @@ def compute_class_frequency(dataset: Dataset):
         class_frequency[key] /= len(dataset)
 
     return class_frequency
-
-
-def convert_orange_table_to_pandas(orangeTable, ids=None, sel="all", cl=None, mapName=None):
-    if sel == "all":
-        dataK = [orangeTable[k].list for k in range(0, len(orangeTable))]
-    else:
-        dataK = [orangeTable[k].list for k in sel]
-
-    columnsA = [i.name for i in orangeTable.domain.variables]
-
-    if orangeTable.domain.metas != ():
-        for i in range(0, len(orangeTable.domain.metas)):
-            columnsA.append(orangeTable.domain.metas[i].name)
-    data = pd.DataFrame(data=dataK, columns=columnsA)
-
-    if cl is not None and sel != "all" and mapName is not None:
-        y_pred = [mapName[cl(orangeTable[k], False)[0]] for k in sel]
-        data["pred"] = y_pred
-
-    if ids is not None:
-        data["instance_id"] = ids
-        data = data.set_index('instance_id')
-
-    return data
 
 
 def savePickle(model, dirO, name):

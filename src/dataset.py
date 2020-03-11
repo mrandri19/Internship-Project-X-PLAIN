@@ -71,7 +71,3 @@ class Dataset:
                'attributes': self.columns,
                'data': self._decoded_df.values.tolist()}
         return obj
-
-    def to_orange_table(self) -> Orange.data.Table:
-        return Orange.data.Table.from_numpy(self.orange_domain(), self.X_numpy(),
-                                            self.Y_numpy())

@@ -26,13 +26,12 @@ from src.utils import gen_neighbors_info, \
     get_relevant_subset_from_local_rules, get_classifier, import_datasets, import_dataset, \
     compute_prediction_difference_subset, \
     compute_prediction_difference_single, getStartKValueSimplified, \
-    compute_class_frequency, compute_error_approximation, convert_orange_table_to_pandas, \
-    get_KNN_threshold_max, DEFAULT_DIR, make_orange_instance_index, make_orange_instance, MT
+    compute_class_frequency, compute_error_approximation, \
+    get_KNN_threshold_max, DEFAULT_DIR, make_orange_instance, MT
 
 ERROR_DIFFERENCE_THRESHOLD = 0.01
 TEMPORARY_FOLDER_NAME = "tmp"
 ERROR_THRESHOLD = 0.02
-OT = 0
 
 
 class XPLAIN_explainer:
@@ -248,61 +247,6 @@ class XPLAIN_explainer:
         old_input_ar += rule_bodies_indices
 
         return PI_rel2, difference_map, error, impo_rules_complete, importance_rules_lines, single_attribute_differences
-
-    # NEW_UPDATE
-    def update_explain_instance(self, instance_explanation, rule_body_indices):
-        target_class = instance_explanation.target_class
-        instance = instance_explanation.instance
-        target_class_index = instance_explanation.instance_class_index
-        orange_pred = self.classifier[OT](instance, True)[0][target_class_index]
-
-        difference_map = instance_explanation.map_difference
-
-        # Because across iterations only rules change we can cache both whole rules and instance
-        # classifications
-        instance_predictions_cache = {}
-        single_attribute_differences = instance_explanation.diff_single
-
-        # Rule 1 element or already existing: no update needed
-        if len(rule_body_indices) <= 1 or ','.join(map(str, rule_body_indices)) in difference_map:
-            return instance_explanation
-
-        PI_rel2, difference_map, error, impo_rules_complete = self.compute_prediction_difference_user_rule(
-            rule_body_indices, instance,
-            instance_predictions_cache,
-            target_class, target_class_index, orange_pred,
-            single_attribute_differences, difference_map)
-
-        instance_explanation = XPLAIN_explanation(self,
-                                                  target_class,
-                                                  instance,
-                                                  single_attribute_differences,
-                                                  instance_explanation.k,
-                                                  error,
-                                                  difference_map)
-
-        return instance_explanation
-
-    def compute_prediction_difference_user_rule(self, rule_body_indices, instance,
-                                                instance_predictions_cache, target_class,
-                                                target_class_index, pred,
-                                                single_attribute_differences, difference_map):
-        # Consider only rules with more than 1 attribute since we compute the differences
-        # for single attribute changes already in compute_prediction_difference_single
-        difference_map_key = ",".join(map(str, rule_body_indices))
-        difference_map[difference_map_key] = compute_prediction_difference_subset(
-            self.training_dataset, instance, rule_body_indices,
-            self.classifier, target_class_index, instance_predictions_cache)
-
-        impo_rules_complete = [list(map(int, e.split(","))) for e in list(difference_map.keys())]
-        error_single, error, PI_rel2 = compute_error_approximation(self.mappa_class,
-                                                                   pred,
-                                                                   single_attribute_differences,
-                                                                   impo_rules_complete,
-                                                                   target_class,
-                                                                   difference_map)
-
-        return PI_rel2, difference_map, error, [impo_rules_complete]
 
     def getGlobalExplanationRules(self):
         global_expl = GlobalExplanation(self)
