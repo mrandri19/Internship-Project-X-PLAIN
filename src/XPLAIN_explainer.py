@@ -12,13 +12,9 @@ from os.path import join
 from typing import Tuple
 
 # noinspection PyUnresolvedReferences
-import Orange
-# noinspection PyUnresolvedReferences
 import numpy as np
 # noinspection PyUnresolvedReferences
 import sklearn.neighbors
-# noinspection PyUnresolvedReferences
-from Orange.data import Table
 
 # noinspection PyUnresolvedReferences
 from src.XPLAIN_explanation import XPLAIN_explanation
@@ -102,22 +98,6 @@ class XPLAIN_explainer:
             class_index += 1
             if i == class_name:
                 return class_index
-
-    def getMispredicted(self, mispred_class=False):
-        self.mispredictedInstances = []
-        count_inst = 0
-        for n_ist in self.explain_indices:
-            instanceI = Orange.data.Instance(self.explain_dataset[OT].domain,
-                                             self.explain_dataset[OT][count_inst])
-            c = self.classifier[OT](instanceI, False)
-            if instanceI.get_class() != self.ix_to_class[c[0]]:
-                if mispred_class is not False:
-                    if instanceI.get_class() == mispred_class:
-                        self.mispredictedInstances.append(n_ist)
-                else:
-                    self.mispredictedInstances.append(n_ist)
-            count_inst = count_inst + 1
-        return self.mispredictedInstances
 
     def explain_instance(self, instance, target_class):
         orange_instance = make_orange_instance(self.explain_dataset, instance)
@@ -268,13 +248,6 @@ class XPLAIN_explainer:
         old_input_ar += rule_bodies_indices
 
         return PI_rel2, difference_map, error, impo_rules_complete, importance_rules_lines, single_attribute_differences
-
-    def showMispredictedTabularForm(self, mispred_class=False):
-        sel = self.getMispredicted(mispred_class=mispred_class)
-        sel_index = [self.explain_indices.index(i) for i in sel]
-        return convert_orange_table_to_pandas(self.explain_dataset, list(map(int, sel)),
-                                              sel_index, self.classifier,
-                                              self.ix_to_class)
 
     # NEW_UPDATE
     def update_explain_instance(self, instance_explanation, rule_body_indices):
