@@ -45,30 +45,12 @@ def table_to_arff(t):
     return obj
 
 
-def assert_orange_pd_equal(table: Orange.data.Table, dataset: Dataset):
-    # TODO(Andrea): Remove when Orange is completely out
-    assert len(table) == len(dataset)
-
-
 # noinspection PyUnresolvedReferences
 def import_dataset(dataset_name: str, explain_indices: List[int], random_explain_dataset: bool) -> \
         Tuple[Dataset, Dataset, int, List[str]]:
-    if dataset_name[-4:] == "arff":
-        pd_dataset = load_arff(dataset_name)
-    else:
-        orange_dataset = Orange.data.Table(dataset_name)
-
-        if False in [i.is_discrete for i in orange_dataset[0].domain.attributes]:
-            disc = Orange.preprocess.Discretize()
-            disc.method = Orange.preprocess.discretize.EqualFreq(3)
-            orange_dataset = disc(orange_dataset)
-
-        dataset_file_name = join(DEFAULT_DIR, "datasets", dataset_name) + ".arff"
-
-        with open(dataset_file_name, "w") as f:
-            arff.dump(table_to_arff(orange_dataset), f)
-
-        pd_dataset = load_arff(dataset_file_name)
+    assert dataset_name.endswith("arff")
+   
+    pd_dataset = load_arff(dataset_name)
 
     dataset_len = len(pd_dataset)
     training_indices = list(range(dataset_len))

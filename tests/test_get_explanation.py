@@ -17,7 +17,7 @@ def get_explanation(dataset_name: str, classifier_name: str) -> XPLAIN_explanati
 
 class TestGet_explanation(TestCase):
     def test_get_explanation_zoo_random_forest(self):
-        e = get_explanation("zoo", "rf")
+        e = get_explanation(join(DEFAULT_DIR, "datasets/zoo.arff"), "rf")
         self.assertMatchSnapshot((
             e.XPLAIN_explainer_o,
             e.diff_single,
@@ -31,7 +31,7 @@ class TestGet_explanation(TestCase):
         ))
 
     def test_get_explanation_zoo_naive_bayes(self):
-        e = get_explanation("zoo", "nb")
+        e = get_explanation(join(DEFAULT_DIR, "datasets/zoo.arff"), "nb")
         self.assertMatchSnapshot((
             e.XPLAIN_explainer_o,
             e.diff_single,
