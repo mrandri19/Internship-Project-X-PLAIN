@@ -14,6 +14,8 @@ from typing import Tuple
 # noinspection PyUnresolvedReferences
 import numpy as np
 # noinspection PyUnresolvedReferences
+import pandas as pd
+# noinspection PyUnresolvedReferences
 import sklearn.neighbors
 
 # noinspection PyUnresolvedReferences
@@ -88,7 +90,7 @@ class XPLAIN_explainer:
 
         self.starting_K = self.K
 
-        self.mappa_class = compute_class_frequency(self.training_dataset)
+        self.class_frequencies = compute_class_frequency(self.training_dataset)
         self.mispredictedInstances = None
 
     def get_class_index(self, class_name):
@@ -98,9 +100,8 @@ class XPLAIN_explainer:
             if i == class_name:
                 return class_index
 
-    def explain_instance(self, instance, target_class):
+    def explain_instance(self, instance: pd.Series, target_class) -> XPLAIN_explanation:
         orange_instance = make_orange_instance(self.explain_dataset, instance)
-        orange_c = self.classifier[MT].predict(orange_instance.x.reshape(1, -1))[0]
         target_class_index = self.get_class_index(target_class)
 
         self.starting_K = self.K
@@ -109,8 +110,11 @@ class XPLAIN_explainer:
         # Risks: examples too similar, only 1 class. Starting k: proportional to the class frequence
         small_dataset_len = 150
         if self.training_dataset_len < small_dataset_len:
-            self.starting_K = max(int(self.mappa_class[self.ix_to_class[
-                orange_c]] * self.training_dataset_len), self.starting_K)
+            pred_class = self.ix_to_class[
+                self.classifier[MT].predict(orange_instance.x.reshape(1, -1))[0]]
+            self.starting_K = max(
+                int(self.class_frequencies[pred_class] * self.training_dataset_len),
+                self.starting_K)
 
         # Initialize k and error to be defined in case the for loop is not entered
         k = self.starting_K
@@ -238,7 +242,7 @@ class XPLAIN_explainer:
             difference_map[difference_map_key] = cached_subset_differences[
                 subset_difference_cache_key]
 
-        error_single, error, PI_rel2 = compute_error_approximation(self.mappa_class,
+        error_single, error, PI_rel2 = compute_error_approximation(self.class_frequencies,
                                                                    pred,
                                                                    single_attribute_differences,
                                                                    impo_rules_complete,
