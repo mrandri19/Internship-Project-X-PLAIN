@@ -105,7 +105,7 @@ def load_arff(filename: str) -> Dataset:
 
 
 # noinspection PyUnresolvedReferences
-def get_classifier(training_dataset: Dataset, classifier_name: str) -> sklearn.base.ClassifierMixin:
+def get_classifier(training_dataset: Dataset, classifier_name: str):
     if classifier_name == "sklearn_nb":
         from sklearn.naive_bayes import MultinomialNB
 
