@@ -15,5 +15,6 @@ class XPLAIN_explanation:
         self.instance_class_index = explainer.get_class_index(self.target_class)
 
         self.prob = \
-            self.XPLAIN_explainer_o.classifier[MT].predict_proba(instance.x.reshape(1, -1))[0][
+            self.XPLAIN_explainer_o.classifier[MT].predict_proba(
+                instance[:-1].to_numpy().reshape(1, -1))[0][
                 self.instance_class_index]

@@ -101,13 +101,10 @@ class XPLAIN_explainer:
                 return class_index
 
     def explain_instance(self, decoded_instance: pd.Series, target_class) -> XPLAIN_explanation:
-        orange_instance = make_orange_instance(self.explain_dataset, decoded_instance)
         target_class_index = self.get_class_index(target_class)
 
         encoded_instance = self.explain_dataset.transform_instance(decoded_instance)
         encoded_instance_x = encoded_instance[:-1].to_numpy()
-
-        assert np.all(encoded_instance_x == orange_instance.x)
 
         self.starting_K = self.K
         # Problem with very small training dataset. The starting k is low, very few examples:
@@ -155,7 +152,7 @@ class XPLAIN_explainer:
                     self.training_dataset)
 
             PI_rel2, difference_map, error, impo_rules_complete, importance_rules_lines, single_attribute_differences = self.compute_lace_step(
-                cached_subset_differences, orange_instance, encoded_instance,
+                cached_subset_differences, encoded_instance,
                 instance_predictions_cache,
                 k, all_rule_body_indices, target_class, target_class_index, orange_pred,
                 single_attribute_differences)
@@ -184,7 +181,7 @@ class XPLAIN_explainer:
 
         instance_explanation = XPLAIN_explanation(self,
                                                   target_class,
-                                                  orange_instance,
+                                                  encoded_instance,
                                                   single_attribute_differences,
                                                   k,
                                                   error,
@@ -198,7 +195,7 @@ class XPLAIN_explainer:
 
         return instance_explanation
 
-    def compute_lace_step(self, cached_subset_differences, orange_instance,
+    def compute_lace_step(self, cached_subset_differences,
                           encoded_instance,
                           instance_predictions_cache, k, old_input_ar, target_class,
                           target_class_index, pred, single_attribute_differences):
@@ -242,7 +239,7 @@ class XPLAIN_explainer:
             if subset_difference_cache_key not in cached_subset_differences:
                 cached_subset_differences[
                     subset_difference_cache_key] = compute_prediction_difference_subset(
-                    self.training_dataset, orange_instance, rule_body_indices,
+                    self.training_dataset, encoded_instance, rule_body_indices,
                     self.classifier, target_class_index, instance_predictions_cache)
 
             difference_map_key = ",".join(map(str, rule_body_indices))

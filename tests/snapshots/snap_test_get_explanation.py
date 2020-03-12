@@ -31,7 +31,7 @@ snapshots['TestGet_explanation::test_get_explanation_adult_naive_bayes 1'] = (
     },
     118,
     0.01442188127852051,
-    GenericRepr('[Female, Private, Dropout, White, Separated, ... | <=50K]'),
+    GenericRepr('sex               0\nworkclass         2\neducation         3\nrace              4\nmarital-status    2\noccupation        6\nrelationship      1\ncapital-gain      1\ncapital-loss      1\nhours-per-week    0\nage               4\nclass             0\ndtype: int64'),
     '<=50K',
     0,
     0.8066897372237432
@@ -62,7 +62,7 @@ snapshots['TestGet_explanation::test_get_explanation_zoo_naive_bayes 1'] = (
     },
     42,
     0.19470029326431426,
-    GenericRepr('[1, 0, 0, 1, 0, ... | mammal]'),
+    GenericRepr('hair        1\nfeathers    0\neggs        0\nmilk        1\nairborne    0\naquatic     0\npredator    0\ntoothed     1\nbackbone    1\nbreathes    1\nvenomous    0\nfins        0\nlegs        2\ntail        1\ndomestic    0\ncatsize     1\ntype        5\ndtype: int64'),
     'mammal',
     5,
     0.9972484549885969
@@ -93,7 +93,7 @@ snapshots['TestGet_explanation::test_get_explanation_zoo_random_forest 1'] = (
     },
     33,
     0.0024691358024691024,
-    GenericRepr('[1, 0, 0, 1, 0, ... | mammal]'),
+    GenericRepr('hair        1\nfeathers    0\neggs        0\nmilk        1\nairborne    0\naquatic     0\npredator    0\ntoothed     1\nbackbone    1\nbreathes    1\nvenomous    0\nfins        0\nlegs        2\ntail        1\ndomestic    0\ncatsize     1\ntype        5\ndtype: int64'),
     'mammal',
     5,
     1.0

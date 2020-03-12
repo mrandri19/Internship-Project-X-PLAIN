@@ -182,7 +182,7 @@ def gen_neighbors_info(training_dataset: Dataset, nbrs,
     classified_instances_dataset = Dataset(
         [training_dataset.inverse_transform_instance(c) for c in classified_instances],
         training_dataset.columns)
-   
+
     closest_instance = training_dataset[nearest_neighbors_ixs[0]]
     closest_instance_x = closest_instance[:-1].to_numpy()
 
@@ -229,7 +229,7 @@ def get_relevant_subset_from_local_rules(impo_rules, oldinputAr):
 
 
 def compute_prediction_difference_subset(training_dataset: Dataset,
-                                         instance: Orange.data.Instance,
+                                         encoded_instance: pd.Series,
                                          rule_body_indices,
                                          classifier,
                                          instance_class_index,
@@ -238,6 +238,8 @@ def compute_prediction_difference_subset(training_dataset: Dataset,
     Compute the prediction difference for an instance in a training_dataset, w.r.t. some
     rules and a class, given a classifier
     """
+
+    encoded_instance_x = encoded_instance[:-1].to_numpy()
 
     rule_attributes = [
         list(training_dataset.attributes())[rule_body_index - 1][0] for
@@ -251,32 +253,38 @@ def compute_prediction_difference_subset(training_dataset: Dataset,
         Counter(map(tuple, filtered_dataset.values.tolist())).items())
 
     # For each set of attributes
-    differences = [compute_perturbed_difference(item, classifier, instance, instance_class_index,
-                                                rule_attributes, training_dataset) for
-                   item in
-                   attribute_sets_occurrences.items()]
+    differences = [
+        compute_perturbed_difference(item, classifier, encoded_instance,
+                                     instance_class_index,
+                                     rule_attributes, training_dataset) for
+        item in
+        attribute_sets_occurrences.items()]
 
     prediction_difference = sum(differences)
 
     # p(y=c|x) i.e. Probability that instance x belongs to class c
-    p = classifier[MT].predict_proba(instance.x.reshape(1, -1))[0][instance_class_index]
+    p = classifier[MT].predict_proba(encoded_instance_x.reshape(1, -1))[0][instance_class_index]
     prediction_differences = p - prediction_difference
 
     return prediction_differences
 
 
-def compute_perturbed_difference(item, classifier, instance, instance_class_index,
+def compute_perturbed_difference(item, classifier, encoded_instance,
+                                 instance_class_index,
                                  rule_attributes, training_dataset_):
     (attribute_set, occurrences) = item
-    perturbed_instance = deepcopy(instance)
+
+    perturbed_instance = deepcopy(encoded_instance)
     for i in range(len(rule_attributes)):
         perturbed_instance[rule_attributes[i]] = attribute_set[i]
+
     # cache_key = tuple(perturbed_instance.x)
     # if cache_key not in instance_predictions_cache:
     #     instance_predictions_cache[cache_key] = classifier(perturbed_instance, True)[0][
     #         instance_class_index]
     # prob = instance_predictions_cache[cache_key]
-    prob = classifier[MT].predict_proba(perturbed_instance.x.reshape(1, -1))[0][
+
+    prob = classifier[MT].predict_proba(perturbed_instance[:-1].to_numpy().reshape(1, -1))[0][
         instance_class_index]
 
     # Compute the prediction difference using the weighted average of the
