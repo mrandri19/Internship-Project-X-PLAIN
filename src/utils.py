@@ -282,15 +282,17 @@ def compute_perturbed_difference(item, classifier, instance, instance_class_inde
 
 
 # Single explanation. Change 1 value at the time e compute the difference
-def compute_prediction_difference_single(instance, classifier, target_class_index,
-                                         training_dataset_):
-    training_dataset = training_dataset_
+def compute_prediction_difference_single(encoded_instance, classifier, target_class_index,
+                                         training_dataset):
     dataset_len = len(training_dataset)
+
+    encoded_instance_x = encoded_instance[:-1].to_numpy()
 
     attribute_pred_difference = [0] * len(training_dataset.attributes())
 
     # The probability of `instance` belonging to class `target_class_index`
-    orange_prob = classifier[MT].predict_proba(instance.x.reshape(1, -1))[0][target_class_index]
+    class_prob = classifier[MT].predict_proba(encoded_instance_x.reshape(1, -1))[0][
+        target_class_index]
 
     # For each `instance` attribute
     for (attr_ix, (attr, _)) in enumerate(training_dataset.attributes()):
@@ -303,20 +305,22 @@ def compute_prediction_difference_single(instance, classifier, target_class_inde
         # For each value of the attribute
         for attr_val in attr_occurrences:
             # Create an instance whose attribute `attr` has that value (`attr_val`)
-            perturbed_instance = deepcopy(instance)
-            perturbed_instance[attr] = attr_val
+            perturbed_encoded_instance = deepcopy(encoded_instance)
+            perturbed_encoded_instance[attr] = attr_val
+            perturbed_encoded_instance_x = perturbed_encoded_instance[:-1].to_numpy()
 
             # See how the prediction changes
-            orange_prob = classifier[MT].predict_proba(perturbed_instance.x.reshape(1, -1))[0][
-                target_class_index]
+            class_prob = \
+                classifier[MT].predict_proba(perturbed_encoded_instance_x.reshape(1, -1))[0][
+                    target_class_index]
 
             # Update the attribute difference weighting the prediction by the value frequency
             weight = attr_occurrences[attr_val] / dataset_len
-            difference = orange_prob * weight
+            difference = class_prob * weight
             attribute_pred_difference[attr_ix] += difference
 
     for i in range(len(attribute_pred_difference)):
-        attribute_pred_difference[i] = orange_prob - attribute_pred_difference[i]
+        attribute_pred_difference[i] = class_prob - attribute_pred_difference[i]
 
     return attribute_pred_difference
 

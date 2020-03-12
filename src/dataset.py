@@ -65,6 +65,12 @@ class Dataset:
         """Returns the i-th element of the decoded DataFrame of datset"""
         return self._decoded_df.iloc[item]
 
+    def transform_instance(self, decoded_instance: pd.Series) -> pd.Series:
+        """Transform a decoded instance to an encoded instance using the Dataset's column encoders"""
+        return pd.Series(
+            {col: self._column_encoders[col].transform([val])[0] for (col, val) in
+             decoded_instance.items()})
+
     def orange_domain(self) -> Orange.data.Domain:
         """"Return a Orange.data.Domain built using the dataset's attributes"""
         orange_vars = [Orange.data.DiscreteVariable.make(name, vals) for (name, vals) in

@@ -104,11 +104,9 @@ class XPLAIN_explainer:
         orange_instance = make_orange_instance(self.explain_dataset, decoded_instance)
         target_class_index = self.get_class_index(target_class)
 
-        encoded_instance = pd.Series(
-            [self.explain_dataset._column_encoders[col].transform([val])[0] for (col, val) in
-             decoded_instance.items()]).to_numpy()
+        encoded_instance = self.explain_dataset.transform_instance(decoded_instance)
+        encoded_instance_x = encoded_instance[:-1].to_numpy()
 
-        encoded_instance_x = encoded_instance[:-1]
         assert np.all(encoded_instance_x == orange_instance.x)
 
         self.starting_K = self.K
@@ -150,13 +148,14 @@ class XPLAIN_explainer:
                 orange_pred = \
                     self.classifier[MT].predict_proba(encoded_instance_x.reshape(1, -1))[0][
                         target_class_index]
-                single_attribute_differences = compute_prediction_difference_single(orange_instance,
-                                                                                    self.classifier,
-                                                                                    target_class_index,
-                                                                                    self.training_dataset)
+                single_attribute_differences = compute_prediction_difference_single(
+                    encoded_instance,
+                    self.classifier,
+                    target_class_index,
+                    self.training_dataset)
 
             PI_rel2, difference_map, error, impo_rules_complete, importance_rules_lines, single_attribute_differences = self.compute_lace_step(
-                cached_subset_differences, orange_instance,
+                cached_subset_differences, orange_instance, decoded_instance,
                 instance_predictions_cache,
                 k, all_rule_body_indices, target_class, target_class_index, orange_pred,
                 single_attribute_differences)
@@ -199,12 +198,13 @@ class XPLAIN_explainer:
 
         return instance_explanation
 
-    def compute_lace_step(self, cached_subset_differences, instance,
+    def compute_lace_step(self, cached_subset_differences, orange_instance,
+                          decoded_instance,
                           instance_predictions_cache, k, old_input_ar, target_class,
                           target_class_index, pred, single_attribute_differences):
         print(f"compute_lace_step k={k}")
 
-        gen_neighbors_info(self.training_dataset, self.nbrs, instance, k,
+        gen_neighbors_info(self.training_dataset, self.nbrs, orange_instance, k,
                            self.unique_filename, self.classifier)
         subprocess.call(['java', '-jar', DEFAULT_DIR + 'AL3.jar', '-no-cv', '-t',
                          (DEFAULT_DIR + self.unique_filename + '/Knnres.arff'), '-T',
@@ -218,7 +218,7 @@ class XPLAIN_explainer:
             # Remove rules which contain all attributes: we are not interested in a rule composed of
             # all the attributes values. By definition, its relevance is prob(y=c)-prob(c)
             importance_rules_lines = [rule_str for rule_str in importance_rules_lines if
-                                      len(rule_str.split(",")) != len(instance.domain.attributes)]
+                                      len(rule_str.split(",")) != (len(decoded_instance) - 1)]
 
         rule_bodies_indices, n_input_ar, new_input_ar, old_ar_set = \
             get_relevant_subset_from_local_rules(
@@ -242,7 +242,7 @@ class XPLAIN_explainer:
             if subset_difference_cache_key not in cached_subset_differences:
                 cached_subset_differences[
                     subset_difference_cache_key] = compute_prediction_difference_subset(
-                    self.training_dataset, instance, rule_body_indices,
+                    self.training_dataset, orange_instance, rule_body_indices,
                     self.classifier, target_class_index, instance_predictions_cache)
 
             difference_map_key = ",".join(map(str, rule_body_indices))
