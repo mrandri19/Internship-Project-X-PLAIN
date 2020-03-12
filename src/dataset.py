@@ -68,8 +68,18 @@ class Dataset:
     def transform_instance(self, decoded_instance: pd.Series) -> pd.Series:
         """Transform a decoded instance to an encoded instance using the Dataset's column encoders"""
         return pd.Series(
-            {col: self._column_encoders[col].transform([val])[0] for (col, val) in
-             decoded_instance.items()})
+            {col: self._column_encoders[col].transform([val])[0]
+             for (col, val)
+             in
+             decoded_instance.items()}
+        )
+
+    def inverse_transform_instance(self, encoded_instance: pd.Series) -> pd.Series:
+        return pd.Series(
+            {col: self._column_encoders[col].inverse_transform([val])[0]
+             for (col, val)
+             in encoded_instance.items()}
+        )
 
     def orange_domain(self) -> Orange.data.Domain:
         """"Return a Orange.data.Domain built using the dataset's attributes"""

@@ -158,34 +158,39 @@ def get_classifier(training_dataset: Dataset, classifier_name: str,
 
 
 def gen_neighbors_info(training_dataset: Dataset, nbrs,
-                       instance: Orange.data.Instance, k: int,
-                       unique_filename: str, classifier):
-    nearest_neighbors_ixs = nbrs.kneighbors([instance.x], k,
-                                            return_distance=False)[0]
-    orange_closest_instance = make_orange_instance_index(training_dataset, nearest_neighbors_ixs[0])
+                       encoded_instance: pd.Series, k: int,
+                       unique_filename: str, clf):
+    cc = training_dataset.class_column_name()
+    instance_x = encoded_instance[:-1].to_numpy()
 
-    classified_instance = deepcopy(instance)
-    classified_instance.set_class(
-        classifier[MT].predict(instance.x.reshape(1, -1))[0].astype(np.int64))
+    nearest_neighbors_ixs = nbrs.kneighbors([instance_x], k,
+                                            return_distance=False)[0]
+
+    classified_instance = deepcopy(encoded_instance)
+    classified_instance[cc] = clf[MT].predict(instance_x.reshape(1, -1))[0]
     classified_instances = [classified_instance]
 
     for neigh_ix in nearest_neighbors_ixs:
-        orange_neigh = make_orange_instance_index(training_dataset, neigh_ix)
-        classified_neigh = deepcopy(orange_neigh)
-        classified_neigh.set_class(
-            classifier[MT].predict(orange_neigh.x.reshape(1, -1))[0].astype(np.int64))
+        neigh = training_dataset[neigh_ix]
+        neigh_x = neigh[:-1].to_numpy()
+
+        classified_neigh = deepcopy(neigh)
+        classified_neigh[cc] = clf[MT].predict(neigh_x.reshape(1, -1))[0]
 
         classified_instances.append(classified_neigh)
 
-    pd_classified_instances_dataset = Dataset(
-        [c.list for c in classified_instances],
+    classified_instances_dataset = Dataset(
+        [training_dataset.inverse_transform_instance(c) for c in classified_instances],
         training_dataset.columns)
+   
+    closest_instance = training_dataset[nearest_neighbors_ixs[0]]
+    closest_instance_x = closest_instance[:-1].to_numpy()
 
-    closest_instance_classified = deepcopy(orange_closest_instance)
-    closest_instance_classified.set_class(
-        classifier[MT].predict(orange_closest_instance.x.reshape(1, -1))[0].astype(np.int64))
-    pd_closest_instance_dataset = Dataset(
-        [c.list for c in [closest_instance_classified]],
+    closest_instance_classified = deepcopy(closest_instance)
+    closest_instance_classified[cc] = clf[MT].predict(closest_instance_x.reshape(1, -1))[0]
+
+    closest_instance_dataset = Dataset(
+        [training_dataset.inverse_transform_instance(closest_instance_classified)],
         training_dataset.columns)
 
     p = DEFAULT_DIR + unique_filename
@@ -193,9 +198,9 @@ def gen_neighbors_info(training_dataset: Dataset, nbrs,
         os.makedirs(p)
 
     with open(join(p, "Knnres.arff"), "w") as f:
-        arff.dump(pd_classified_instances_dataset.to_arff_obj(), f)
+        arff.dump(classified_instances_dataset.to_arff_obj(), f)
     with open(join(p, "Filetest.arff"), "w") as f:
-        arff.dump(pd_closest_instance_dataset.to_arff_obj(), f)
+        arff.dump(closest_instance_dataset.to_arff_obj(), f)
 
 
 def get_relevant_subset_from_local_rules(impo_rules, oldinputAr):

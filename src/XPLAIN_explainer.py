@@ -155,7 +155,7 @@ class XPLAIN_explainer:
                     self.training_dataset)
 
             PI_rel2, difference_map, error, impo_rules_complete, importance_rules_lines, single_attribute_differences = self.compute_lace_step(
-                cached_subset_differences, orange_instance, decoded_instance,
+                cached_subset_differences, orange_instance, encoded_instance,
                 instance_predictions_cache,
                 k, all_rule_body_indices, target_class, target_class_index, orange_pred,
                 single_attribute_differences)
@@ -199,12 +199,12 @@ class XPLAIN_explainer:
         return instance_explanation
 
     def compute_lace_step(self, cached_subset_differences, orange_instance,
-                          decoded_instance,
+                          encoded_instance,
                           instance_predictions_cache, k, old_input_ar, target_class,
                           target_class_index, pred, single_attribute_differences):
         print(f"compute_lace_step k={k}")
 
-        gen_neighbors_info(self.training_dataset, self.nbrs, orange_instance, k,
+        gen_neighbors_info(self.training_dataset, self.nbrs, encoded_instance, k,
                            self.unique_filename, self.classifier)
         subprocess.call(['java', '-jar', DEFAULT_DIR + 'AL3.jar', '-no-cv', '-t',
                          (DEFAULT_DIR + self.unique_filename + '/Knnres.arff'), '-T',
@@ -218,7 +218,7 @@ class XPLAIN_explainer:
             # Remove rules which contain all attributes: we are not interested in a rule composed of
             # all the attributes values. By definition, its relevance is prob(y=c)-prob(c)
             importance_rules_lines = [rule_str for rule_str in importance_rules_lines if
-                                      len(rule_str.split(",")) != (len(decoded_instance) - 1)]
+                                      len(rule_str.split(",")) != (len(encoded_instance) - 1)]
 
         rule_bodies_indices, n_input_ar, new_input_ar, old_ar_set = \
             get_relevant_subset_from_local_rules(
