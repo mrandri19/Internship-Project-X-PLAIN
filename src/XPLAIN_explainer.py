@@ -37,6 +37,7 @@ ERROR_THRESHOLD = 0.02
 
 
 class XPLAIN_explainer:
+    clf: sklearn.base.ClassifierMixin
     training_dataset: Dataset
     datanamepred: str
     unique_filename: str
@@ -44,8 +45,8 @@ class XPLAIN_explainer:
     classifier_name: str
     dataset_name: str
 
-    def __init__(self, dataset_name: str, classifier_name: str, classifier_parameter=None,
-                 KneighborsUser=None, maxKNNUser=None, threshold_error=None,
+    def __init__(self, dataset_name: str, classifier_name: str, KneighborsUser=None,
+                 maxKNNUser=None, threshold_error=None,
                  random_explain_dataset=False):
 
         self.dataset_name = dataset_name
@@ -75,8 +76,7 @@ class XPLAIN_explainer:
                                                       threshold_error,
                                                       maxKNNUser)
 
-        self.clf = get_classifier(self.training_dataset, classifier_name,
-                                  classifier_parameter)
+        self.clf = get_classifier(self.training_dataset, classifier_name)
 
         self.ix_to_class = {i: class_ for (i, class_) in
                             enumerate(self.training_dataset.class_values())}
