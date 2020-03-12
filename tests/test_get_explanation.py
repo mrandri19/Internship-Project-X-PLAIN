@@ -6,24 +6,20 @@ import arff
 from snapshottest import TestCase
 
 from src import DEFAULT_DIR
-from src.XPLAIN_explainer import XPLAIN_explainer
-from src.XPLAIN_explanation import XPLAIN_explanation
+from src.XPLAIN_explainer import XPLAIN_explainer, XPLAIN_explanation
 from src.dataset import Dataset
 
 
-def load_arff(filename: str) -> Dataset:
-    with open(filename, 'r') as f:
-        a = arff.load(f)
-        dataset = Dataset(a['data'], a['attributes'])
+def load_arff(f) -> Dataset:
+    a = arff.load(f)
+    dataset = Dataset(a['data'], a['attributes'])
 
-        return dataset
+    return dataset
 
 
-def import_dataset(dataset_name: str, explain_indices: List[int],
-                   random_explain_dataset: bool) -> Tuple[Dataset, Dataset, List[str]]:
-    assert dataset_name.endswith("arff")
-
-    dataset = load_arff(dataset_name)
+def import_dataset_arff(f, explain_indices: List[int],
+                        random_explain_dataset: bool) -> Tuple[Dataset, Dataset, List[str]]:
+    dataset = load_arff(f)
 
     dataset_len = len(dataset)
     training_indices = list(range(dataset_len))
@@ -47,25 +43,13 @@ def import_dataset(dataset_name: str, explain_indices: List[int],
 
     explain_dataset = Dataset(dataset._decoded_df.iloc[explain_indices], dataset.columns)
 
-    return training_dataset, explain_dataset, \
-           [str(i) for i in explain_indices]
+    return training_dataset, explain_dataset, [str(i) for i in explain_indices]
 
 
-def import_datasets(dataset_name: str, explain_indices: List[int],
-                    random_explain_dataset: bool) -> Tuple[Dataset, Dataset, List[str]]:
-    """
-    :param dataset_name: path of the dataset file
-    :param explain_indices: indices of the instances to be added in the explain dataset
-    :param random_explain_dataset: randomly sample 300 rows from the _explain.arff file to make the
-                                   explain, will make `explain_indices` futile
-    :return:
-    """
-    assert (dataset_name[-4:] == "arff")
-
-    explain_dataset_name = dataset_name[:-5] + "_explain.arff"
-
-    pd_training_dataset = load_arff(dataset_name)
-    pd_explain_dataset = load_arff(explain_dataset_name)
+def import_datasets_arff(f, f_explain, explain_indices: List[int],
+                         random_explain_dataset: bool) -> Tuple[Dataset, Dataset, List[str]]:
+    pd_training_dataset = load_arff(f)
+    pd_explain_dataset = load_arff(f_explain)
 
     len_explain_dataset = len(pd_explain_dataset)
 
@@ -76,8 +60,7 @@ def import_datasets(dataset_name: str, explain_indices: List[int],
     pd_explain_dataset = Dataset(pd_explain_dataset._decoded_df.iloc[explain_indices],
                                  pd_explain_dataset.columns)
 
-    return pd_training_dataset, pd_explain_dataset, [str(i) for i in
-                                                     explain_indices]
+    return pd_training_dataset, pd_explain_dataset, [str(i) for i in explain_indices]
 
 
 def get_classifier(classifier_name: str):
@@ -123,15 +106,16 @@ def get_explanation(dataset_name: str, classifier_name: str) -> XPLAIN_explanati
     explain_dataset_indices = []
     if dataset_name in [join(DEFAULT_DIR, "datasets/adult_d.arff"),
                         join(DEFAULT_DIR, "datasets/compas-scores-two-years_d.arff")]:
-        training_dataset, explain_dataset, explain_indices = import_datasets(
-            dataset_name, explain_dataset_indices, True)
+        with open(dataset_name) as f, open(dataset_name[:-5] + "_explain.arff") as f_explain:
+            training_dataset, explain_dataset, explain_indices = import_datasets_arff(f, f_explain,
+                                                                                      explain_dataset_indices,
+                                                                                      True)
     else:
-        training_dataset, explain_dataset, explain_indices = import_dataset(
-            dataset_name, explain_dataset_indices, True)
+        with open(dataset_name) as f:
+            training_dataset, explain_dataset, explain_indices = import_dataset_arff(
+                f, explain_dataset_indices, True)
 
-    explainer = XPLAIN_explainer(dataset_name, get_classifier(classifier_name),
-                                 training_dataset, explain_dataset, explain_indices,
-                                 random_explain_dataset=True)
+    explainer = XPLAIN_explainer(get_classifier(classifier_name), training_dataset, explain_dataset)
 
     instance = explainer.explain_dataset.get_decoded(0)
 

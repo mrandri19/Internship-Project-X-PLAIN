@@ -5,6 +5,8 @@ import pickle
 # noinspection PyUnresolvedReferences
 import subprocess
 # noinspection PyUnresolvedReferences
+import uuid
+# noinspection PyUnresolvedReferences
 from copy import deepcopy
 # noinspection PyUnresolvedReferences
 from os.path import join
@@ -19,7 +21,6 @@ import pandas as pd
 import sklearn.neighbors
 
 # noinspection PyUnresolvedReferences
-from src.XPLAIN_explanation import XPLAIN_explanation
 # noinspection PyUnresolvedReferences
 from src.dataset import Dataset
 from src.global_explanation import *
@@ -36,70 +37,62 @@ TEMPORARY_FOLDER_NAME = "tmp"
 ERROR_THRESHOLD = 0.02
 
 
+class XPLAIN_explanation:
+    def __init__(self, explainer, target_class, instance, diff_single, k, error, difference_map):
+        self.XPLAIN_explainer_o = explainer
+        self.diff_single = diff_single
+        self.map_difference = deepcopy(difference_map)
+        self.k = k
+        self.error = error
+        self.instance = instance
+        self.target_class = target_class
+        self.instance_class_index = explainer.train_dataset.class_values().index(
+            self.target_class)
+
+        self.prob = self.XPLAIN_explainer_o.clf.predict_proba(
+            instance[:-1].to_numpy().reshape(1, -1))[0][
+            self.instance_class_index]
+
+
 class XPLAIN_explainer:
     clf: sklearn.base.ClassifierMixin
-    training_dataset: Dataset
-    datanamepred: str
+    train_dataset: Dataset
+    explain_dataset: Dataset
     unique_filename: str
-    present: bool
 
-    def __init__(self, dataset_name: str, untrained_clf,
-                 training_dataset, explain_dataset, explain_indices,
-                 KneighborsUser=None,
-                 maxKNNUser=None, threshold_error=None,
-                 random_explain_dataset=False):
-        # Temporary folder
-        import uuid
-        self.unique_filename = os.path.join(TEMPORARY_FOLDER_NAME,
-                                            str(uuid.uuid4()))
-        self.datanamepred = DEFAULT_DIR + self.unique_filename + "/gen-k0.arff"
+    def __init__(self, untrained_clf, train_dataset, explain_dataset):
+        self.unique_filename = os.path.join(TEMPORARY_FOLDER_NAME, str(uuid.uuid4()))
 
-        # The adult and compas dataset are already splitted in training and explain set.
-        # The training set is balanced.
-        self.explain_indices = []
+        self.train_dataset = train_dataset
+        self.explain_dataset = explain_dataset
 
-        self.training_dataset, self.explain_dataset, self.explain_indices = training_dataset, explain_dataset, explain_indices
-
-        self.K, _, self.max_K = get_KNN_threshold_max(KneighborsUser,
-                                                      len(self.training_dataset),
-                                                      threshold_error,
-                                                      maxKNNUser)
-
-        self.clf = untrained_clf.fit(self.training_dataset.X_numpy(),
-                                     self.training_dataset.Y_numpy())
-
-        self.ix_to_class = {i: class_ for (i, class_) in
-                            enumerate(self.training_dataset.class_values())}
-
-        self.nbrs = sklearn.neighbors.NearestNeighbors(
-            n_neighbors=len(self.training_dataset), metric='euclidean',
-            algorithm='auto', metric_params=None).fit(
-            self.training_dataset.X_numpy())
-
+        self.K, _, self.max_K = get_KNN_threshold_max(None, len(self.train_dataset), None, None)
         self.starting_K = self.K
 
-        self.class_frequencies = compute_class_frequency(self.training_dataset)
-        self.mispredictedInstances = None
+        self.ix_to_class = {i: class_ for (i, class_) in
+                            enumerate(self.train_dataset.class_values())}
 
-    def get_class_index(self, class_name):
-        class_index = -1
-        for i in self.training_dataset.class_values():
-            class_index += 1
-            if i == class_name:
-                return class_index
+        self.clf = untrained_clf.fit(self.train_dataset.X_numpy(),
+                                     self.train_dataset.Y_numpy())
+
+        self.nbrs = sklearn.neighbors.NearestNeighbors(
+            n_neighbors=len(self.train_dataset), metric='euclidean',
+            algorithm='auto', metric_params=None).fit(
+            self.train_dataset.X_numpy())
+
+        self.class_frequencies = compute_class_frequency(self.train_dataset)
 
     def explain_instance(self, decoded_instance: pd.Series, target_class) -> XPLAIN_explanation:
-        target_class_index = self.get_class_index(target_class)
+        target_class_index = self.train_dataset.class_values().index(target_class)
 
         encoded_instance = self.explain_dataset.transform_instance(decoded_instance)
         encoded_instance_x = encoded_instance[:-1].to_numpy()
 
-        self.starting_K = self.K
         # Problem with very small training dataset. The starting k is low, very few examples:
         # difficult to capture the locality.
         # Risks: examples too similar, only 1 class. Starting k: proportional to the class frequence
         small_dataset_len = 150
-        training_dataset_len = len(self.training_dataset)
+        training_dataset_len = len(self.train_dataset)
         if training_dataset_len < small_dataset_len:
             pred_class = self.ix_to_class[
                 self.clf.predict(encoded_instance_x.reshape(1, -1))[0]]
@@ -138,7 +131,7 @@ class XPLAIN_explainer:
                     encoded_instance,
                     self.clf,
                     target_class_index,
-                    self.training_dataset)
+                    self.train_dataset)
 
             PI_rel2, difference_map, error, impo_rules_complete, importance_rules_lines, single_attribute_differences = self.compute_lace_step(
                 cached_subset_differences, encoded_instance,
@@ -190,7 +183,7 @@ class XPLAIN_explainer:
                           target_class_index, pred, single_attribute_differences):
         print(f"compute_lace_step k={k}")
 
-        gen_neighbors_info(self.training_dataset, self.nbrs, encoded_instance, k,
+        gen_neighbors_info(self.train_dataset, self.nbrs, encoded_instance, k,
                            self.unique_filename, self.clf)
         subprocess.call(['java', '-jar', DEFAULT_DIR + 'AL3.jar', '-no-cv', '-t',
                          (DEFAULT_DIR + self.unique_filename + '/Knnres.arff'), '-T',
@@ -228,7 +221,7 @@ class XPLAIN_explainer:
             if subset_difference_cache_key not in cached_subset_differences:
                 cached_subset_differences[
                     subset_difference_cache_key] = compute_prediction_difference_subset(
-                    self.training_dataset, encoded_instance, rule_body_indices,
+                    self.train_dataset, encoded_instance, rule_body_indices,
                     self.clf, target_class_index, instance_predictions_cache)
 
             difference_map_key = ",".join(map(str, rule_body_indices))
