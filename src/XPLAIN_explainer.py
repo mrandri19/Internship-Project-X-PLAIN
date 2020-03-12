@@ -25,7 +25,7 @@ from src.dataset import Dataset
 from src.global_explanation import *
 # noinspection PyUnresolvedReferences
 from src.utils import gen_neighbors_info, \
-    get_relevant_subset_from_local_rules, get_classifier, import_datasets, import_dataset, \
+    get_relevant_subset_from_local_rules, \
     compute_prediction_difference_subset, \
     compute_prediction_difference_single, getStartKValueSimplified, \
     compute_class_frequency, compute_error_approximation, \
@@ -42,16 +42,12 @@ class XPLAIN_explainer:
     datanamepred: str
     unique_filename: str
     present: bool
-    classifier_name: str
-    dataset_name: str
 
-    def __init__(self, dataset_name: str, classifier_name: str, KneighborsUser=None,
+    def __init__(self, dataset_name: str, untrained_clf,
+                 training_dataset, explain_dataset, explain_indices,
+                 KneighborsUser=None,
                  maxKNNUser=None, threshold_error=None,
                  random_explain_dataset=False):
-
-        self.dataset_name = dataset_name
-        self.classifier_name = classifier_name
-
         # Temporary folder
         import uuid
         self.unique_filename = os.path.join(TEMPORARY_FOLDER_NAME,
@@ -62,26 +58,18 @@ class XPLAIN_explainer:
         # The training set is balanced.
         self.explain_indices = []
 
-        explain_dataset_indices = []
-        if dataset_name in [join(DEFAULT_DIR, "datasets/adult_d.arff"),
-                            join(DEFAULT_DIR, "datasets/compas-scores-two-years_d.arff")]:
-            self.training_dataset, self.explain_dataset, self.training_dataset_len, self.explain_indices = import_datasets(
-                dataset_name, explain_dataset_indices, random_explain_dataset)
-        else:
-            self.training_dataset, self.explain_dataset, self.training_dataset_len, self.explain_indices = import_dataset(
-                dataset_name, explain_dataset_indices, random_explain_dataset)
+        self.training_dataset, self.explain_dataset, self.explain_indices = training_dataset, explain_dataset, explain_indices
 
         self.K, _, self.max_K = get_KNN_threshold_max(KneighborsUser,
-                                                      self.training_dataset_len,
+                                                      len(self.training_dataset),
                                                       threshold_error,
                                                       maxKNNUser)
 
-        self.clf = get_classifier(self.training_dataset, classifier_name)
+        self.clf = untrained_clf.fit(self.training_dataset.X_numpy(),
+                                     self.training_dataset.Y_numpy())
 
         self.ix_to_class = {i: class_ for (i, class_) in
                             enumerate(self.training_dataset.class_values())}
-
-        self.dataset_name = dataset_name.split("/")[-1]
 
         self.nbrs = sklearn.neighbors.NearestNeighbors(
             n_neighbors=len(self.training_dataset), metric='euclidean',
@@ -111,11 +99,12 @@ class XPLAIN_explainer:
         # difficult to capture the locality.
         # Risks: examples too similar, only 1 class. Starting k: proportional to the class frequence
         small_dataset_len = 150
-        if self.training_dataset_len < small_dataset_len:
+        training_dataset_len = len(self.training_dataset)
+        if training_dataset_len < small_dataset_len:
             pred_class = self.ix_to_class[
                 self.clf.predict(encoded_instance_x.reshape(1, -1))[0]]
             self.starting_K = max(
-                int(self.class_frequencies[pred_class] * self.training_dataset_len),
+                int(self.class_frequencies[pred_class] * training_dataset_len),
                 self.starting_K)
 
         # Initialize k and error to be defined in case the for loop is not entered
