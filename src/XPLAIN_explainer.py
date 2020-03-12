@@ -37,29 +37,7 @@ TEMPORARY_FOLDER_NAME = "tmp"
 ERROR_THRESHOLD = 0.02
 
 
-class XPLAIN_explanation:
-    def __init__(self, explainer, target_class, instance, diff_single, k, error, difference_map):
-        self.XPLAIN_explainer_o = explainer
-        self.diff_single = diff_single
-        self.map_difference = deepcopy(difference_map)
-        self.k = k
-        self.error = error
-        self.instance = instance
-        self.target_class = target_class
-        self.instance_class_index = explainer.train_dataset.class_values().index(
-            self.target_class)
-
-        self.prob = self.XPLAIN_explainer_o.clf.predict_proba(
-            instance[:-1].to_numpy().reshape(1, -1))[0][
-            self.instance_class_index]
-
-
 class XPLAIN_explainer:
-    clf: sklearn.base.ClassifierMixin
-    train_dataset: Dataset
-    explain_dataset: Dataset
-    unique_filename: str
-
     def __init__(self, untrained_clf, train_dataset, explain_dataset):
         self.unique_filename = os.path.join(TEMPORARY_FOLDER_NAME, str(uuid.uuid4()))
 
@@ -82,7 +60,7 @@ class XPLAIN_explainer:
 
         self.class_frequencies = compute_class_frequency(self.train_dataset)
 
-    def explain_instance(self, decoded_instance: pd.Series, target_class) -> XPLAIN_explanation:
+    def explain_instance(self, decoded_instance: pd.Series, target_class):
         target_class_index = self.train_dataset.class_values().index(target_class)
 
         encoded_instance = self.explain_dataset.transform_instance(decoded_instance)
@@ -161,13 +139,6 @@ class XPLAIN_explainer:
                 first_iteration = False
                 old_error = error
 
-        instance_explanation = XPLAIN_explanation(self,
-                                                  target_class,
-                                                  encoded_instance,
-                                                  single_attribute_differences,
-                                                  k,
-                                                  error,
-                                                  difference_map)
         # # Remove the temporary folder and dir
         import shutil
         if os.path.exists(join(DEFAULT_DIR, self.unique_filename)):
@@ -175,7 +146,13 @@ class XPLAIN_explainer:
 
         print("explain_instance errors:", errors)
 
-        return instance_explanation
+        xp = {'XPLAIN_explainer_o': self, 'diff_single': single_attribute_differences,
+              'map_difference': deepcopy(difference_map), 'k': k, 'error': error,
+              'instance': encoded_instance, 'target_class': target_class,
+              'instance_class_index': target_class_index, 'prob': self.clf.predict_proba(
+                encoded_instance_x.reshape(1, -1))[0][target_class_index]}
+
+        return xp
 
     def compute_lace_step(self, cached_subset_differences,
                           encoded_instance,

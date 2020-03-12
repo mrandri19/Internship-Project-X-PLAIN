@@ -6,7 +6,7 @@ import arff
 from snapshottest import TestCase
 
 from src import DEFAULT_DIR
-from src.XPLAIN_explainer import XPLAIN_explainer, XPLAIN_explanation
+from src.XPLAIN_explainer import XPLAIN_explainer
 from src.dataset import Dataset
 
 
@@ -22,7 +22,7 @@ def import_dataset_arff(f, explain_indices: List[int],
     dataset = load_arff(f)
 
     dataset_len = len(dataset)
-    training_indices = list(range(dataset_len))
+    train_indices = list(range(dataset_len))
 
     if random_explain_dataset:
         random.seed(1)
@@ -35,32 +35,32 @@ def import_dataset_arff(f, explain_indices: List[int],
 
         # Randomly pick some instances to remove from the training dataset and use in the
         # explain dataset
-        explain_indices = list(random.sample(training_indices, samples))
+        explain_indices = list(random.sample(train_indices, samples))
     for i in explain_indices:
-        training_indices.remove(i)
+        train_indices.remove(i)
 
-    training_dataset = Dataset(dataset._decoded_df.iloc[training_indices], dataset.columns)
+    train_dataset = Dataset(dataset._decoded_df.iloc[train_indices], dataset.columns)
 
     explain_dataset = Dataset(dataset._decoded_df.iloc[explain_indices], dataset.columns)
 
-    return training_dataset, explain_dataset, [str(i) for i in explain_indices]
+    return train_dataset, explain_dataset, [str(i) for i in explain_indices]
 
 
 def import_datasets_arff(f, f_explain, explain_indices: List[int],
                          random_explain_dataset: bool) -> Tuple[Dataset, Dataset, List[str]]:
-    pd_training_dataset = load_arff(f)
-    pd_explain_dataset = load_arff(f_explain)
+    train_dataset = load_arff(f)
+    explain_dataset = load_arff(f_explain)
 
-    len_explain_dataset = len(pd_explain_dataset)
+    len_explain_dataset = len(explain_dataset)
 
     if random_explain_dataset:
         random.seed(7)
         explain_indices = list(random.sample(range(len_explain_dataset), 300))
 
-    pd_explain_dataset = Dataset(pd_explain_dataset._decoded_df.iloc[explain_indices],
-                                 pd_explain_dataset.columns)
+    explain_dataset = Dataset(explain_dataset._decoded_df.iloc[explain_indices],
+                              explain_dataset.columns)
 
-    return pd_training_dataset, pd_explain_dataset, [str(i) for i in explain_indices]
+    return train_dataset, explain_dataset, [str(i) for i in explain_indices]
 
 
 def get_classifier(classifier_name: str):
@@ -102,7 +102,7 @@ def get_classifier(classifier_name: str):
         raise ValueError("Classifier not available")
 
 
-def get_explanation(dataset_name: str, classifier_name: str) -> XPLAIN_explanation:
+def get_explanation(dataset_name: str, classifier_name: str):
     explain_dataset_indices = []
     if dataset_name in [join(DEFAULT_DIR, "datasets/adult_d.arff"),
                         join(DEFAULT_DIR, "datasets/compas-scores-two-years_d.arff")]:
@@ -129,41 +129,41 @@ class TestGet_explanation(TestCase):
     def test_get_explanation_zoo_random_forest(self):
         e = get_explanation(join(DEFAULT_DIR, "datasets/zoo.arff"), "sklearn_rf")
         self.assertMatchSnapshot((
-            e.XPLAIN_explainer_o,
-            e.diff_single,
-            e.map_difference,
-            e.k,
-            e.error,
-            e.instance,
-            e.target_class,
-            e.instance_class_index,
-            e.prob
+            e['XPLAIN_explainer_o'],
+            e['diff_single'],
+            e['map_difference'],
+            e['k'],
+            e['error'],
+            e['instance'],
+            e['target_class'],
+            e['instance_class_index'],
+            e['prob']
         ))
 
     def test_get_explanation_zoo_naive_bayes(self):
         e = get_explanation(join(DEFAULT_DIR, "datasets/zoo.arff"), "sklearn_nb")
         self.assertMatchSnapshot((
-            e.XPLAIN_explainer_o,
-            e.diff_single,
-            e.map_difference,
-            e.k,
-            e.error,
-            e.instance,
-            e.target_class,
-            e.instance_class_index,
-            e.prob
+            e['XPLAIN_explainer_o'],
+            e['diff_single'],
+            e['map_difference'],
+            e['k'],
+            e['error'],
+            e['instance'],
+            e['target_class'],
+            e['instance_class_index'],
+            e['prob']
         ))
 
     def test_get_explanation_adult_naive_bayes(self):
         e = get_explanation(join(DEFAULT_DIR, "datasets/adult_d.arff"), "sklearn_nb")
         self.assertMatchSnapshot((
-            e.XPLAIN_explainer_o,
-            e.diff_single,
-            e.map_difference,
-            e.k,
-            e.error,
-            e.instance,
-            e.target_class,
-            e.instance_class_index,
-            e.prob
+            e['XPLAIN_explainer_o'],
+            e['diff_single'],
+            e['map_difference'],
+            e['k'],
+            e['error'],
+            e['instance'],
+            e['target_class'],
+            e['instance_class_index'],
+            e['prob']
         ))
