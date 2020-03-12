@@ -29,7 +29,7 @@ from src.utils import gen_neighbors_info, \
     compute_prediction_difference_subset, \
     compute_prediction_difference_single, getStartKValueSimplified, \
     compute_class_frequency, compute_error_approximation, \
-    get_KNN_threshold_max, DEFAULT_DIR, make_orange_instance, MT
+    get_KNN_threshold_max, DEFAULT_DIR
 
 ERROR_DIFFERENCE_THRESHOLD = 0.01
 TEMPORARY_FOLDER_NAME = "tmp"
@@ -75,8 +75,8 @@ class XPLAIN_explainer:
                                                       threshold_error,
                                                       maxKNNUser)
 
-        self.classifier = get_classifier(self.training_dataset, classifier_name,
-                                         classifier_parameter)
+        self.clf = get_classifier(self.training_dataset, classifier_name,
+                                  classifier_parameter)
 
         self.ix_to_class = {i: class_ for (i, class_) in
                             enumerate(self.training_dataset.class_values())}
@@ -113,7 +113,7 @@ class XPLAIN_explainer:
         small_dataset_len = 150
         if self.training_dataset_len < small_dataset_len:
             pred_class = self.ix_to_class[
-                self.classifier[MT].predict(encoded_instance_x.reshape(1, -1))[0]]
+                self.clf.predict(encoded_instance_x.reshape(1, -1))[0]]
             self.starting_K = max(
                 int(self.class_frequencies[pred_class] * self.training_dataset_len),
                 self.starting_K)
@@ -123,7 +123,7 @@ class XPLAIN_explainer:
         old_error = 10.0
         error = 1e9
         single_attribute_differences = {}
-        orange_pred = 0.0
+        pred = 0.0
         difference_map = {}
 
         first_iteration = True
@@ -142,19 +142,19 @@ class XPLAIN_explainer:
             # Compute the prediction difference of single attributes only on the
             # first iteration
             if first_iteration:
-                orange_pred = \
-                    self.classifier[MT].predict_proba(encoded_instance_x.reshape(1, -1))[0][
+                pred = \
+                    self.clf.predict_proba(encoded_instance_x.reshape(1, -1))[0][
                         target_class_index]
                 single_attribute_differences = compute_prediction_difference_single(
                     encoded_instance,
-                    self.classifier,
+                    self.clf,
                     target_class_index,
                     self.training_dataset)
 
             PI_rel2, difference_map, error, impo_rules_complete, importance_rules_lines, single_attribute_differences = self.compute_lace_step(
                 cached_subset_differences, encoded_instance,
                 instance_predictions_cache,
-                k, all_rule_body_indices, target_class, target_class_index, orange_pred,
+                k, all_rule_body_indices, target_class, target_class_index, pred,
                 single_attribute_differences)
 
             # TODO(Andrea): investigate this id=4943, <=50K
@@ -202,7 +202,7 @@ class XPLAIN_explainer:
         print(f"compute_lace_step k={k}")
 
         gen_neighbors_info(self.training_dataset, self.nbrs, encoded_instance, k,
-                           self.unique_filename, self.classifier)
+                           self.unique_filename, self.clf)
         subprocess.call(['java', '-jar', DEFAULT_DIR + 'AL3.jar', '-no-cv', '-t',
                          (DEFAULT_DIR + self.unique_filename + '/Knnres.arff'), '-T',
                          (DEFAULT_DIR + self.unique_filename + '/Filetest.arff'),
@@ -240,7 +240,7 @@ class XPLAIN_explainer:
                 cached_subset_differences[
                     subset_difference_cache_key] = compute_prediction_difference_subset(
                     self.training_dataset, encoded_instance, rule_body_indices,
-                    self.classifier, target_class_index, instance_predictions_cache)
+                    self.clf, target_class_index, instance_predictions_cache)
 
             difference_map_key = ",".join(map(str, rule_body_indices))
             difference_map[difference_map_key] = cached_subset_differences[

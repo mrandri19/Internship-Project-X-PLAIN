@@ -1,7 +1,5 @@
 from copy import deepcopy
 
-MT = 1
-
 
 class XPLAIN_explanation:
     def __init__(self, explainer, target_class, instance, diff_single, k, error, difference_map):
@@ -15,6 +13,6 @@ class XPLAIN_explanation:
         self.instance_class_index = explainer.get_class_index(self.target_class)
 
         self.prob = \
-            self.XPLAIN_explainer_o.classifier[MT].predict_proba(
+            self.XPLAIN_explainer_o.clf.predict_proba(
                 instance[:-1].to_numpy().reshape(1, -1))[0][
                 self.instance_class_index]

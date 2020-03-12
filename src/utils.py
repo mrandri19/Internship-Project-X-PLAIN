@@ -13,7 +13,6 @@ from os import path
 from os.path import join
 from typing import Tuple, List
 
-import Orange
 import arff
 # noinspection PyUnresolvedReferences
 import numpy as np
@@ -25,17 +24,6 @@ from src import DEFAULT_DIR
 from src.dataset import Dataset
 
 MAX_SAMPLE_COUNT = 100
-MT = 1
-
-
-def make_orange_instance_index(dataset: Dataset, index: int) -> Orange.data.Instance:
-    """"Make an Orange.data.Instance from the row at `index` of the `dataset`"""
-    return Orange.data.Instance(dataset.orange_domain(), dataset[index])
-
-
-def make_orange_instance(dataset: Dataset, instance: pd.Series) -> Orange.data.Instance:
-    """"Make an Orange.data.Instance from an `instance` (a row) of the `dataset`"""
-    return Orange.data.Instance(dataset.orange_domain(), instance)
 
 
 def table_to_arff(t):
@@ -118,13 +106,13 @@ def load_arff(filename: str) -> Dataset:
 
 # noinspection PyUnresolvedReferences
 def get_classifier(training_dataset: Dataset, classifier_name: str,
-                   classifier_parameter: str) -> Tuple[Orange.classification.Learner, object]:
+                   classifier_parameter: str) -> object:
     if classifier_name == "sklearn_nb":
         from sklearn.naive_bayes import MultinomialNB
 
         skl_clf = MultinomialNB().fit(training_dataset.X_numpy(), training_dataset.Y_numpy())
 
-        return None, skl_clf
+        return skl_clf
 
     elif classifier_name == "sklearn_rf":
         from sklearn.ensemble import RandomForestClassifier
@@ -134,14 +122,14 @@ def get_classifier(training_dataset: Dataset, classifier_name: str,
         pipe = make_pipeline(OneHotEncoder(), RandomForestClassifier(random_state=42))
         skl_clf = pipe.fit(training_dataset.X_numpy(), training_dataset.Y_numpy())
 
-        return None, skl_clf
+        return skl_clf
 
     elif classifier_name == "nn_label_enc":
         from sklearn.neural_network import MLPClassifier
 
         skl_clf = MLPClassifier(random_state=42, max_iter=1000).fit(training_dataset.X_numpy(),
                                                                     training_dataset.Y_numpy())
-        return None, skl_clf
+        return skl_clf
 
     elif classifier_name == "nn_onehot_enc":
         from sklearn.neural_network import MLPClassifier
@@ -151,7 +139,7 @@ def get_classifier(training_dataset: Dataset, classifier_name: str,
         pipe = make_pipeline(OneHotEncoder(), MLPClassifier(random_state=42, max_iter=1000))
         skl_clf = pipe.fit(training_dataset.X_numpy(), training_dataset.Y_numpy())
 
-        return None, skl_clf
+        return skl_clf
 
     else:
         raise ValueError("Classifier not available")
@@ -167,7 +155,7 @@ def gen_neighbors_info(training_dataset: Dataset, nbrs,
                                             return_distance=False)[0]
 
     classified_instance = deepcopy(encoded_instance)
-    classified_instance[cc] = clf[MT].predict(instance_x.reshape(1, -1))[0]
+    classified_instance[cc] = clf.predict(instance_x.reshape(1, -1))[0]
     classified_instances = [classified_instance]
 
     for neigh_ix in nearest_neighbors_ixs:
@@ -175,7 +163,7 @@ def gen_neighbors_info(training_dataset: Dataset, nbrs,
         neigh_x = neigh[:-1].to_numpy()
 
         classified_neigh = deepcopy(neigh)
-        classified_neigh[cc] = clf[MT].predict(neigh_x.reshape(1, -1))[0]
+        classified_neigh[cc] = clf.predict(neigh_x.reshape(1, -1))[0]
 
         classified_instances.append(classified_neigh)
 
@@ -187,7 +175,7 @@ def gen_neighbors_info(training_dataset: Dataset, nbrs,
     closest_instance_x = closest_instance[:-1].to_numpy()
 
     closest_instance_classified = deepcopy(closest_instance)
-    closest_instance_classified[cc] = clf[MT].predict(closest_instance_x.reshape(1, -1))[0]
+    closest_instance_classified[cc] = clf.predict(closest_instance_x.reshape(1, -1))[0]
 
     closest_instance_dataset = Dataset(
         [training_dataset.inverse_transform_instance(closest_instance_classified)],
@@ -231,7 +219,7 @@ def get_relevant_subset_from_local_rules(impo_rules, oldinputAr):
 def compute_prediction_difference_subset(training_dataset: Dataset,
                                          encoded_instance: pd.Series,
                                          rule_body_indices,
-                                         classifier,
+                                         clf,
                                          instance_class_index,
                                          instance_predictions_cache):
     """
@@ -254,7 +242,7 @@ def compute_prediction_difference_subset(training_dataset: Dataset,
 
     # For each set of attributes
     differences = [
-        compute_perturbed_difference(item, classifier, encoded_instance,
+        compute_perturbed_difference(item, clf, encoded_instance,
                                      instance_class_index,
                                      rule_attributes, training_dataset) for
         item in
@@ -263,13 +251,13 @@ def compute_prediction_difference_subset(training_dataset: Dataset,
     prediction_difference = sum(differences)
 
     # p(y=c|x) i.e. Probability that instance x belongs to class c
-    p = classifier[MT].predict_proba(encoded_instance_x.reshape(1, -1))[0][instance_class_index]
+    p = clf.predict_proba(encoded_instance_x.reshape(1, -1))[0][instance_class_index]
     prediction_differences = p - prediction_difference
 
     return prediction_differences
 
 
-def compute_perturbed_difference(item, classifier, encoded_instance,
+def compute_perturbed_difference(item, clf, encoded_instance,
                                  instance_class_index,
                                  rule_attributes, training_dataset_):
     (attribute_set, occurrences) = item
@@ -284,7 +272,7 @@ def compute_perturbed_difference(item, classifier, encoded_instance,
     #         instance_class_index]
     # prob = instance_predictions_cache[cache_key]
 
-    prob = classifier[MT].predict_proba(perturbed_instance[:-1].to_numpy().reshape(1, -1))[0][
+    prob = clf.predict_proba(perturbed_instance[:-1].to_numpy().reshape(1, -1))[0][
         instance_class_index]
 
     # Compute the prediction difference using the weighted average of the
@@ -295,7 +283,7 @@ def compute_perturbed_difference(item, classifier, encoded_instance,
 
 
 # Single explanation. Change 1 value at the time e compute the difference
-def compute_prediction_difference_single(encoded_instance, classifier, target_class_index,
+def compute_prediction_difference_single(encoded_instance, clf, target_class_index,
                                          training_dataset):
     dataset_len = len(training_dataset)
 
@@ -304,7 +292,7 @@ def compute_prediction_difference_single(encoded_instance, classifier, target_cl
     attribute_pred_difference = [0] * len(training_dataset.attributes())
 
     # The probability of `instance` belonging to class `target_class_index`
-    class_prob = classifier[MT].predict_proba(encoded_instance_x.reshape(1, -1))[0][
+    class_prob = clf.predict_proba(encoded_instance_x.reshape(1, -1))[0][
         target_class_index]
 
     # For each `instance` attribute
@@ -324,7 +312,7 @@ def compute_prediction_difference_single(encoded_instance, classifier, target_cl
 
             # See how the prediction changes
             class_prob = \
-                classifier[MT].predict_proba(perturbed_encoded_instance_x.reshape(1, -1))[0][
+                clf.predict_proba(perturbed_encoded_instance_x.reshape(1, -1))[0][
                     target_class_index]
 
             # Update the attribute difference weighting the prediction by the value frequency

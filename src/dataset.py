@@ -1,6 +1,5 @@
 from collections import defaultdict
 
-import Orange
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
@@ -80,12 +79,6 @@ class Dataset:
              for (col, val)
              in encoded_instance.items()}
         )
-
-    def orange_domain(self) -> Orange.data.Domain:
-        """"Return a Orange.data.Domain built using the dataset's attributes"""
-        orange_vars = [Orange.data.DiscreteVariable.make(name, vals) for (name, vals) in
-                       self.columns]
-        return Orange.data.Domain(attributes=orange_vars[:-1], class_vars=orange_vars[-1])
 
     def to_arff_obj(self) -> object:
         obj = {'relation': self.class_column_name(),
