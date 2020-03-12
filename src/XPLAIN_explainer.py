@@ -1,18 +1,7 @@
-# TODO(Andrea): investigate this id=4943, <=50K
-# compute_lace_step k=118
-# compute_lace_step k=236
-# compute_lace_step k=354
-# compute_lace_step k=472
-# compute_lace_step k=590
-# explain_instance errors:
-# [0.49673809098087984,
-# 0.49673809098087984,
-# 0.49673809098087984,
-# 0.49673809098087984,
-# 0.49673809098087984]
-
 # noinspection PyUnresolvedReferences
 import os
+# noinspection PyUnresolvedReferences
+import shutil
 # noinspection PyUnresolvedReferences
 import subprocess
 # noinspection PyUnresolvedReferences
@@ -135,8 +124,6 @@ class XPLAIN_explainer:
                 first_iteration = False
                 old_error = error
 
-        # # Remove the temporary folder and dir
-        import shutil
         if os.path.exists(join(DEFAULT_DIR, self.unique_filename)):
             shutil.rmtree(join(DEFAULT_DIR, self.unique_filename))
 
@@ -165,8 +152,8 @@ class XPLAIN_explainer:
                          (DEFAULT_DIR + self.unique_filename), '-SP', '10', '-NRUL',
                          '1'], stdout=subprocess.DEVNULL)
         with open(DEFAULT_DIR + self.unique_filename + "/impo_rules.txt",
-                  "r") as myfile:
-            importance_rules_lines = myfile.read().splitlines()
+                  "r") as f:
+            importance_rules_lines = f.read().splitlines()
             # Remove rules which contain all attributes: we are not interested in a rule composed of
             # all the attributes values. By definition, its relevance is prob(y=c)-prob(c)
             importance_rules_lines = [rule_str for rule_str in importance_rules_lines if
@@ -225,8 +212,7 @@ def gen_neighbors_info(training_dataset: Dataset, nbrs,
     cc = training_dataset.class_column_name()
     instance_x = encoded_instance[:-1].to_numpy()
 
-    nearest_neighbors_ixs = nbrs.kneighbors([instance_x], k,
-                                            return_distance=False)[0]
+    nearest_neighbors_ixs = nbrs.kneighbors([instance_x], k, return_distance=False)[0]
 
     classified_instance = deepcopy(encoded_instance)
     classified_instance[cc] = clf.predict(instance_x.reshape(1, -1))[0]

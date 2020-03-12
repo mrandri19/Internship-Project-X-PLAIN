@@ -6,6 +6,10 @@ from sklearn.preprocessing import LabelEncoder
 
 
 class Dataset:
+    @classmethod
+    def from_indices(cls, indices: [int], other):
+        return cls(other._decoded_df.copy().iloc[indices], other.columns)
+
     def __init__(self, data, attributes):
         self._decoded_df = pd.DataFrame(data)
         self.columns = attributes
@@ -16,13 +20,13 @@ class Dataset:
 
         dict_columns = {k: v for (k, v) in self.columns}
 
+        # Encode categorical columns with value between 0 and n_classes-1
+        # Keep the columns encoders used to perform the inverse transformation
+        # https://stackoverflow.com/a/31939145
         def func(x):
             self._column_encoders[x.name].fit(dict_columns[x.name])
             return self._column_encoders[x.name].transform(x)
 
-        # Encode categorical columns with value between 0 and n_classes-1
-        # Keep the columns encoders used to perform the inverse transformation
-        # https://stackoverflow.com/a/31939145
         self._column_encoders = defaultdict(LabelEncoder)
         self._encoded_df = self._decoded_df.apply(func)
 

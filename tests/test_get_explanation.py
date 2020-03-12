@@ -39,9 +39,8 @@ def import_dataset_arff(f, explain_indices: List[int],
     for i in explain_indices:
         train_indices.remove(i)
 
-    train_dataset = Dataset(dataset._decoded_df.iloc[train_indices], dataset.columns)
-
-    explain_dataset = Dataset(dataset._decoded_df.iloc[explain_indices], dataset.columns)
+    train_dataset = Dataset.from_indices(train_indices, dataset)
+    explain_dataset = Dataset.from_indices(explain_indices, dataset)
 
     return train_dataset, explain_dataset, [str(i) for i in explain_indices]
 
@@ -56,9 +55,7 @@ def import_datasets_arff(f, f_explain, explain_indices: List[int],
     if random_explain_dataset:
         random.seed(7)
         explain_indices = list(random.sample(range(len_explain_dataset), 300))
-
-    explain_dataset = Dataset(explain_dataset._decoded_df.iloc[explain_indices],
-                              explain_dataset.columns)
+        explain_dataset = Dataset.from_indices(explain_indices, explain_dataset)
 
     return train_dataset, explain_dataset, [str(i) for i in explain_indices]
 
