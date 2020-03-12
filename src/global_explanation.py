@@ -1,4 +1,21 @@
+import pickle
+
 from src.XPLAIN_explainer import *
+
+
+def savePickle(model, dirO, name):
+    os.makedirs(dirO)
+    with open(dirO + "/" + name + '.pickle', 'wb') as handle:
+        pickle.dump(model, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+
+def openPickle(dirO, name):
+    from os import path
+    if path.exists(dirO + "/" + name + '.pickle'):
+        with open(dirO + "/" + name + '.pickle', 'rb') as handle:
+            return pickle.load(handle)
+    else:
+        return False
 
 
 class GlobalExplanation:
