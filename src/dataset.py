@@ -15,12 +15,17 @@ class Dataset:
         columns_mapper = {i: a for (i, a) in enumerate([a for (a, _) in attributes])}
         self._decoded_df = self._decoded_df.rename(columns=columns_mapper)
 
+        dict_columns = {k: v for (k, v) in self.columns}
+
+        def func(x):
+            self._column_encoders[x.name].fit(dict_columns[x.name])
+            return self._column_encoders[x.name].transform(x)
+
         # Encode categorical columns with value between 0 and n_classes-1
         # Keep the columns encoders used to perform the inverse transformation
         # https://stackoverflow.com/a/31939145
         self._column_encoders = defaultdict(LabelEncoder)
-        self._encoded_df = self._decoded_df.apply(
-            lambda x: self._column_encoders[x.name].fit_transform(x))
+        self._encoded_df = self._decoded_df.apply(func)
 
     def class_values(self):
         """All possible classes in the dataset"""

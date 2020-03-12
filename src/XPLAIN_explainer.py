@@ -100,9 +100,16 @@ class XPLAIN_explainer:
             if i == class_name:
                 return class_index
 
-    def explain_instance(self, instance: pd.Series, target_class) -> XPLAIN_explanation:
-        orange_instance = make_orange_instance(self.explain_dataset, instance)
+    def explain_instance(self, decoded_instance: pd.Series, target_class) -> XPLAIN_explanation:
+        orange_instance = make_orange_instance(self.explain_dataset, decoded_instance)
         target_class_index = self.get_class_index(target_class)
+
+        encoded_instance = pd.Series(
+            [self.explain_dataset._column_encoders[col].transform([val])[0] for (col, val) in
+             decoded_instance.items()]).to_numpy()
+
+        encoded_instance_x = encoded_instance[:-1]
+        assert np.all(encoded_instance_x == orange_instance.x)
 
         self.starting_K = self.K
         # Problem with very small training dataset. The starting k is low, very few examples:
@@ -111,7 +118,7 @@ class XPLAIN_explainer:
         small_dataset_len = 150
         if self.training_dataset_len < small_dataset_len:
             pred_class = self.ix_to_class[
-                self.classifier[MT].predict(orange_instance.x.reshape(1, -1))[0]]
+                self.classifier[MT].predict(encoded_instance_x.reshape(1, -1))[0]]
             self.starting_K = max(
                 int(self.class_frequencies[pred_class] * self.training_dataset_len),
                 self.starting_K)
@@ -141,7 +148,7 @@ class XPLAIN_explainer:
             # first iteration
             if first_iteration:
                 orange_pred = \
-                    self.classifier[MT].predict_proba(orange_instance.x.reshape(1, -1))[0][
+                    self.classifier[MT].predict_proba(encoded_instance_x.reshape(1, -1))[0][
                         target_class_index]
                 single_attribute_differences = compute_prediction_difference_single(orange_instance,
                                                                                     self.classifier,
