@@ -58,10 +58,9 @@ class XPLAIN_explainer:
 
         self.class_frequencies = compute_class_frequency(self.train_dataset)
 
-    def explain_instance(self, decoded_instance: pd.Series, target_class):
+    def explain_instance(self, encoded_instance: pd.Series, target_class):
         target_class_index = self.train_dataset.class_values().index(target_class)
 
-        encoded_instance = self.explain_dataset.transform_instance(decoded_instance)
         encoded_instance_x = encoded_instance[:-1].to_numpy()
 
         # Problem with very small training dataset. The starting k is low, very few examples:

@@ -121,7 +121,8 @@ def get_explanation(dataset_name: str, classifier_name: str):
     cc = explainer.explain_dataset.class_column_name()
     target_class = instance[cc]
 
-    return explainer.explain_instance(instance, target_class=target_class)
+    return explainer.explain_instance(explain_dataset[0],
+                                      target_class=target_class)
 
 
 class TestGet_explanation(TestCase):
