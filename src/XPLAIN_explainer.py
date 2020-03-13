@@ -65,11 +65,10 @@ class XPLAIN_explainer:
         small_dataset_len = 150
         training_dataset_len = len(self.train_dataset)
         if training_dataset_len < small_dataset_len:
-            pred_class = self.train_dataset.class_values()[
+            decoded_pred_class = self.train_dataset.class_values()[
                 self.clf.predict(encoded_instance_x.reshape(1, -1))[0].astype(int)]
-            print(pred_class)
             self.starting_K = max(
-                int(self.decoded_class_frequencies[pred_class] * training_dataset_len),
+                int(self.decoded_class_frequencies[decoded_pred_class] * training_dataset_len),
                 self.starting_K)
 
         # Initialize k and error to be defined in case the for loop is not entered
@@ -104,10 +103,18 @@ class XPLAIN_explainer:
                     target_class_index,
                     self.train_dataset)
 
-            PI_rel2, difference_map, error, impo_rules_complete, importance_rules_lines, single_attribute_differences = self.compute_lace_step(
-                cached_subset_differences, encoded_instance,
-                k, all_rule_body_indices, decoded_target_class, target_class_index, pred,
-                single_attribute_differences)
+            PI_rel2, \
+            difference_map, \
+            error, \
+            impo_rules_complete, \
+            importance_rules_lines, \
+            single_attribute_differences = self.compute_lace_step(cached_subset_differences,
+                                                                  encoded_instance,
+                                                                  k, all_rule_body_indices,
+                                                                  self.decoded_class_frequencies[
+                                                                      decoded_target_class],
+                                                                  target_class_index, pred,
+                                                                  single_attribute_differences)
 
             errors.append(error)
 
@@ -134,7 +141,7 @@ class XPLAIN_explainer:
 
     def compute_lace_step(self, cached_subset_differences,
                           encoded_instance,
-                          k, old_input_ar, target_class,
+                          k, old_input_ar, target_class_frequency,
                           target_class_index, pred, single_attribute_differences):
         print(f"compute_lace_step k={k}")
 
@@ -183,12 +190,12 @@ class XPLAIN_explainer:
             difference_map[difference_map_key] = cached_subset_differences[
                 subset_difference_cache_key]
 
-        error_single, error, PI_rel2 = compute_error_approximation(self.decoded_class_frequencies,
-                                                                   pred,
-                                                                   single_attribute_differences,
-                                                                   impo_rules_complete,
-                                                                   target_class,
-                                                                   difference_map)
+        error_single, error, PI_rel2 = compute_error_approximation(
+            target_class_frequency,
+            pred,
+            single_attribute_differences,
+            impo_rules_complete,
+            difference_map)
         old_input_ar += rule_bodies_indices
 
         return PI_rel2, difference_map, error, impo_rules_complete, importance_rules_lines, single_attribute_differences
@@ -373,10 +380,10 @@ def compute_prediction_difference_subset(training_dataset: Dataset,
     return prediction_differences
 
 
-def compute_error_approximation(class_frequencies, pred, single_attribute_differences,
-                                impo_rules_complete, target_class,
+def compute_error_approximation(class_frequency, pred, single_attribute_differences,
+                                impo_rules_complete,
                                 difference_map):
-    PI = pred - class_frequencies[target_class]
+    PI = pred - class_frequency
     Sum_Deltas = sum(single_attribute_differences)
     # UPDATED_EP
     impo_rules_completeC = ", ".join(map(str, list(max(impo_rules_complete, key=len))))
