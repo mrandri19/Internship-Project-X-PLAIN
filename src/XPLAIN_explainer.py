@@ -47,9 +47,6 @@ class XPLAIN_explainer:
         self.K, _, self.max_K = get_KNN_threshold_max(None, len(self.train_dataset), None, None)
         self.starting_K = self.K
 
-        self.ix_to_class = {i: class_ for (i, class_) in
-                            enumerate(self.train_dataset.class_values())}
-
         self.nbrs = sklearn.neighbors.NearestNeighbors(
             n_neighbors=len(self.train_dataset), metric='euclidean',
             algorithm='auto', metric_params=None).fit(
@@ -68,8 +65,8 @@ class XPLAIN_explainer:
         small_dataset_len = 150
         training_dataset_len = len(self.train_dataset)
         if training_dataset_len < small_dataset_len:
-            pred_class = self.ix_to_class[
-                self.clf.predict(encoded_instance_x.reshape(1, -1))[0]]
+            pred_class = self.train_dataset.class_values()[
+                self.clf.predict(encoded_instance_x.reshape(1, -1))[0].astype(int)]
             print(pred_class)
             self.starting_K = max(
                 int(self.decoded_class_frequencies[pred_class] * training_dataset_len),
