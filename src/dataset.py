@@ -38,6 +38,9 @@ class Dataset:
         """All rows' attributes as a pandas DataFrame."""
         return self._encoded_df.iloc[:, :-1]
 
+    def Y(self):
+        return self._encoded_df.iloc[:, -1]
+
     def Y_decoded(self):
         """All rows' classes as a pandas Series."""
         return self._decoded_df.iloc[:, -1]

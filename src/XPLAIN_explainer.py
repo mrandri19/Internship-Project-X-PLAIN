@@ -37,13 +37,12 @@ ERROR_THRESHOLD = 0.02
 
 
 class XPLAIN_explainer:
-    def __init__(self, clf, train_dataset, explain_dataset):
+    def __init__(self, clf, train_dataset):
         self.unique_filename = os.path.join(TEMPORARY_FOLDER_NAME, str(uuid.uuid4()))
 
         self.clf = clf
 
         self.train_dataset = train_dataset
-        self.explain_dataset = explain_dataset
 
         self.K, _, self.max_K = get_KNN_threshold_max(None, len(self.train_dataset), None, None)
         self.starting_K = self.K
@@ -56,10 +55,10 @@ class XPLAIN_explainer:
             algorithm='auto', metric_params=None).fit(
             self.train_dataset.X_numpy())
 
-        self.class_frequencies = compute_class_frequency(self.train_dataset)
+        self.decoded_class_frequencies = self.train_dataset.Y_decoded().value_counts(normalize=True)
 
-    def explain_instance(self, encoded_instance: pd.Series, target_class):
-        target_class_index = self.train_dataset.class_values().index(target_class)
+    def explain_instance(self, encoded_instance: pd.Series, decoded_target_class):
+        target_class_index = self.train_dataset.class_values().index(decoded_target_class)
 
         encoded_instance_x = encoded_instance[:-1].to_numpy()
 
@@ -71,8 +70,9 @@ class XPLAIN_explainer:
         if training_dataset_len < small_dataset_len:
             pred_class = self.ix_to_class[
                 self.clf.predict(encoded_instance_x.reshape(1, -1))[0]]
+            print(pred_class)
             self.starting_K = max(
-                int(self.class_frequencies[pred_class] * training_dataset_len),
+                int(self.decoded_class_frequencies[pred_class] * training_dataset_len),
                 self.starting_K)
 
         # Initialize k and error to be defined in case the for loop is not entered
@@ -109,7 +109,7 @@ class XPLAIN_explainer:
 
             PI_rel2, difference_map, error, impo_rules_complete, importance_rules_lines, single_attribute_differences = self.compute_lace_step(
                 cached_subset_differences, encoded_instance,
-                k, all_rule_body_indices, target_class, target_class_index, pred,
+                k, all_rule_body_indices, decoded_target_class, target_class_index, pred,
                 single_attribute_differences)
 
             errors.append(error)
@@ -129,7 +129,7 @@ class XPLAIN_explainer:
 
         xp = {'XPLAIN_explainer_o': self, 'diff_single': single_attribute_differences,
               'map_difference': deepcopy(difference_map), 'k': k, 'error': error,
-              'instance': encoded_instance, 'target_class': target_class,
+              'instance': encoded_instance, 'target_class': decoded_target_class,
               'instance_class_index': target_class_index, 'prob': self.clf.predict_proba(
                 encoded_instance_x.reshape(1, -1))[0][target_class_index]}
 
@@ -186,7 +186,7 @@ class XPLAIN_explainer:
             difference_map[difference_map_key] = cached_subset_differences[
                 subset_difference_cache_key]
 
-        error_single, error, PI_rel2 = compute_error_approximation(self.class_frequencies,
+        error_single, error, PI_rel2 = compute_error_approximation(self.decoded_class_frequencies,
                                                                    pred,
                                                                    single_attribute_differences,
                                                                    impo_rules_complete,
@@ -419,18 +419,6 @@ def getStartKValueSimplified(len_dataset):
         return int(len_dataset / 10)
     else:
         return int(len_dataset * 5 / 100)
-
-
-def compute_class_frequency(dataset: Dataset):
-    class_frequency = defaultdict(float)
-
-    for row in dataset.Y_decoded():
-        class_frequency[row] += 1.0
-
-    for key in class_frequency.keys():
-        class_frequency[key] /= len(dataset)
-
-    return class_frequency
 
 
 def get_KNN_threshold_max(KneighborsUser, len_dataset, thresholdError,

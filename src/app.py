@@ -4,11 +4,11 @@ from typing import Dict, Any, Union
 
 from flask import Flask, jsonify, abort, request
 from flask_cors import CORS
+from src.utils import openPickle, savePickle
 
 from src import DEFAULT_DIR
 from src.XPLAIN_explainer import XPLAIN_explainer
 from src.user_explanation import UserExplanation
-from src.utils import openPickle, savePickle
 
 app = Flask(__name__)
 CORS(app)
@@ -282,7 +282,7 @@ def get_explanation():
 
     class_ = instance[cc] if state['class'] is None else state['class']
 
-    e = xp.explain_instance(instance, target_class=class_)
+    e = xp.explain_instance(instance, decoded_target_class=class_)
     state["last_explanation"] = deepcopy(e)
     return jsonify(explanation_to_dict(e))
 
@@ -319,7 +319,7 @@ def get_what_if_explanation():
 
             instance = perturbed_instance
         class_ = instance.get_class().value if state['class'] is None else state['class']
-        e = xp.explain_instance(instance, target_class=class_)
+        e = xp.explain_instance(instance, decoded_target_class=class_)
 
     return jsonify(
         {'explanation': explanation_to_dict(e),
@@ -345,7 +345,8 @@ def get_user_rules_explanation():
                              request.get_json(force=True)]
         if state['user_explanation'] is None:
             state['user_explanation'] = UserExplanation(state["last_explanation"]) if state[
-                "proceed"] else UserExplanation(xp.explain_instance(instance, target_class=class_))
+                "proceed"] else UserExplanation(
+                xp.explain_instance(instance, decoded_target_class=class_))
         e = xp.update_explain_instance(state['user_explanation'].instance_explanation,
                                        rule_body_indices)
         state['user_explanation'].update_user_rules(e, rule_body_indices)
@@ -353,7 +354,7 @@ def get_user_rules_explanation():
         if state["proceed"]:
             e = state["last_explanation"]
         else:
-            e = xp.explain_instance(instance, target_class=class_)
+            e = xp.explain_instance(instance, decoded_target_class=class_)
             state["last_explanation"] = deepcopy(e)
         state['user_explanation'] = UserExplanation(e)
     return jsonify(
@@ -424,11 +425,11 @@ def get_explanation_comparison():
     class_ = instance.get_class().value if state['class'] is None else state['class']
 
     e1 = state["last_explanation"] if state["proceed"] else xp.explain_instance(instance,
-                                                                                target_class=class_)
+                                                                                decoded_target_class=class_)
     state["last_explanation"] = deepcopy(e1)
     xp2 = state['explainer2']
 
-    e2 = xp2.explain_instance(instance, target_class=class_)
+    e2 = xp2.explain_instance(instance, decoded_target_class=class_)
 
     return jsonify({"exp1": explanation_to_dict(e1), "exp2": explanation_to_dict(e2)})
 
@@ -447,12 +448,12 @@ def get_explanation_class_comparison():
     class_ = instance.get_class().value if state['class'] is None else state['class']
 
     e1 = state["last_explanation"] if state["proceed"] else xp.explain_instance(instance,
-                                                                                target_class=class_)
+                                                                                decoded_target_class=class_)
     state["last_explanation"] = deepcopy(e1)
 
     class2 = instance.get_class().value if state['class2'] is None else state['class2']
 
-    e2 = xp.explain_instance(instance, target_class=class2)
+    e2 = xp.explain_instance(instance, decoded_target_class=class2)
 
     return jsonify({"exp1": explanation_to_dict(e1), "exp2": explanation_to_dict(e2)})
 

@@ -114,15 +114,14 @@ def get_explanation(dataset_name: str, classifier_name: str):
 
     clf = get_classifier(classifier_name).fit(train_dataset.X_numpy(),
                                               train_dataset.Y_numpy())
-    explainer = XPLAIN_explainer(clf, train_dataset, explain_dataset)
+    explainer = XPLAIN_explainer(clf, train_dataset)
 
-    instance = explainer.explain_dataset.get_decoded(0)
+    instance = explain_dataset.get_decoded(0)
 
-    cc = explainer.explain_dataset.class_column_name()
-    target_class = instance[cc]
+    cc = explain_dataset.class_column_name()
+    target_class_index = instance[cc]
 
-    return explainer.explain_instance(explain_dataset[0],
-                                      target_class=target_class)
+    return explainer.explain_instance(explain_dataset[0], target_class_index)
 
 
 class TestGet_explanation(TestCase):
