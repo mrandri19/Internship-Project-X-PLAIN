@@ -37,8 +37,10 @@ ERROR_THRESHOLD = 0.02
 
 
 class XPLAIN_explainer:
-    def __init__(self, untrained_clf, train_dataset, explain_dataset):
+    def __init__(self, clf, train_dataset, explain_dataset):
         self.unique_filename = os.path.join(TEMPORARY_FOLDER_NAME, str(uuid.uuid4()))
+
+        self.clf = clf
 
         self.train_dataset = train_dataset
         self.explain_dataset = explain_dataset
@@ -48,9 +50,6 @@ class XPLAIN_explainer:
 
         self.ix_to_class = {i: class_ for (i, class_) in
                             enumerate(self.train_dataset.class_values())}
-
-        self.clf = untrained_clf.fit(self.train_dataset.X_numpy(),
-                                     self.train_dataset.Y_numpy())
 
         self.nbrs = sklearn.neighbors.NearestNeighbors(
             n_neighbors=len(self.train_dataset), metric='euclidean',
@@ -276,46 +275,6 @@ def get_relevant_subset_from_local_rules(impo_rules, oldinputAr):
     return inputAr, nInputAr, newInputAr, oldAr_set
 
 
-def compute_prediction_difference_subset(training_dataset: Dataset,
-                                         encoded_instance: pd.Series,
-                                         rule_body_indices,
-                                         clf,
-                                         instance_class_index):
-    """
-    Compute the prediction difference for an instance in a training_dataset, w.r.t. some
-    rules and a class, given a classifier
-    """
-
-    encoded_instance_x = encoded_instance[:-1].to_numpy()
-
-    rule_attributes = [
-        list(training_dataset.attributes())[rule_body_index - 1][0] for
-        rule_body_index in rule_body_indices]
-
-    # Take only the considered attributes from the dataset
-    filtered_dataset = training_dataset.X()[rule_attributes]
-
-    # Count how many times a set of attribute values appears in the dataset
-    attribute_sets_occurrences = dict(
-        Counter(map(tuple, filtered_dataset.values.tolist())).items())
-
-    # For each set of attributes
-    differences = [
-        compute_perturbed_difference(item, clf, encoded_instance,
-                                     instance_class_index,
-                                     rule_attributes, training_dataset) for
-        item in
-        attribute_sets_occurrences.items()]
-
-    prediction_difference = sum(differences)
-
-    # p(y=c|x) i.e. Probability that instance x belongs to class c
-    p = clf.predict_proba(encoded_instance_x.reshape(1, -1))[0][instance_class_index]
-    prediction_differences = p - prediction_difference
-
-    return prediction_differences
-
-
 def compute_perturbed_difference(item, clf, encoded_instance,
                                  instance_class_index,
                                  rule_attributes, training_dataset_):
@@ -364,9 +323,8 @@ def compute_prediction_difference_single(encoded_instance, clf, target_class_ind
             perturbed_encoded_instance_x = perturbed_encoded_instance[:-1].to_numpy()
 
             # See how the prediction changes
-            class_prob = \
-                clf.predict_proba(perturbed_encoded_instance_x.reshape(1, -1))[0][
-                    target_class_index]
+            class_prob = clf.predict_proba(perturbed_encoded_instance_x.reshape(1, -1))[0][
+                target_class_index]
 
             # Update the attribute difference weighting the prediction by the value frequency
             weight = attr_occurrences[attr_val] / dataset_len
@@ -379,10 +337,51 @@ def compute_prediction_difference_single(encoded_instance, clf, target_class_ind
     return attribute_pred_difference
 
 
-def compute_error_approximation(mappa_class, pred, out_data, impo_rules_complete, classname,
-                                map_difference):
-    PI = pred - mappa_class[classname]
-    Sum_Deltas = sum(out_data)
+def compute_prediction_difference_subset(training_dataset: Dataset,
+                                         encoded_instance: pd.Series,
+                                         rule_body_indices,
+                                         clf,
+                                         instance_class_index):
+    """
+    Compute the prediction difference for an instance in a training_dataset, w.r.t. some
+    rules and a class, given a classifier
+    """
+
+    encoded_instance_x = encoded_instance[:-1].to_numpy()
+
+    rule_attributes = [
+        list(training_dataset.attributes())[rule_body_index - 1][0] for
+        rule_body_index in rule_body_indices]
+
+    # Take only the considered attributes from the dataset
+    filtered_dataset = training_dataset.X()[rule_attributes]
+
+    # Count how many times a set of attribute values appears in the dataset
+    attribute_sets_occurrences = dict(
+        Counter(map(tuple, filtered_dataset.values.tolist())).items())
+
+    # For each set of attributes
+    differences = [
+        compute_perturbed_difference(item, clf, encoded_instance,
+                                     instance_class_index,
+                                     rule_attributes, training_dataset) for
+        item in
+        attribute_sets_occurrences.items()]
+
+    prediction_difference = sum(differences)
+
+    # p(y=c|x) i.e. Probability that instance x belongs to class c
+    p = clf.predict_proba(encoded_instance_x.reshape(1, -1))[0][instance_class_index]
+    prediction_differences = p - prediction_difference
+
+    return prediction_differences
+
+
+def compute_error_approximation(class_frequencies, pred, single_attribute_differences,
+                                impo_rules_complete, target_class,
+                                difference_map):
+    PI = pred - class_frequencies[target_class]
+    Sum_Deltas = sum(single_attribute_differences)
     # UPDATED_EP
     impo_rules_completeC = ", ".join(map(str, list(max(impo_rules_complete, key=len))))
 
@@ -391,16 +390,16 @@ def compute_error_approximation(mappa_class, pred, out_data, impo_rules_complete
 
     if impo_rules_completeC != "":
         if len(impo_rules_completeC.replace(" ", "").split(",")) > 1:
-            Delta_impo_rules_completeC = map_difference[impo_rules_completeC.replace(" ", "")]
+            Delta_impo_rules_completeC = difference_map[impo_rules_completeC.replace(" ", "")]
             PI_approx2 = Delta_impo_rules_completeC
             Sum_Deltas_not_in = 0.0
             # Sum of delta_i for each attribute not included
-            for i_out_data in range(0, len(out_data)):
+            for i_out_data in range(0, len(single_attribute_differences)):
                 if str(i_out_data + 1) not in impo_rules_completeC.replace(" ", "").split(","):
-                    Sum_Deltas_not_in = Sum_Deltas_not_in + out_data[i_out_data]
+                    Sum_Deltas_not_in = Sum_Deltas_not_in + single_attribute_differences[i_out_data]
         else:
             index = int(impo_rules_completeC.replace(" ", "").split(",")[0]) - 1
-            PI_approx2 = out_data[index]
+            PI_approx2 = single_attribute_differences[index]
         approx2 = abs(PI - PI_approx2)
         approx_rel2 = approx2 / abs(PI)
     else:

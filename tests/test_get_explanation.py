@@ -104,15 +104,17 @@ def get_explanation(dataset_name: str, classifier_name: str):
     if dataset_name in [join(DEFAULT_DIR, "datasets/adult_d.arff"),
                         join(DEFAULT_DIR, "datasets/compas-scores-two-years_d.arff")]:
         with open(dataset_name) as f, open(dataset_name[:-5] + "_explain.arff") as f_explain:
-            training_dataset, explain_dataset, explain_indices = import_datasets_arff(f, f_explain,
-                                                                                      explain_dataset_indices,
-                                                                                      True)
+            train_dataset, explain_dataset, explain_indices = import_datasets_arff(f, f_explain,
+                                                                                   explain_dataset_indices,
+                                                                                   True)
     else:
         with open(dataset_name) as f:
-            training_dataset, explain_dataset, explain_indices = import_dataset_arff(
+            train_dataset, explain_dataset, explain_indices = import_dataset_arff(
                 f, explain_dataset_indices, True)
 
-    explainer = XPLAIN_explainer(get_classifier(classifier_name), training_dataset, explain_dataset)
+    clf = get_classifier(classifier_name).fit(train_dataset.X_numpy(),
+                                              train_dataset.Y_numpy())
+    explainer = XPLAIN_explainer(clf, train_dataset, explain_dataset)
 
     instance = explainer.explain_dataset.get_decoded(0)
 
