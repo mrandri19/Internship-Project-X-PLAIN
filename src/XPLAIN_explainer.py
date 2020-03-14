@@ -75,8 +75,14 @@ class XPLAIN_explainer:
         k = self.starting_K
         old_error = 10.0
         error = 1e9
-        single_attribute_differences = {}
-        pred = 0.0
+        class_prob = self.clf.predict_proba(encoded_instance_x.reshape(1, -1))[0][
+            target_class_index]
+        single_attribute_differences = compute_prediction_difference_single(
+            encoded_instance,
+            self.clf,
+            class_prob,
+            target_class_index,
+            self.train_dataset)
         difference_map = {}
 
         first_iteration = True
@@ -85,24 +91,10 @@ class XPLAIN_explainer:
         # classifications
         cached_subset_differences = {}
 
-        all_rule_body_indices = []
-
         errors = []
 
         # Euristically search for the best k to use to approximate the local model
         for k in range(self.starting_K, self.max_K, self.K):
-            # Compute the prediction difference of single attributes only on the
-            # first iteration
-            if first_iteration:
-                pred = \
-                    self.clf.predict_proba(encoded_instance_x.reshape(1, -1))[0][
-                        target_class_index]
-                single_attribute_differences = compute_prediction_difference_single(
-                    encoded_instance,
-                    self.clf,
-                    target_class_index,
-                    self.train_dataset)
-
             PI_rel2, \
             difference_map, \
             error, \
@@ -110,10 +102,10 @@ class XPLAIN_explainer:
             importance_rules_lines, \
             single_attribute_differences = self.compute_lace_step(cached_subset_differences,
                                                                   encoded_instance,
-                                                                  k, all_rule_body_indices,
+                                                                  k,
                                                                   self.decoded_class_frequencies[
                                                                       decoded_target_class],
-                                                                  target_class_index, pred,
+                                                                  target_class_index, class_prob,
                                                                   single_attribute_differences)
 
             errors.append(error)
@@ -134,6 +126,7 @@ class XPLAIN_explainer:
         xp = {'XPLAIN_explainer_o': self, 'diff_single': single_attribute_differences,
               'map_difference': deepcopy(difference_map), 'k': k, 'error': error,
               'instance': encoded_instance, 'target_class': decoded_target_class,
+              'errors': errors,
               'instance_class_index': target_class_index, 'prob': self.clf.predict_proba(
                 encoded_instance_x.reshape(1, -1))[0][target_class_index]}
 
@@ -141,8 +134,8 @@ class XPLAIN_explainer:
 
     def compute_lace_step(self, cached_subset_differences,
                           encoded_instance,
-                          k, old_input_ar, target_class_frequency,
-                          target_class_index, pred, single_attribute_differences):
+                          k, target_class_frequency,
+                          target_class_index, class_prob, single_attribute_differences):
         print(f"compute_lace_step k={k}")
 
         gen_neighbors_info(self.train_dataset, self.nbrs, encoded_instance, k,
@@ -161,9 +154,8 @@ class XPLAIN_explainer:
             importance_rules_lines = [rule_str for rule_str in importance_rules_lines if
                                       len(rule_str.split(",")) != (len(encoded_instance) - 1)]
 
-        rule_bodies_indices, n_input_ar, new_input_ar, old_ar_set = \
-            get_relevant_subset_from_local_rules(
-                importance_rules_lines, old_input_ar)
+        rule_bodies_indices = get_relevant_subset_from_local_rules(
+            importance_rules_lines)
         impo_rules_complete = deepcopy(rule_bodies_indices)
 
         # Cache the subset calculation for repeated rule subsets.
@@ -192,11 +184,10 @@ class XPLAIN_explainer:
 
         error_single, error, PI_rel2 = compute_error_approximation(
             target_class_frequency,
-            pred,
+            class_prob,
             single_attribute_differences,
             impo_rules_complete,
             difference_map)
-        old_input_ar += rule_bodies_indices
 
         return PI_rel2, difference_map, error, impo_rules_complete, importance_rules_lines, single_attribute_differences
 
@@ -253,29 +244,26 @@ def gen_neighbors_info(training_dataset: Dataset, nbrs,
         arff.dump(closest_instance_dataset.to_arff_obj(), f)
 
 
-def get_relevant_subset_from_local_rules(impo_rules, oldinputAr):
+def get_relevant_subset_from_local_rules(rules_body_indices):
     inputAr = []
     iA = []
     nInputAr = []
 
-    for i2 in range(0, len(impo_rules)):
-        intInputAr = []
-        val = impo_rules[i2].split(",")
-        for i3 in range(0, len(val)):
-            intInputAr.append(int(val[i3]))
-            iA.append(int(val[i3]))
-        nInputAr.append(intInputAr)
+    for rule_body_indices_str in rules_body_indices:
+        rule_body_indices_int = []
+        rule_body_indices_str_array = rule_body_indices_str.split(",")
+        for rule_body_index_str in rule_body_indices_str_array:
+            rule_body_indices_int.append(int(rule_body_index_str))
+            iA.append(int(rule_body_index_str))
+        nInputAr.append(rule_body_indices_int)
+
     iA2 = list(sorted(set(iA)))
     inputAr.append(iA2)
     if inputAr[0] not in nInputAr:
         nInputAr.append(inputAr[0])
     inputAr = deepcopy(nInputAr)
-    oldAr_set = set(map(tuple, oldinputAr))
-    # In order to not recompute the prior probability of a Subset again
-    newInputAr = [x for x in inputAr if tuple(x) not in oldAr_set]
-    oldAr_set = set(map(tuple, oldinputAr))
 
-    return inputAr, nInputAr, newInputAr, oldAr_set
+    return inputAr
 
 
 def compute_perturbed_difference(item, clf, encoded_instance,
@@ -298,17 +286,11 @@ def compute_perturbed_difference(item, clf, encoded_instance,
 
 
 # Single explanation. Change 1 value at the time e compute the difference
-def compute_prediction_difference_single(encoded_instance, clf, target_class_index,
+def compute_prediction_difference_single(encoded_instance, clf, class_prob, target_class_index,
                                          training_dataset):
     dataset_len = len(training_dataset)
 
-    encoded_instance_x = encoded_instance[:-1].to_numpy()
-
     attribute_pred_difference = [0] * len(training_dataset.attributes())
-
-    # The probability of `instance` belonging to class `target_class_index`
-    class_prob = clf.predict_proba(encoded_instance_x.reshape(1, -1))[0][
-        target_class_index]
 
     # For each `instance` attribute
     for (attr_ix, (attr, _)) in enumerate(training_dataset.attributes()):
@@ -380,10 +362,10 @@ def compute_prediction_difference_subset(training_dataset: Dataset,
     return prediction_differences
 
 
-def compute_error_approximation(class_frequency, pred, single_attribute_differences,
+def compute_error_approximation(class_frequency, class_prob, single_attribute_differences,
                                 impo_rules_complete,
                                 difference_map):
-    PI = pred - class_frequency
+    PI = class_prob - class_frequency
     Sum_Deltas = sum(single_attribute_differences)
     # UPDATED_EP
     impo_rules_completeC = ", ".join(map(str, list(max(impo_rules_complete, key=len))))
