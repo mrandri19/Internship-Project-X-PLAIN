@@ -95,11 +95,9 @@ class XPLAIN_explainer:
 
         # Euristically search for the best k to use to approximate the local model
         for k in range(self.starting_K, self.max_K, self.K):
-            PI_rel2, \
+            print(f"compute_lace_step k={k}")
             difference_map, \
             error, \
-            impo_rules_complete, \
-            importance_rules_lines, \
             single_attribute_differences = self.compute_lace_step(cached_subset_differences,
                                                                   encoded_instance,
                                                                   k,
@@ -136,60 +134,55 @@ class XPLAIN_explainer:
                           encoded_instance,
                           k, target_class_frequency,
                           target_class_index, class_prob, single_attribute_differences):
-        print(f"compute_lace_step k={k}")
+        # Generate the neighborhood of the instance, classify it, and write it to files used by the
+        # L3 associative classifier as training set
+        create_locality_files(self.train_dataset, self.nbrs, encoded_instance, k,
+                              self.unique_filename, self.clf)
 
-        gen_neighbors_info(self.train_dataset, self.nbrs, encoded_instance, k,
-                           self.unique_filename, self.clf)
+        # Call L3, training it on the locality, generating the importance rules in impo_rules.txt
         subprocess.call(['java', '-jar', DEFAULT_DIR + 'AL3.jar', '-no-cv', '-t',
                          (DEFAULT_DIR + self.unique_filename + '/Knnres.arff'), '-T',
                          (DEFAULT_DIR + self.unique_filename + '/Filetest.arff'),
                          '-S', '1.0', '-C', '50.0', '-PN',
                          (DEFAULT_DIR + self.unique_filename), '-SP', '10', '-NRUL',
                          '1'], stdout=subprocess.DEVNULL)
+
+        # Read the importance rules
         with open(DEFAULT_DIR + self.unique_filename + "/impo_rules.txt",
                   "r") as f:
-            importance_rules_lines = f.read().splitlines()
+            rules_lines = f.readlines()
+            print(rules_lines)
+
             # Remove rules which contain all attributes: we are not interested in a rule composed of
             # all the attributes values. By definition, its relevance is prob(y=c)-prob(c)
-            importance_rules_lines = [rule_str for rule_str in importance_rules_lines if
-                                      len(rule_str.split(",")) != (len(encoded_instance) - 1)]
+            rules_lines = [rule for rule in rules_lines if
+                           len(rule.split(",")) != len(encoded_instance[:-1])]
 
-        rule_bodies_indices = get_relevant_subset_from_local_rules(
-            importance_rules_lines)
-        impo_rules_complete = deepcopy(rule_bodies_indices)
+        relevant_subset = parse_and_get_relevant_subset_from_rules(rules_lines)
+        print(relevant_subset)
 
         # Cache the subset calculation for repeated rule subsets.
         difference_map = {}
-        for rule_body_indices in rule_bodies_indices:
-            # Consider only rules with more than 1 attribute since we compute the differences
-            # for single attribute changes already in compute_prediction_difference_single
-            if len(rule_body_indices) == 1:
-                # Update Eliana - To output also rule of one element
-                difference_map[str(rule_body_indices[0])] = single_attribute_differences[
-                    rule_body_indices[0] - 1]
-                continue
-            if len(rule_body_indices) < 1:
-                continue
-
-            subset_difference_cache_key = tuple(rule_body_indices)
+        for rule in relevant_subset:
+            subset_difference_cache_key = tuple(rule)
             if subset_difference_cache_key not in cached_subset_differences:
                 cached_subset_differences[
                     subset_difference_cache_key] = compute_prediction_difference_subset(
-                    self.train_dataset, encoded_instance, rule_body_indices,
+                    self.train_dataset, encoded_instance, rule,
                     self.clf, target_class_index)
 
-            difference_map_key = ",".join(map(str, rule_body_indices))
+            difference_map_key = ",".join(map(str, rule))
             difference_map[difference_map_key] = cached_subset_differences[
                 subset_difference_cache_key]
 
-        error_single, error, PI_rel2 = compute_error_approximation(
+        _, error, _ = compute_error_approximation(
             target_class_frequency,
             class_prob,
             single_attribute_differences,
-            impo_rules_complete,
+            deepcopy(relevant_subset),
             difference_map)
 
-        return PI_rel2, difference_map, error, impo_rules_complete, importance_rules_lines, single_attribute_differences
+        return difference_map, error, single_attribute_differences
 
     def getGlobalExplanationRules(self):
         # noinspection PyUnresolvedReferences
@@ -199,9 +192,9 @@ class XPLAIN_explainer:
         return global_expl
 
 
-def gen_neighbors_info(training_dataset: Dataset, nbrs,
-                       encoded_instance: pd.Series, k: int,
-                       unique_filename: str, clf):
+def create_locality_files(training_dataset: Dataset, nbrs,
+                          encoded_instance: pd.Series, k: int,
+                          unique_filename: str, clf):
     cc = training_dataset.class_column_name()
     instance_x = encoded_instance[:-1].to_numpy()
 
@@ -244,26 +237,27 @@ def gen_neighbors_info(training_dataset: Dataset, nbrs,
         arff.dump(closest_instance_dataset.to_arff_obj(), f)
 
 
-def get_relevant_subset_from_local_rules(rules_body_indices):
-    inputAr = []
-    iA = []
-    nInputAr = []
+def parse_and_get_relevant_subset_from_rules(rules_lines):
+    union_rule = []
+    rules = []
 
-    for rule_body_indices_str in rules_body_indices:
-        rule_body_indices_int = []
-        rule_body_indices_str_array = rule_body_indices_str.split(",")
-        for rule_body_index_str in rule_body_indices_str_array:
-            rule_body_indices_int.append(int(rule_body_index_str))
-            iA.append(int(rule_body_index_str))
-        nInputAr.append(rule_body_indices_int)
+    for rule_line in rules_lines:
+        rule = []
 
-    iA2 = list(sorted(set(iA)))
-    inputAr.append(iA2)
-    if inputAr[0] not in nInputAr:
-        nInputAr.append(inputAr[0])
-    inputAr = deepcopy(nInputAr)
+        for attribute_str in rule_line.split(","):
+            attribute = int(attribute_str)
+            rule.append(attribute)
+            union_rule.append(attribute)
 
-    return inputAr
+        rules.append(rule)
+
+    # Remove duplicates
+    union_rule = list(sorted(set(union_rule)))
+
+    if union_rule not in rules:
+        rules.append(union_rule)
+
+    return rules
 
 
 def compute_perturbed_difference(item, clf, encoded_instance,
