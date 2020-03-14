@@ -87,10 +87,6 @@ class XPLAIN_explainer:
 
         first_iteration = True
 
-        # Because across iterations only rules change we can cache both whole rules and instance
-        # classifications
-        cached_subset_differences = {}
-
         errors = []
 
         # Euristically search for the best k to use to approximate the local model
@@ -98,13 +94,12 @@ class XPLAIN_explainer:
             print(f"compute_lace_step k={k}")
             difference_map, \
             error, \
-            single_attribute_differences = self.compute_lace_step(cached_subset_differences,
-                                                                  encoded_instance,
-                                                                  k,
-                                                                  self.decoded_class_frequencies[
-                                                                      decoded_target_class],
-                                                                  target_class_index, class_prob,
-                                                                  single_attribute_differences)
+            single_attribute_differences = self.compute_lace_step(
+                encoded_instance,
+                k,
+                self.decoded_class_frequencies[decoded_target_class],
+                target_class_index, class_prob,
+                single_attribute_differences)
 
             errors.append(error)
 
@@ -130,7 +125,7 @@ class XPLAIN_explainer:
 
         return xp
 
-    def compute_lace_step(self, cached_subset_differences,
+    def compute_lace_step(self,
                           encoded_instance,
                           k, target_class_frequency,
                           target_class_index, class_prob, single_attribute_differences):
@@ -151,35 +146,26 @@ class XPLAIN_explainer:
         with open(DEFAULT_DIR + self.unique_filename + "/impo_rules.txt",
                   "r") as f:
             rules_lines = f.readlines()
-            print(rules_lines)
 
             # Remove rules which contain all attributes: we are not interested in a rule composed of
             # all the attributes values. By definition, its relevance is prob(y=c)-prob(c)
             rules_lines = [rule for rule in rules_lines if
                            len(rule.split(",")) != len(encoded_instance[:-1])]
 
-        relevant_subset = parse_and_get_relevant_subset_from_rules(rules_lines)
-        print(relevant_subset)
+        rules = parse_rules(rules_lines)
 
-        # Cache the subset calculation for repeated rule subsets.
         difference_map = {}
-        for rule in relevant_subset:
-            subset_difference_cache_key = tuple(rule)
-            if subset_difference_cache_key not in cached_subset_differences:
-                cached_subset_differences[
-                    subset_difference_cache_key] = compute_prediction_difference_subset(
-                    self.train_dataset, encoded_instance, rule,
-                    self.clf, target_class_index)
-
-            difference_map_key = ",".join(map(str, rule))
-            difference_map[difference_map_key] = cached_subset_differences[
-                subset_difference_cache_key]
+        for rule in rules:
+            rule_key = ",".join(map(str, rule))
+            difference_map[rule_key] = compute_prediction_difference_subset(
+                self.train_dataset, encoded_instance, rule,
+                self.clf, target_class_index)
 
         _, error, _ = compute_error_approximation(
             target_class_frequency,
             class_prob,
             single_attribute_differences,
-            deepcopy(relevant_subset),
+            rules,
             difference_map)
 
         return difference_map, error, single_attribute_differences
@@ -237,7 +223,7 @@ def create_locality_files(training_dataset: Dataset, nbrs,
         arff.dump(closest_instance_dataset.to_arff_obj(), f)
 
 
-def parse_and_get_relevant_subset_from_rules(rules_lines):
+def parse_rules(rules_lines):
     union_rule = []
     rules = []
 
