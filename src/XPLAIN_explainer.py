@@ -57,7 +57,7 @@ class XPLAIN_explainer:
     def explain_instance(self, encoded_instance: pd.Series, decoded_target_class):
         target_class_index = self.train_dataset.class_values().index(decoded_target_class)
 
-        encoded_instance_x = encoded_instance[:-1].to_numpy()
+        encoded_instance_x = encoded_instance[:-1].to_numpy().reshape(1, -1)
 
         # Problem with very small training dataset. The starting k is low, very few examples:
         # difficult to capture the locality.
@@ -66,7 +66,7 @@ class XPLAIN_explainer:
         training_dataset_len = len(self.train_dataset)
         if training_dataset_len < small_dataset_len:
             decoded_pred_class = self.train_dataset.class_values()[
-                self.clf.predict(encoded_instance_x.reshape(1, -1))[0].astype(int)]
+                self.clf.predict(encoded_instance_x)[0].astype(int)]
             self.starting_K = max(
                 int(self.decoded_class_frequencies[decoded_pred_class] * training_dataset_len),
                 self.starting_K)
@@ -75,7 +75,7 @@ class XPLAIN_explainer:
         k = self.starting_K
         old_error = 10.0
         error = 1e9
-        class_prob = self.clf.predict_proba(encoded_instance_x.reshape(1, -1))[0][
+        class_prob = self.clf.predict_proba(encoded_instance_x)[0][
             target_class_index]
         single_attribute_differences = compute_prediction_difference_single(
             encoded_instance,
@@ -114,14 +114,15 @@ class XPLAIN_explainer:
         if os.path.exists(join(DEFAULT_DIR, self.unique_filename)):
             shutil.rmtree(join(DEFAULT_DIR, self.unique_filename))
 
-        print("explain_instance errors:", errors)
+        print("explain_instance errors:", ", ".join([f"{err:.3E}" for err in errors]))
 
         xp = {'XPLAIN_explainer_o': self, 'diff_single': single_attribute_differences,
               'map_difference': deepcopy(difference_map), 'k': k, 'error': error,
-              'instance': encoded_instance, 'target_class': decoded_target_class,
+              'instance': self.train_dataset.inverse_transform_instance(encoded_instance),
+              'target_class': decoded_target_class,
               'errors': errors,
               'instance_class_index': target_class_index, 'prob': self.clf.predict_proba(
-                encoded_instance_x.reshape(1, -1))[0][target_class_index]}
+                encoded_instance_x)[0][target_class_index]}
 
         return xp
 
@@ -142,7 +143,7 @@ class XPLAIN_explainer:
                          (DEFAULT_DIR + self.unique_filename), '-SP', '10', '-NRUL',
                          '1'], stdout=subprocess.DEVNULL)
 
-        # Read the importance rules
+        # Get the importance rules
         with open(DEFAULT_DIR + self.unique_filename + "/impo_rules.txt",
                   "r") as f:
             rules_lines = f.readlines()
@@ -152,8 +153,9 @@ class XPLAIN_explainer:
             rules_lines = [rule for rule in rules_lines if
                            len(rule.split(",")) != len(encoded_instance[:-1])]
 
-        rules = parse_rules(rules_lines)
+            rules = parse_rules(rules_lines)
 
+        # For each rule, calculate the prediction difference for the its attributes
         difference_map = {}
         for rule in rules:
             rule_key = ",".join(map(str, rule))
@@ -161,7 +163,8 @@ class XPLAIN_explainer:
                 self.train_dataset, encoded_instance, rule,
                 self.clf, target_class_index)
 
-        _, error, _ = compute_error_approximation(
+        # Compute the approximation error
+        _, error, _ = compute_approximation_error(
             target_class_frequency,
             class_prob,
             single_attribute_differences,
@@ -248,7 +251,7 @@ def parse_rules(rules_lines):
 
 def compute_perturbed_difference(item, clf, encoded_instance,
                                  instance_class_index,
-                                 rule_attributes, training_dataset_):
+                                 rule_attributes, training_dataset):
     (attribute_set, occurrences) = item
 
     perturbed_instance = deepcopy(encoded_instance)
@@ -261,18 +264,15 @@ def compute_perturbed_difference(item, clf, encoded_instance,
     # Compute the prediction difference using the weighted average of the
     # probability over the frequency of this attribute set in the
     # dataset
-    difference = prob * occurrences / len(training_dataset_)
+    difference = prob * occurrences / len(training_dataset)
     return difference
 
 
-# Single explanation. Change 1 value at the time e compute the difference
 def compute_prediction_difference_single(encoded_instance, clf, class_prob, target_class_index,
                                          training_dataset):
-    dataset_len = len(training_dataset)
-
     attribute_pred_difference = [0] * len(training_dataset.attributes())
 
-    # For each `instance` attribute
+    # For each attribute of the instance
     for (attr_ix, (attr, _)) in enumerate(training_dataset.attributes()):
         # Create a dataset containing only the column of the attribute
         filtered_dataset = training_dataset.X()[attr]
@@ -292,7 +292,7 @@ def compute_prediction_difference_single(encoded_instance, clf, class_prob, targ
                 target_class_index]
 
             # Update the attribute difference weighting the prediction by the value frequency
-            weight = attr_occurrences[attr_val] / dataset_len
+            weight = attr_occurrences[attr_val] / len(training_dataset)
             difference = class_prob * weight
             attribute_pred_difference[attr_ix] += difference
 
@@ -342,7 +342,7 @@ def compute_prediction_difference_subset(training_dataset: Dataset,
     return prediction_differences
 
 
-def compute_error_approximation(class_frequency, class_prob, single_attribute_differences,
+def compute_approximation_error(class_frequency, class_prob, single_attribute_differences,
                                 impo_rules_complete,
                                 difference_map):
     PI = class_prob - class_frequency
