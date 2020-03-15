@@ -18,6 +18,8 @@ pip install numpy
 pip install pandas
 pip install scikit-learn
 pip install liac-arff
+pip install jupyter
+pip install matplotlib
 ```
 
 ## Running the demo
