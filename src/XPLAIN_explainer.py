@@ -93,8 +93,7 @@ class XPLAIN_explainer:
         for k in range(self.starting_K, self.max_K, self.K):
             print(f"compute_lace_step k={k}")
             difference_map, \
-            error, \
-            single_attribute_differences = self.compute_lace_step(
+            error = self.compute_lace_step(
                 encoded_instance,
                 k,
                 self.decoded_class_frequencies[decoded_target_class],
@@ -171,7 +170,7 @@ class XPLAIN_explainer:
             rules,
             difference_map)
 
-        return difference_map, error, single_attribute_differences
+        return difference_map, error
 
     def getGlobalExplanationRules(self):
         # noinspection PyUnresolvedReferences
