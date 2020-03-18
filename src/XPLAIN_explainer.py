@@ -1,4 +1,6 @@
 # noinspection PyUnresolvedReferences
+# noinspection PyUnresolvedReferences
+import itertools
 import os
 # noinspection PyUnresolvedReferences
 import shutil
@@ -17,8 +19,6 @@ from os.path import join
 # noinspection PyUnresolvedReferences
 from typing import Tuple
 
-# noinspection PyUnresolvedReferences
-import arff
 # noinspection PyUnresolvedReferences
 import numpy as np
 # noinspection PyUnresolvedReferences
@@ -129,30 +129,9 @@ class XPLAIN_explainer:
                           encoded_instance,
                           k, target_class_frequency,
                           target_class_index, class_prob, single_attribute_differences):
-        # Generate the neighborhood of the instance, classify it, and write it to files used by the
-        # L3 associative classifier as training set
-        create_locality_files(self.train_dataset, self.nbrs, encoded_instance, k,
-                              self.unique_filename, self.clf)
-
-        # Call L3, training it on the locality, generating the importance rules in impo_rules.txt
-        subprocess.call(['java', '-jar', DEFAULT_DIR + 'AL3.jar', '-no-cv', '-t',
-                         (DEFAULT_DIR + self.unique_filename + '/Knnres.arff'), '-T',
-                         (DEFAULT_DIR + self.unique_filename + '/Filetest.arff'),
-                         '-S', '1.0', '-C', '50.0', '-PN',
-                         (DEFAULT_DIR + self.unique_filename), '-SP', '10', '-NRUL',
-                         '1'], stdout=subprocess.DEVNULL)
-
-        # Get the importance rules
-        with open(DEFAULT_DIR + self.unique_filename + "/impo_rules.txt",
-                  "r") as f:
-            rules_lines = f.readlines()
-
-            # Remove rules which contain all attributes: we are not interested in a rule composed of
-            # all the attributes values. By definition, its relevance is prob(y=c)-prob(c)
-            rules_lines = [rule for rule in rules_lines if
-                           len(rule.split(",")) != len(encoded_instance[:-1])]
-
-            rules = parse_rules(rules_lines)
+        # Generate the neighborhood of the instance, classify it, and return the rules created by L3
+        rules = create_locality_and_get_rules(self.train_dataset, self.nbrs, encoded_instance, k,
+                                              self.unique_filename, self.clf)
 
         # For each rule, calculate the prediction difference for the its attributes
         difference_map = {}
@@ -180,9 +159,9 @@ class XPLAIN_explainer:
         return global_expl
 
 
-def create_locality_files(training_dataset: Dataset, nbrs,
-                          encoded_instance: pd.Series, k: int,
-                          unique_filename: str, clf):
+def create_locality_and_get_rules(training_dataset: Dataset, nbrs,
+                                  encoded_instance: pd.Series, k: int,
+                                  unique_filename: str, clf):
     cc = training_dataset.class_column_name()
     instance_x = encoded_instance[:-1].to_numpy()
 
@@ -205,24 +184,26 @@ def create_locality_files(training_dataset: Dataset, nbrs,
         [training_dataset.inverse_transform_instance(c) for c in classified_instances],
         training_dataset.columns)
 
-    closest_instance = training_dataset[nearest_neighbors_ixs[0]]
-    closest_instance_x = closest_instance[:-1].to_numpy()
-
-    closest_instance_classified = deepcopy(closest_instance)
-    closest_instance_classified[cc] = clf.predict(closest_instance_x.reshape(1, -1))[0]
-
-    closest_instance_dataset = Dataset(
-        [training_dataset.inverse_transform_instance(closest_instance_classified)],
-        training_dataset.columns)
-
     p = DEFAULT_DIR + unique_filename
     if not os.path.exists(p):
         os.makedirs(p)
 
-    with open(join(p, "Knnres.arff"), "w") as f:
-        arff.dump(classified_instances_dataset.to_arff_obj(), f)
-    with open(join(p, "Filetest.arff"), "w") as f:
-        arff.dump(closest_instance_dataset.to_arff_obj(), f)
+    from l3wrapper.l3wrapper import L3Classifier
+    l3clf = L3Classifier()
+    l3clf.fit(classified_instances_dataset.X_decoded(),
+              classified_instances_dataset.Y_decoded())
+
+    # Remove rules that use item_ids greater that instance attributes
+    rules = [list(sorted(r.item_ids)) for r in l3clf.lvl1_rules_ if
+             all(i < (len(instance_x) + 1) for i in r.item_ids)]
+    union_rule = list(sorted(set(itertools.chain.from_iterable(rules))))
+    if union_rule not in rules:
+        rules.append(union_rule)
+
+    print([list(r.item_ids) for r in l3clf.lvl1_rules_])
+    print(rules)
+
+    return rules
 
 
 def parse_rules(rules_lines):

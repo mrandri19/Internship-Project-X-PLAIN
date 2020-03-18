@@ -41,6 +41,10 @@ class Dataset:
     def Y(self):
         return self._encoded_df.iloc[:, -1]
 
+    def X_decoded(self):
+        """All rows' classes as a pandas Series."""
+        return self._decoded_df.iloc[:, :-1]
+
     def Y_decoded(self):
         """All rows' classes as a pandas Series."""
         return self._decoded_df.iloc[:, -1]
