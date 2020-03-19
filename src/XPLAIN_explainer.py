@@ -102,6 +102,8 @@ class XPLAIN_explainer:
 
             errors.append(error)
 
+            # TODO: fix this, it does not correspond exactly to the paper, it should return the past
+            #       error I believe
             # If we have reached the minimum or we are stuck in a local minimum
             if (error < ERROR_THRESHOLD) or ((abs(error) - abs(
                     old_error)) > ERROR_DIFFERENCE_THRESHOLD and not first_iteration):
@@ -191,17 +193,42 @@ def create_locality_and_get_rules(training_dataset: Dataset, nbrs,
     from l3wrapper.l3wrapper import L3Classifier
     l3clf = L3Classifier()
     l3clf.fit(classified_instances_dataset.X_decoded(),
-              classified_instances_dataset.Y_decoded())
+              classified_instances_dataset.Y_decoded(),
+              column_names=classified_instances_dataset.X_decoded().columns.to_list())
 
-    # Remove rules that use item_ids greater that instance attributes
-    rules = [list(sorted(r.item_ids)) for r in l3clf.lvl1_rules_ if
-             all(i < (len(instance_x) + 1) for i in r.item_ids)]
+    # Drop rules which use values not in the decoded instance
+    decoded_instance = training_dataset.inverse_transform_instance(encoded_instance)
+    encoded_rules = l3clf.lvl1_rules_
+
+    def get_rule_attrs_and_values(r, clf):
+        r_attr_ixs_and_values = sorted([clf._item_id_to_item[i] for i in r.item_ids])
+        r_attrs_and_values = [(clf._column_id_to_name[c], v) for c, v in r_attr_ixs_and_values]
+        return r_attrs_and_values
+
+    rules = []
+
+    # Perform matching: remove all rules thta use an attibute value not present in the instance to
+    # explain
+   
+    # For each rule
+    for r in encoded_rules:
+        # For each of its attributes and values
+        for a, v in get_rule_attrs_and_values(r, l3clf):
+            # If rule uses an attribute's value different from the instance's
+            if decoded_instance[a] != v:
+                # Exit the inner loop, not entering the else clause, therefore not adding the rule
+                break
+        # https://docs.python.org/3/tutorial/controlflow.html#break-and-continue-statements-and-else-clauses-on-loops
+        else:
+            # If the inner loop has completed normally without break-ing, then all of the rule's
+            # attribute values are in the instance as well, so we will use this rule
+            rules.append(list(sorted(r.item_ids)))
+
     union_rule = list(sorted(set(itertools.chain.from_iterable(rules))))
     if union_rule not in rules:
         rules.append(union_rule)
 
-    print([list(r.item_ids) for r in l3clf.lvl1_rules_])
-    print(rules)
+    rules = sorted(list(rules))
 
     return rules
 
