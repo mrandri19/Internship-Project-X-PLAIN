@@ -209,7 +209,7 @@ def create_locality_and_get_rules(training_dataset: Dataset, nbrs,
 
     # Perform matching: remove all rules thta use an attibute value not present in the instance to
     # explain
-   
+
     # For each rule
     for r in encoded_rules:
         # For each of its attributes and values
@@ -229,29 +229,6 @@ def create_locality_and_get_rules(training_dataset: Dataset, nbrs,
         rules.append(union_rule)
 
     rules = sorted(list(rules))
-
-    return rules
-
-
-def parse_rules(rules_lines):
-    union_rule = []
-    rules = []
-
-    for rule_line in rules_lines:
-        rule = []
-
-        for attribute_str in rule_line.split(","):
-            attribute = int(attribute_str)
-            rule.append(attribute)
-            union_rule.append(attribute)
-
-        rules.append(rule)
-
-    # Remove duplicates
-    union_rule = list(sorted(set(union_rule)))
-
-    if union_rule not in rules:
-        rules.append(union_rule)
 
     return rules
 
