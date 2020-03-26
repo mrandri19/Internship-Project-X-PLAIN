@@ -200,20 +200,23 @@ def create_locality_and_get_rules(training_dataset: Dataset, nbrs,
     decoded_instance = training_dataset.inverse_transform_instance(encoded_instance)
     encoded_rules = l3clf.lvl1_rules_
 
-    def get_rule_attrs_and_values(r, clf):
+    def decode_rule(r, clf):
+        r_class = clf._class_dict[r.class_id]
         r_attr_ixs_and_values = sorted([clf._item_id_to_item[i] for i in r.item_ids])
         r_attrs_and_values = [(clf._column_id_to_name[c], v) for c, v in r_attr_ixs_and_values]
-        return r_attrs_and_values
+        return {'body': r_attrs_and_values, 'class': r_class}
 
     rules = []
 
     # Perform matching: remove all rules thta use an attibute value not present in the instance to
     # explain
+    # NOTE: this matching does not consider the class. It considers rules regardless of their class
+    #       prediction
 
     # For each rule
     for r in encoded_rules:
         # For each of its attributes and values
-        for a, v in get_rule_attrs_and_values(r, l3clf):
+        for a, v in decode_rule(r, l3clf)['body']:
             # If rule uses an attribute's value different from the instance's
             if decoded_instance[a] != v:
                 # Exit the inner loop, not entering the else clause, therefore not adding the rule
@@ -222,10 +225,32 @@ def create_locality_and_get_rules(training_dataset: Dataset, nbrs,
         else:
             # If the inner loop has completed normally without break-ing, then all of the rule's
             # attribute values are in the instance as well, so we will use this rule
-            rules.append(list(sorted(r.item_ids)))
 
+            # Get the instance attribute index from the rule's item_ids
+            di = training_dataset.inverse_transform_instance(
+                encoded_instance).index
+            rules.append(
+                list(
+                    sorted([di.get_loc(a) + 1 for a, v in decode_rule(r, l3clf)['body']])))
+
+    # Print the instance
+    print('Instance:', ", ".join([f"{k}={v}" for k, v in
+                                  training_dataset.inverse_transform_instance(
+                                      encoded_instance).to_dict().items()]))
+    print()
+    # Print l3wrapper's raw rules
+    for r in encoded_rules:
+        print(r.item_ids, ", ".join([f"{k}={v}"
+                                     for k, v in decode_rule(r, l3clf)['body']]), '->',
+              decode_rule(r, l3clf)['class'])
+    # Print matched rules
+    print()
+    print('Rules:', rules)
+    print()
+
+    # Get the union rule
     union_rule = list(sorted(set(itertools.chain.from_iterable(rules))))
-    if union_rule not in rules:
+    if union_rule not in rules and len(union_rule) > 0:
         rules.append(union_rule)
 
     rules = sorted(list(rules))
@@ -298,6 +323,8 @@ def compute_prediction_difference_subset(training_dataset: Dataset,
 
     encoded_instance_x = encoded_instance[:-1].to_numpy()
 
+    # FIXME: This need to change in some way, we are supposing that rule body indices are the same
+    #        as instance attribute indices but this is not true in general, I think
     rule_attributes = [
         list(training_dataset.attributes())[rule_body_index - 1][0] for
         rule_body_index in rule_body_indices]
@@ -332,7 +359,10 @@ def compute_approximation_error(class_frequency, class_prob, single_attribute_di
     PI = class_prob - class_frequency
     Sum_Deltas = sum(single_attribute_differences)
     # UPDATED_EP
-    impo_rules_completeC = ", ".join(map(str, list(max(impo_rules_complete, key=len))))
+    if len(impo_rules_complete) > 0:
+        impo_rules_completeC = ", ".join(map(str, list(max(impo_rules_complete, key=len))))
+    else:
+        impo_rules_completeC = ""
 
     approx_single_d = abs(PI - Sum_Deltas)
     approx_single_rel = approx_single_d / abs(PI)
