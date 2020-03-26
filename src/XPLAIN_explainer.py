@@ -200,10 +200,10 @@ def create_locality_and_get_rules(training_dataset: Dataset, nbrs,
     decoded_instance = training_dataset.inverse_transform_instance(encoded_instance)
     encoded_rules = l3clf.lvl1_rules_
 
-    def decode_rule(r, clf):
-        r_class = clf._class_dict[r.class_id]
-        r_attr_ixs_and_values = sorted([clf._item_id_to_item[i] for i in r.item_ids])
-        r_attrs_and_values = [(clf._column_id_to_name[c], v) for c, v in r_attr_ixs_and_values]
+    def decode_rule(r_, clf_):
+        r_class = clf_._class_dict[r_.class_id]
+        r_attr_ixs_and_values = sorted([clf_._item_id_to_item[i] for i in r_.item_ids])
+        r_attrs_and_values = [(clf_._column_id_to_name[c], v) for c, v in r_attr_ixs_and_values]
         return {'body': r_attrs_and_values, 'class': r_class}
 
     rules = []
@@ -227,26 +227,25 @@ def create_locality_and_get_rules(training_dataset: Dataset, nbrs,
             # attribute values are in the instance as well, so we will use this rule
 
             # Get the instance attribute index from the rule's item_ids
-            di = training_dataset.inverse_transform_instance(
-                encoded_instance).index
-            rules.append(
-                list(
-                    sorted([di.get_loc(a) + 1 for a, v in decode_rule(r, l3clf)['body']])))
+            if decode_rule(r, l3clf)['class'] == decoded_instance.iloc[-1]:
+                di = decoded_instance.index
+                rules.append(
+                    list(sorted([di.get_loc(a) + 1 for a, v in decode_rule(r, l3clf)['body']])))
 
-    # Print the instance
-    print('Instance:', ", ".join([f"{k}={v}" for k, v in
-                                  training_dataset.inverse_transform_instance(
-                                      encoded_instance).to_dict().items()]))
-    print()
-    # Print l3wrapper's raw rules
-    for r in encoded_rules:
-        print(r.item_ids, ", ".join([f"{k}={v}"
-                                     for k, v in decode_rule(r, l3clf)['body']]), '->',
-              decode_rule(r, l3clf)['class'])
-    # Print matched rules
-    print()
-    print('Rules:', rules)
-    print()
+    # # Print the instance
+    # print('Instance:', ", ".join([f"{k}={v}" for k, v in
+    #                               training_dataset.inverse_transform_instance(
+    #                                   encoded_instance).to_dict().items()]))
+    # print()
+    # # Print l3wrapper's raw rules
+    # for r in encoded_rules:
+    #     print(r.item_ids, ", ".join([f"{k}={v}"
+    #                                  for k, v in decode_rule(r, l3clf)['body']]), '->',
+    #           decode_rule(r, l3clf)['class'])
+    # # Print matched rules
+    # print()
+    # print('Rules:', rules)
+    # print()
 
     # Get the union rule
     union_rule = list(sorted(set(itertools.chain.from_iterable(rules))))
@@ -323,8 +322,6 @@ def compute_prediction_difference_subset(training_dataset: Dataset,
 
     encoded_instance_x = encoded_instance[:-1].to_numpy()
 
-    # FIXME: This need to change in some way, we are supposing that rule body indices are the same
-    #        as instance attribute indices but this is not true in general, I think
     rule_attributes = [
         list(training_dataset.attributes())[rule_body_index - 1][0] for
         rule_body_index in rule_body_indices]
