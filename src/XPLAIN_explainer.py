@@ -25,6 +25,7 @@ import numpy as np
 import pandas as pd
 # noinspection PyUnresolvedReferences
 import sklearn.neighbors
+from l3wrapper.l3wrapper import L3Classifier
 
 # noinspection PyUnresolvedReferences
 from src import DEFAULT_DIR
@@ -34,10 +35,11 @@ from src.dataset import Dataset
 ERROR_DIFFERENCE_THRESHOLD = 0.01
 TEMPORARY_FOLDER_NAME = "tmp"
 ERROR_THRESHOLD = 0.02
+MINIMUM_SUPPORT = 0.01
 
 
 class XPLAIN_explainer:
-    def __init__(self, clf, train_dataset):
+    def __init__(self, clf, train_dataset, min_sup=MINIMUM_SUPPORT):
         self.unique_filename = os.path.join(TEMPORARY_FOLDER_NAME, str(uuid.uuid4()))
 
         self.clf = clf
@@ -51,6 +53,8 @@ class XPLAIN_explainer:
             n_neighbors=len(self.train_dataset), metric='euclidean',
             algorithm='auto', metric_params=None).fit(
             self.train_dataset.X_numpy())
+
+        self.min_sup = min_sup
 
         self.decoded_class_frequencies = self.train_dataset.Y_decoded().value_counts(normalize=True)
 
@@ -132,8 +136,9 @@ class XPLAIN_explainer:
                           k, target_class_frequency,
                           target_class_index, class_prob, single_attribute_differences):
         # Generate the neighborhood of the instance, classify it, and return the rules created by L3
+        l3clf = L3Classifier(min_sup=self.min_sup)
         rules = create_locality_and_get_rules(self.train_dataset, self.nbrs, encoded_instance, k,
-                                              self.unique_filename, self.clf)
+                                              self.unique_filename, self.clf, l3clf)
 
         # For each rule, calculate the prediction difference for the its attributes
         difference_map = {}
@@ -163,7 +168,7 @@ class XPLAIN_explainer:
 
 def create_locality_and_get_rules(training_dataset: Dataset, nbrs,
                                   encoded_instance: pd.Series, k: int,
-                                  unique_filename: str, clf):
+                                  unique_filename: str, clf, l3clf):
     cc = training_dataset.class_column_name()
     instance_x = encoded_instance[:-1].to_numpy()
 
@@ -190,8 +195,6 @@ def create_locality_and_get_rules(training_dataset: Dataset, nbrs,
     if not os.path.exists(p):
         os.makedirs(p)
 
-    from l3wrapper.l3wrapper import L3Classifier
-    l3clf = L3Classifier()
     l3clf.fit(classified_instances_dataset.X_decoded(),
               classified_instances_dataset.Y_decoded(),
               column_names=classified_instances_dataset.X_decoded().columns.to_list())
