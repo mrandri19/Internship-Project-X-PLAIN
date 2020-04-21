@@ -1,52 +1,26 @@
-# noinspection PyUnresolvedReferences
-# noinspection PyUnresolvedReferences
 import itertools
-import os
-# noinspection PyUnresolvedReferences
-import shutil
-# noinspection PyUnresolvedReferences
-import subprocess
-# noinspection PyUnresolvedReferences
-import uuid
-# noinspection PyUnresolvedReferences
-from collections import Counter, defaultdict
-# noinspection PyUnresolvedReferences
+from collections import Counter
 from copy import deepcopy
-# noinspection PyUnresolvedReferences
-from os import path
-# noinspection PyUnresolvedReferences
-from os.path import join
-# noinspection PyUnresolvedReferences
-from typing import Tuple
 
-# noinspection PyUnresolvedReferences
-import numpy as np
-# noinspection PyUnresolvedReferences
 import pandas as pd
-# noinspection PyUnresolvedReferences
 import sklearn.neighbors
 from l3wrapper.l3wrapper import L3Classifier
 
-# noinspection PyUnresolvedReferences
-from src import DEFAULT_DIR
-# noinspection PyUnresolvedReferences
 from src.dataset import Dataset
 
 ERROR_DIFFERENCE_THRESHOLD = 0.01
-TEMPORARY_FOLDER_NAME = "tmp"
 ERROR_THRESHOLD = 0.02
 MINIMUM_SUPPORT = 0.01
+SMALL_DATASET_LEN = 150
 
 
 class XPLAIN_explainer:
     def __init__(self, clf, train_dataset, min_sup=MINIMUM_SUPPORT):
-        self.unique_filename = os.path.join(TEMPORARY_FOLDER_NAME, str(uuid.uuid4()))
-
         self.clf = clf
 
         self.train_dataset = train_dataset
 
-        self.K, _, self.max_K = get_KNN_threshold_max(None, len(self.train_dataset), None, None)
+        self.K, self.max_K = _get_KNN_threshold_max(len(self.train_dataset))
         self.starting_K = self.K
 
         self.nbrs = sklearn.neighbors.NearestNeighbors(
@@ -66,9 +40,8 @@ class XPLAIN_explainer:
         # Problem with very small training dataset. The starting k is low, very few examples:
         # difficult to capture the locality.
         # Risks: examples too similar, only 1 class. Starting k: proportional to the class frequence
-        small_dataset_len = 150
         training_dataset_len = len(self.train_dataset)
-        if training_dataset_len < small_dataset_len:
+        if training_dataset_len < SMALL_DATASET_LEN:
             decoded_pred_class = self.train_dataset.class_values()[
                 self.clf.predict(encoded_instance_x)[0].astype(int)]
             self.starting_K = max(
@@ -81,7 +54,7 @@ class XPLAIN_explainer:
         error = 1e9
         class_prob = self.clf.predict_proba(encoded_instance_x)[0][
             target_class_index]
-        single_attribute_differences = compute_prediction_difference_single(
+        single_attribute_differences = _compute_prediction_difference_single(
             encoded_instance,
             self.clf,
             class_prob,
@@ -97,7 +70,7 @@ class XPLAIN_explainer:
         for k in range(self.starting_K, self.max_K, self.K):
             print(f"compute_lace_step k={k}")
             difference_map, \
-            error = self.compute_lace_step(
+            error = self._compute_lace_step(
                 encoded_instance,
                 k,
                 self.decoded_class_frequencies[decoded_target_class],
@@ -116,9 +89,6 @@ class XPLAIN_explainer:
                 first_iteration = False
                 old_error = error
 
-        if os.path.exists(join(DEFAULT_DIR, self.unique_filename)):
-            shutil.rmtree(join(DEFAULT_DIR, self.unique_filename))
-
         print("explain_instance errors:", ", ".join([f"{err:.3E}" for err in errors]))
 
         xp = {'XPLAIN_explainer_o': self, 'diff_single': single_attribute_differences,
@@ -131,25 +101,25 @@ class XPLAIN_explainer:
 
         return xp
 
-    def compute_lace_step(self,
-                          encoded_instance,
-                          k, target_class_frequency,
-                          target_class_index, class_prob, single_attribute_differences):
+    def _compute_lace_step(self,
+                           encoded_instance,
+                           k, target_class_frequency,
+                           target_class_index, class_prob, single_attribute_differences):
         # Generate the neighborhood of the instance, classify it, and return the rules created by L3
         l3clf = L3Classifier(min_sup=self.min_sup)
-        rules = create_locality_and_get_rules(self.train_dataset, self.nbrs, encoded_instance, k,
-                                              self.unique_filename, self.clf, l3clf)
+        rules = _create_locality_and_get_rules(self.train_dataset, self.nbrs, encoded_instance, k,
+                                               self.clf, l3clf)
 
         # For each rule, calculate the prediction difference for the its attributes
         difference_map = {}
         for rule in rules:
             rule_key = ",".join(map(str, rule))
-            difference_map[rule_key] = compute_prediction_difference_subset(
+            difference_map[rule_key] = _compute_prediction_difference_subset(
                 self.train_dataset, encoded_instance, rule,
                 self.clf, target_class_index)
 
         # Compute the approximation error
-        _, error, _ = compute_approximation_error(
+        _, error, _ = _compute_approximation_error(
             target_class_frequency,
             class_prob,
             single_attribute_differences,
@@ -158,7 +128,7 @@ class XPLAIN_explainer:
 
         return difference_map, error
 
-    def getGlobalExplanationRules(self):
+    def _getGlobalExplanationRules(self):
         # noinspection PyUnresolvedReferences
         from src.global_explanation import GlobalExplanation
         global_expl = GlobalExplanation(self)
@@ -166,9 +136,9 @@ class XPLAIN_explainer:
         return global_expl
 
 
-def create_locality_and_get_rules(training_dataset: Dataset, nbrs,
-                                  encoded_instance: pd.Series, k: int,
-                                  unique_filename: str, clf, l3clf):
+def _create_locality_and_get_rules(training_dataset: Dataset, nbrs,
+                                   encoded_instance: pd.Series, k: int,
+                                   clf, l3clf):
     cc = training_dataset.class_column_name()
     instance_x = encoded_instance[:-1].to_numpy()
 
@@ -191,10 +161,6 @@ def create_locality_and_get_rules(training_dataset: Dataset, nbrs,
         [training_dataset.inverse_transform_instance(c) for c in classified_instances],
         training_dataset.columns)
 
-    p = DEFAULT_DIR + unique_filename
-    if not os.path.exists(p):
-        os.makedirs(p)
-
     l3clf.fit(classified_instances_dataset.X_decoded(),
               classified_instances_dataset.Y_decoded(),
               column_names=classified_instances_dataset.X_decoded().columns.to_list())
@@ -211,10 +177,8 @@ def create_locality_and_get_rules(training_dataset: Dataset, nbrs,
 
     rules = []
 
-    # Perform matching: remove all rules thta use an attibute value not present in the instance to
+    # Perform matching: remove all rules that use an attibute value not present in the instance to
     # explain
-    # NOTE: this matching does not consider the class. It considers rules regardless of their class
-    #       prediction
 
     # For each rule
     for r in encoded_rules:
@@ -235,21 +199,6 @@ def create_locality_and_get_rules(training_dataset: Dataset, nbrs,
                 rules.append(
                     list(sorted([di.get_loc(a) + 1 for a, v in decode_rule(r, l3clf)['body']])))
 
-    # # Print the instance
-    # print('Instance:', ", ".join([f"{k}={v}" for k, v in
-    #                               training_dataset.inverse_transform_instance(
-    #                                   encoded_instance).to_dict().items()]))
-    # print()
-    # # Print l3wrapper's raw rules
-    # for r in encoded_rules:
-    #     print(r.item_ids, ", ".join([f"{k}={v}"
-    #                                  for k, v in decode_rule(r, l3clf)['body']]), '->',
-    #           decode_rule(r, l3clf)['class'])
-    # # Print matched rules
-    # print()
-    # print('Rules:', rules)
-    # print()
-
     # Get the union rule
     union_rule = list(sorted(set(itertools.chain.from_iterable(rules))))
     if union_rule not in rules and len(union_rule) > 0:
@@ -260,9 +209,9 @@ def create_locality_and_get_rules(training_dataset: Dataset, nbrs,
     return rules
 
 
-def compute_perturbed_difference(item, clf, encoded_instance,
-                                 instance_class_index,
-                                 rule_attributes, training_dataset):
+def _compute_perturbed_difference(item, clf, encoded_instance,
+                                  instance_class_index,
+                                  rule_attributes, training_dataset):
     (attribute_set, occurrences) = item
 
     perturbed_instance = deepcopy(encoded_instance)
@@ -279,8 +228,8 @@ def compute_perturbed_difference(item, clf, encoded_instance,
     return difference
 
 
-def compute_prediction_difference_single(encoded_instance, clf, class_prob, target_class_index,
-                                         training_dataset):
+def _compute_prediction_difference_single(encoded_instance, clf, class_prob, target_class_index,
+                                          training_dataset):
     attribute_pred_difference = [0] * len(training_dataset.attributes())
 
     # For each attribute of the instance
@@ -313,11 +262,11 @@ def compute_prediction_difference_single(encoded_instance, clf, class_prob, targ
     return attribute_pred_difference
 
 
-def compute_prediction_difference_subset(training_dataset: Dataset,
-                                         encoded_instance: pd.Series,
-                                         rule_body_indices,
-                                         clf,
-                                         instance_class_index):
+def _compute_prediction_difference_subset(training_dataset: Dataset,
+                                          encoded_instance: pd.Series,
+                                          rule_body_indices,
+                                          clf,
+                                          instance_class_index):
     """
     Compute the prediction difference for an instance in a training_dataset, w.r.t. some
     rules and a class, given a classifier
@@ -338,9 +287,9 @@ def compute_prediction_difference_subset(training_dataset: Dataset,
 
     # For each set of attributes
     differences = [
-        compute_perturbed_difference(item, clf, encoded_instance,
-                                     instance_class_index,
-                                     rule_attributes, training_dataset) for
+        _compute_perturbed_difference(item, clf, encoded_instance,
+                                      instance_class_index,
+                                      rule_attributes, training_dataset) for
         item in
         attribute_sets_occurrences.items()]
 
@@ -353,9 +302,9 @@ def compute_prediction_difference_subset(training_dataset: Dataset,
     return prediction_differences
 
 
-def compute_approximation_error(class_frequency, class_prob, single_attribute_differences,
-                                impo_rules_complete,
-                                difference_map):
+def _compute_approximation_error(class_frequency, class_prob, single_attribute_differences,
+                                 impo_rules_complete,
+                                 difference_map):
     PI = class_prob - class_frequency
     Sum_Deltas = sum(single_attribute_differences)
     # UPDATED_EP
@@ -390,33 +339,17 @@ def compute_approximation_error(class_frequency, class_prob, single_attribute_di
     return approx_single_rel, approx2, approx_rel2
 
 
-def getStartKValueSimplified(len_dataset):
+def _get_KNN_threshold_max(len_dataset):
+    import math
+    k = int(round(math.sqrt(len_dataset)))
+
     if len_dataset < 150:
-        return len_dataset
+        max_n = len_dataset
     elif len_dataset < 1000:
-        return int(len_dataset / 2)
+        max_n = int(len_dataset / 2)
     elif len_dataset < 10000:
-        return int(len_dataset / 10)
+        max_n = int(len_dataset / 10)
     else:
-        return int(len_dataset * 5 / 100)
+        max_n = int(len_dataset * 5 / 100)
 
-
-def get_KNN_threshold_max(KneighborsUser, len_dataset, thresholdError,
-                          maxKNNUser):
-    if KneighborsUser:
-        k = int(KneighborsUser)
-    else:
-        import math
-        k = int(round(math.sqrt(len_dataset)))
-
-    if thresholdError:
-        threshold = float(thresholdError)
-    else:
-        threshold = 0.10
-
-    if maxKNNUser:
-        max_n = int(maxKNNUser)
-    else:
-        max_n = getStartKValueSimplified(len_dataset)
-
-    return k, threshold, max_n
+    return k, max_n

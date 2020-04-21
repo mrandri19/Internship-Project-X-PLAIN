@@ -473,7 +473,7 @@ def get_global_explanation():
     global_e = openPickle(DEFAULT_DIR + "global_explanations",
                           'global_expl_{0}_{1}'.format(xp.dataset_name, xp.classifier_name))
     if not global_e:
-        global_e = xp.getGlobalExplanationRules()
+        global_e = xp._getGlobalExplanationRules()
         savePickle(global_e, DEFAULT_DIR + "global_explanations",
                    'global_expl_{0}_{1}'.format(xp.dataset_name, xp.classifier_name))
     global_e_to_send = computeToSend(global_e, xp)
