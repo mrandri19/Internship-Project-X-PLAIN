@@ -1,9 +1,9 @@
 import random
 from os.path import join
 from typing import Tuple, List
+from unittest import TestCase
 
 import arff
-from snapshottest import TestCase
 
 from src import DEFAULT_DIR
 from src.XPLAIN_explainer import XPLAIN_explainer
