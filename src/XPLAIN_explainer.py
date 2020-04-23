@@ -15,6 +15,9 @@ SMALL_DATASET_LEN = 150
 
 
 class XPLAIN_explainer:
+    """Ciao sono una riga di documentazione.
+    """
+
     def __init__(self, clf, train_dataset, min_sup=MINIMUM_SUPPORT):
         self.clf = clf
 
