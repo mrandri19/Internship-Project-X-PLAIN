@@ -4,6 +4,7 @@ from typing import Tuple, List
 from unittest import TestCase
 
 import arff
+import numpy as np
 
 from src import DEFAULT_DIR
 from src.XPLAIN_explainer import XPLAIN_explainer
@@ -127,7 +128,7 @@ def get_explanation(dataset_name: str, classifier_name: str):
 class TestGet_explanation(TestCase):
     def test_get_explanation_zoo_random_forest(self):
         e = get_explanation(join(DEFAULT_DIR, "datasets/zoo.arff"), "sklearn_rf")
-        self.assertEqual((
+        assertDeepAlmostEqual(self, (
             e['diff_single'],
             e['map_difference'],
             e['k'],
@@ -136,37 +137,37 @@ class TestGet_explanation(TestCase):
             e['instance_class_index'],
             e['prob']
         ), (
-            [
-                0.11024691358024685,
-                0.02308641975308645,
-                0.19728395061728388,
-                0.31407407407407417,
-                0.004938271604938316,
-                0.006913580246913575,
-                0.0,
-                0.07111111111111112,
-                0.00864197530864197,
-                0.03358024691358019,
-                0.0007407407407408195,
-                0.0,
-                0.005185185185185182,
-                0.0,
-                0.0,
-                0.0
-            ],
-            {
-                '1,2,3,4,8,9,10,11': 0.5839506172839506
-            },
-            33,
-            0.00864197530864197,
-            'mammal',
-            5,
-            1.0
-        ))
+                                  [
+                                      0.11024691358024685,
+                                      0.02308641975308645,
+                                      0.19728395061728388,
+                                      0.31407407407407417,
+                                      0.004938271604938316,
+                                      0.006913580246913575,
+                                      0.0,
+                                      0.07111111111111112,
+                                      0.00864197530864197,
+                                      0.03358024691358019,
+                                      0.0007407407407408195,
+                                      0.0,
+                                      0.005185185185185182,
+                                      0.0,
+                                      0.0,
+                                      0.0
+                                  ],
+                                  {
+                                      '1,2,3,4,8,9,10,11': 0.5839506172839506
+                                  },
+                                  33,
+                                  0.00864197530864197,
+                                  'mammal',
+                                  5,
+                                  1.0
+                              ))
 
     def test_get_explanation_zoo_naive_bayes(self):
         e = get_explanation(join(DEFAULT_DIR, "datasets/zoo.arff"), "sklearn_nb")
-        self.assertEqual((
+        assertDeepAlmostEqual(self, (
             e['diff_single'],
             e['map_difference'],
             e['k'],
@@ -175,37 +176,37 @@ class TestGet_explanation(TestCase):
             e['instance_class_index'],
             e['prob']
         ), (
-            [
-                0.0018493244327110192,
-                0.0005835022761034869,
-                0.04128880084184605,
-                0.002583590538021041,
-                -0.002213184871231788,
-                -0.0005848709570587252,
-                -0.0026459469615073283,
-                -0.0027706378431165968,
-                -0.0033543844546455315,
-                -0.0033771583400726835,
-                -0.0023206657800494135,
-                -0.0032075223689916887,
-                -0.0027332607152817934,
-                -0.003227422277876868,
-                -0.0035048571858332656,
-                -0.0015305424415449354
-            ],
-            {
-                '2,3,4,8,9,10,11': 0.39514075431687523
-            },
-            42,
-            0.19470029326431426,
-            'mammal',
-            5,
-            0.9972484549885969
-        ))
+                                  [
+                                      0.0018493244327110192,
+                                      0.0005835022761034869,
+                                      0.04128880084184605,
+                                      0.002583590538021041,
+                                      -0.002213184871231788,
+                                      -0.0005848709570587252,
+                                      -0.0026459469615073283,
+                                      -0.0027706378431165968,
+                                      -0.0033543844546455315,
+                                      -0.0033771583400726835,
+                                      -0.0023206657800494135,
+                                      -0.0032075223689916887,
+                                      -0.0027332607152817934,
+                                      -0.003227422277876868,
+                                      -0.0035048571858332656,
+                                      -0.0015305424415449354
+                                  ],
+                                  {
+                                      '2,3,4,8,9,10,11': 0.39514075431687523
+                                  },
+                                  42,
+                                  0.19470029326431426,
+                                  'mammal',
+                                  5,
+                                  0.9972484549885969
+                              ))
 
     def test_get_explanation_adult_naive_bayes(self):
         e = get_explanation(join(DEFAULT_DIR, "datasets/adult_d.arff"), "sklearn_nb")
-        self.assertEqual((
+        assertDeepAlmostEqual(self, (
             e['diff_single'],
             e['map_difference'],
             e['k'],
@@ -214,29 +215,70 @@ class TestGet_explanation(TestCase):
             e['instance_class_index'],
             e['prob']
         ), (
-            [
-                0.04267021431143747,
-                0.0013601660256593595,
-                -0.00025793916220828716,
-                -0.002583202995719347,
-                0.41800765869397466,
-                -0.07252560975447497,
-                0.038882713120766854,
-                -0.0002026726258052003,
-                6.138967731539324e-05,
-                0.01974576342296308,
-                -0.013082534026229053
-            ],
-            {
-                '1,10,11': 0.04904249942186634,
-                '1,3,5,6,8,9,10,11': 0.32111161850226366,
-                '1,3,8,9': 0.04214440558178556,
-                '1,6': -0.044924825486333586,
-                '5': 0.41800765869397466
-            },
-            118,
-            0.01442188127852051,
-            '<=50K',
-            0,
-            0.8066897372237432
-        ))
+                                  [
+                                      0.04267021431143747,
+                                      0.0013601660256593595,
+                                      -0.00025793916220828716,
+                                      -0.002583202995719347,
+                                      0.41800765869397466,
+                                      -0.07252560975447497,
+                                      0.038882713120766854,
+                                      -0.0002026726258052003,
+                                      6.138967731539324e-05,
+                                      0.01974576342296308,
+                                      -0.013082534026229053
+                                  ],
+                                  {
+                                      '1,10,11': 0.04904249942186634,
+                                      '1,3,5,6,8,9,10,11': 0.32111161850226366,
+                                      '1,3,8,9': 0.04214440558178556,
+                                      '1,6': -0.044924825486333586,
+                                      '5': 0.41800765869397466
+                                  },
+                                  118,
+                                  0.01442188127852051,
+                                  '<=50K',
+                                  0,
+                                  0.8066897372237432
+                              ))
+
+
+def assertDeepAlmostEqual(test_case, expected, actual, *args, **kwargs):
+    """
+    Assert that two complex structures have almost equal contents.
+
+    Compares lists, dicts and tuples recursively. Checks numeric values
+    using test_case's :py:meth:`unittest.TestCase.assertAlmostEqual` and
+    checks all other values with :py:meth:`unittest.TestCase.assertEqual`.
+    Accepts additional positional and keyword arguments and pass those
+    intact to assertAlmostEqual() (that's how you specify comparison
+    precision).
+
+    :param test_case: TestCase object on which we can call all of the basic
+    'assert' methods.
+    :type test_case: :py:class:`unittest.TestCase` object
+    """
+    is_root = '__trace' not in kwargs
+    trace = kwargs.pop('__trace', 'ROOT')
+    try:
+        if isinstance(expected, (int, float, complex)):
+            test_case.assertAlmostEqual(expected, actual, *args, **kwargs)
+        elif isinstance(expected, (list, tuple, np.ndarray)):
+            test_case.assertEqual(len(expected), len(actual))
+            for index in range(len(expected)):
+                v1, v2 = expected[index], actual[index]
+                assertDeepAlmostEqual(test_case, v1, v2,
+                                      __trace=repr(index), *args, **kwargs)
+        elif isinstance(expected, dict):
+            test_case.assertEqual(set(expected), set(actual))
+            for key in expected:
+                assertDeepAlmostEqual(test_case, expected[key], actual[key],
+                                      __trace=repr(key), *args, **kwargs)
+        else:
+            test_case.assertEqual(expected, actual)
+    except AssertionError as exc:
+        exc.__dict__.setdefault('traces', []).append(trace)
+        if is_root:
+            trace = ' -> '.join(reversed(exc.traces))
+            exc = AssertionError("%s\nTRACE: %s" % (exc.message, trace))
+        raise exc
