@@ -1,7 +1,6 @@
 flask
 numpy
 pandas
-snapshottest
 scikit-learn
 matplotlib
 pandas
