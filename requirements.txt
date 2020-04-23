@@ -1,8 +1,9 @@
 flask
 numpy
 pandas
-scipy
 snapshottest
 scikit-learn
 matplotlib
-seaborn
+pandas
+liac-arff
+matplotlib
