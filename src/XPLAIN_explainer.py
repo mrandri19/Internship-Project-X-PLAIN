@@ -106,7 +106,30 @@ class XPLAIN_explainer:
                     'instance_class_index': 5,
                     'prob': 1.0
                 }
-            Let's examine each field:
+            Field description:
+
+            * ``"XPLAIN_explainer_o"``: A reference to the explainer used to
+              generate this explanation.
+            * ``diff_single``: The prediction difference of every single
+              attribute of the instance to explain.
+              Thus, it has the same len as the instance attributes.
+            * ``map_difference``: A dict where each key is a subset of the
+              attributes and each key is prediction difference of such subset.
+            * ``k``: The size of the neighborhood used in the last iteration of
+              the algorithm.
+            * ``error``: The approximation error :math:`\epsilon` of the last
+              iteration of the algorithm.
+            * ``instance``: A reference to the instance whose prediction was
+              explained.
+            * ``target_class``: The name of the class for which the prediction
+              is explained.
+            * ``errors``: A list of all the approximation errors calculated
+              at every step of the algorithm.
+            * ``instance_class_index``: ``target_class`` after being processed
+              with sklearn's LabelEncoder.
+            * ``prob``: The probability (given by the classifier) of the
+              instance belonging to the ``target_class``.
+
         """
         target_class_index = self.train_dataset.class_values().index(decoded_target_class)
 
