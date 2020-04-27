@@ -6,6 +6,7 @@ Welcome to xplain's documentation!
     :caption: Contents:
 
     xplain
+    dataset
 
 
 

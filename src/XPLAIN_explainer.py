@@ -1,3 +1,7 @@
+"""The module provides the XPLAIN_explainer class, which is used to perform the
+$name analysis on a dataset.
+
+"""
 import itertools
 from collections import Counter
 from copy import deepcopy
@@ -15,7 +19,18 @@ SMALL_DATASET_LEN = 150
 
 
 class XPLAIN_explainer:
-    """Ciao sono una riga di documentazione.
+    """The XPLAIN_explainer class, through the `explain_instance` method allows
+    to obtain a rule-based model-agnostic local explanation for an instance.
+
+    Parameters
+    ----------
+    clf : sklearn classifier
+        Any sklearn-like classifier can be passed. It must have the methods
+        `predict` and `predict_proba`.
+    train_dataset : Dataset
+        The dataset from which the locality of the explained instance is created.
+    min_sup : float
+        L^3 Classifier's Minimum support parameter.
     """
 
     def __init__(self, clf, train_dataset, min_sup=MINIMUM_SUPPORT):
@@ -36,6 +51,63 @@ class XPLAIN_explainer:
         self.decoded_class_frequencies = self.train_dataset.Y_decoded().value_counts(normalize=True)
 
     def explain_instance(self, encoded_instance: pd.Series, decoded_target_class):
+        """
+        Explain the classifer's prediction on the instance with respect to a
+        target class.
+
+        Parameters
+        ----------
+
+        encoded_instance :
+            The instance whose prediction needs to be explained. It may come
+            from a :class:`~src.dataset.Dataset`. In that case, the `encoded`
+            form an instance must be used i.e. :code:`my_dataset.X()[42]`, as
+            opposed to the `decoded` form i.e. :code:`my_dataset.X_decoded()[42]`
+
+        decoded_target_class : str
+            The name of the class for which the prediction is explained. It may
+            come from a :class:`~src.dataset.Dataset`. In that case, the
+            `decoded` form must be used i.e. :code:`my_dataset.class_values()[3]`.
+
+        Returns
+        -------
+        explanation : dict
+            The explanation
+
+            ::
+
+                {
+                    'XPLAIN_explainer_o': <src.XPLAIN_explainer.XPLAIN_explainer object at 0x7fde70c7a828>,
+                    'diff_single': [0.11024691358024685, 0.02308641975308645, 0.19728395061728388, 0.31407407407407417, 0.004938271604938316, 0.006913580246913575, 0.0, 0.07111111111111112, 0.00864197530864197, 0.03358024691358019, 0.0007407407407408195, 0.0, 0.005185185185185182, 0.0, 0.0, 0.0],
+                    'map_difference': {'1,2,3,4,8,9,10,11': 0.5839506172839506},
+                    'k': 33,
+                    'error': 0.00864197530864197,
+                    'instance':
+                        hair             1
+                        feathers         0
+                        eggs             0
+                        milk             1
+                        airborne         0
+                        aquatic          0
+                        predator         0
+                        toothed          1
+                        backbone         1
+                        breathes         1
+                        venomous         0
+                        fins             0
+                        legs             4
+                        tail             1
+                        domestic         0
+                        catsize          1
+                        type        mammal
+                        dtype: object,
+                    'target_class': 'mammal',
+                    'errors': [0.00864197530864197],
+                    'instance_class_index': 5,
+                    'prob': 1.0
+                }
+            Let's examine each field:
+        """
         target_class_index = self.train_dataset.class_values().index(decoded_target_class)
 
         encoded_instance_x = encoded_instance[:-1].to_numpy().reshape(1, -1)
@@ -270,11 +342,6 @@ def _compute_prediction_difference_subset(training_dataset: Dataset,
                                           rule_body_indices,
                                           clf,
                                           instance_class_index):
-    """
-    Compute the prediction difference for an instance in a training_dataset, w.r.t. some
-    rules and a class, given a classifier
-    """
-
     encoded_instance_x = encoded_instance[:-1].to_numpy()
 
     rule_attributes = [
