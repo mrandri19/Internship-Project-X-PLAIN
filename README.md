@@ -32,7 +32,7 @@ TODO
 
 ## Tutorials (Sample Notebooks)
 
-TODO
+- Basic usage, comparison of different classifiers on the monks dataset 
 
 ## Papers
 
