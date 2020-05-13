@@ -32,7 +32,7 @@ TODO
 
 ## Tutorials (Sample Notebooks)
 
-- Basic usage, comparison of different classifiers on the monks dataset 
+- [Basic usage, comparison of different classifiers on the monks dataset](https://github.com/mrandri19/tirocinio/blob/master/Basic%20usage%2C%20comparison%20of%20different%20classifiers%20on%20the%20monks%20dataset.ipynb)
 
 ## Papers
 
