@@ -95,7 +95,7 @@ class Dataset:
             In[35]: d.class_values()
             Out[35]: ['amphibian', 'bird', 'fish', 'insect', 'invertebrate', 'mammal', 'reptile']
         """
-        return self.columns[-1][1]
+        return list(self.columns[-1][1])
 
     def X(self):
         """All rows' attributes as a pandas DataFrame. These attributes were
