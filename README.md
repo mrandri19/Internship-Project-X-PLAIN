@@ -2,15 +2,13 @@
 
 ![Python package](https://github.com/mrandri19/tirocinio/workflows/Python%20package/badge.svg)
 
-TODO: binder and read the docs link
-
-$name is a rule-based, model-agnostic method that explains the prediction of any classifier on a specific instance by analyzing the joint effect of feature subsets on the classifier prediction. The relevant subsets are identified by learning a local rule-based model in the neighborhood of the prediction to explain.
+XPLAIN is a rule-based, model-agnostic method that explains the prediction of any classifier on a specific instance by analyzing the joint effect of feature subsets on the classifier prediction. The relevant subsets are identified by learning a local rule-based model in the neighborhood of the prediction to explain.
 
 ## Installation
 
 ```
-git clone https://github.com/$orgname/$name
-cd $name
+git clone https://github.com/mrandri19/Internship-Project-X-PLAIN.git
+cd Internship-Project-X-PLAIN
 pip install .
 ```
 
